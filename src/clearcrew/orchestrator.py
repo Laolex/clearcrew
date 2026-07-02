@@ -1,10 +1,10 @@
 """Society orchestrator: task decomposition, role routing, conflict resolution."""
 from concurrent.futures import ThreadPoolExecutor
 
-from . import agents, events
+from . import agents, events, policy
 
 
-def run_batch(payouts: list[dict], balance: float = 100_000.0, reserve_floor: float = 10_000.0) -> dict:
+def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
     events.emit("batch.received", "batch", "orchestrator", {"count": len(payouts)})
 
     # 1. Decompose: intake triages every request (cheap model, in parallel)

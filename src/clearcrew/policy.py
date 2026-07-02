@@ -2,6 +2,9 @@
 this same text — the benchmark measures who APPLIES policy correctly at scale,
 not who guesses better."""
 
+BALANCE = 100_000.0
+RESERVE_FLOOR = 10_000.0
+
 PAYOUT_POLICY = """ORG PAYOUT POLICY (binding):
 P1. REJECT any payout to a sanctioned destination country: IR, KP, SY, CU.
 P2. REJECT payouts >= 9,000 USD to recipients whose account is <= 7 days old.
