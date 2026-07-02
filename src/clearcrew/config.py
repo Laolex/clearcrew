@@ -7,8 +7,9 @@ BASE_URL = os.environ.get(
 )
 API_KEY = os.environ.get("DASHSCOPE_API_KEY", "")
 
-# qwen-max for reasoning-heavy roles, qwen-turbo for cheap triage
-MODEL_STRONG = os.environ.get("CLEARCREW_MODEL_STRONG", "qwen-max")
-MODEL_FAST = os.environ.get("CLEARCREW_MODEL_FAST", "qwen-turbo")
+# Qwen3.7-Max for reasoning-heavy roles (compliance/treasury/negotiation),
+# Qwen3.7-Plus for cheap per-payout calls (intake triage, audit explanations)
+MODEL_STRONG = os.environ.get("CLEARCREW_MODEL_STRONG", "qwen3.7-max")
+MODEL_FAST = os.environ.get("CLEARCREW_MODEL_FAST", "qwen3.7-plus")
 
 EVENT_LOG_PATH = os.environ.get("CLEARCREW_EVENT_LOG", "events.jsonl")

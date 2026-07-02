@@ -41,4 +41,4 @@ Technical depth 30% · Innovation 30% · Problem value 25% · Presentation 15%
 
 ## Endpoint
 DashScope OpenAI-compatible (intl): `https://dashscope-intl.aliyuncs.com/compatible-mode/v1`
-Models: `qwen-max` (agents/negotiation), `qwen-flash` or `qwen-turbo` (intake triage, cheap baseline comparisons)
+Models: `qwen3.7-max` (agents/negotiation), `qwen3.7-plus` (intake triage, audit, cheap baseline comparisons)

@@ -31,7 +31,7 @@ cd src && python -m clearcrew.bench
 
 ## Stack
 
-- **Models**: `qwen-max` (reasoning roles), `qwen-turbo` (triage/audit) via Qwen Cloud
+- **Models**: `qwen3.7-max` (reasoning roles), `qwen3.7-plus` (triage/audit) via Qwen Cloud
   DashScope OpenAI-compatible endpoint
 - **Deploy**: Alibaba Cloud Function Compute (see `Dockerfile`)
 - **Provenance**: append-only JSONL event log; `events.explain(id)` reconstructs any
