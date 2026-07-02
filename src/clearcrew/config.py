@@ -14,6 +14,8 @@ MODEL_FAST = os.environ.get("CLEARCREW_MODEL_FAST", "qwen3.7-plus")
 
 EVENT_LOG_PATH = os.environ.get("CLEARCREW_EVENT_LOG", "events.jsonl")
 
-# LLM call resilience: SDK-level timeout + retry-with-backoff on transient faults
-REQUEST_TIMEOUT = float(os.environ.get("CLEARCREW_REQUEST_TIMEOUT", "120"))
+# LLM call resilience: SDK-level timeout + retry-with-backoff on transient faults.
+# The timeout must exceed the worst-case legitimate call: the monolith baseline
+# reasons over an entire batch in ONE request (~140s at n=36).
+REQUEST_TIMEOUT = float(os.environ.get("CLEARCREW_REQUEST_TIMEOUT", "300"))
 MAX_RETRIES = int(os.environ.get("CLEARCREW_MAX_RETRIES", "3"))

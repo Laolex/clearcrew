@@ -279,6 +279,13 @@ function renderEvent(e, i) {
         + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
   const text = P.reason || P.explanation || "";
   if (text) body += (body ? "\n" : "") + text;
+  if (e.type === "reconciliation.flagged") {
+    cls = "event a-resolution";
+    body = `⚠️ Deterministic ledger check disagrees with Treasury.\n` +
+      `Treasury said <b>${P.treasury_action}</b> · ledger arithmetic says <b>${P.ledger_expected}</b>` +
+      (P.ledger_row ? ` (cumulative $${P.ledger_row.cumulative_total.toLocaleString()} vs headroom $${P.headroom.toLocaleString()})` : "") +
+      `\nRouted to Resolution as a recorded dispute — code flags, agents rule.`;
+  }
   if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
   if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + P.reason : "");
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
@@ -307,10 +314,10 @@ function foldUpTo(k) {
       s = P.action === "pay_now"
         ? { label: "cleared for funding", color: "var(--violet)" }
         : { label: "treasury-rejected", color: "var(--red)" };
+    if (e.type === "reconciliation.flagged")
+      s = { label: "ledger mismatch — in dispute", color: "var(--gold)" };
     if (e.type === "dispute.resolved")
-      s = P.ruling === "uphold_veto"
-        ? { label: "veto upheld", color: "var(--gold)" }
-        : { label: "veto overridden", color: "var(--gold)" };
+      s = { label: (P.ruling || "resolved").replace(/_/g, " "), color: "var(--gold)" };
     if (e.type === "payout.approved") s = { label: "APPROVED", color: "var(--green)" };
     if (e.type === "payout.rejected") s = { label: "REJECTED", color: "var(--red)" };
   }

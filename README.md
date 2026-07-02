@@ -24,27 +24,40 @@ retrieve, no agent to fix, no record to check. The society produces
 its reasoning on the record, contradicted or confirmed by the events around it.
 
 `python -m clearcrew.bench` runs the same labeled batch through the society and
-through a single monolithic agent. Both receive the identical org policy; the
-labels model the full policy, including the reserve-floor funding waterfall.
+through a single monolithic agent. Both receive the identical org policy AND the
+same deterministic arithmetic aids; the labels model the full policy, including
+the reserve-floor funding waterfall.
+
+**Headline run** (`runs/events-20260702-210640-n36.jsonl`, hash chain verified):
 
 | batch | system | accuracy | tokens | seconds | auditable |
 |---|---|---|---|---|---|
 | n=12 | society | 100% | 21,992 | 146 | ✓ |
 | n=12 | monolith | 100% | 3,894 | 54 | ✗ |
-| n=36 | society | **100%** | 62,374 | 399 | ✓ |
-| n=36 | monolith | **89%** | 9,961 | 139 | ✗ |
+| n=36 | society | **100%** | 76,113 | 323 | ✓ |
+| n=36 | monolith | **89%** | 12,068 | 150 | ✗ |
 
 At n=36 the monolith fails silently in both directions: it approves $30,000 of
 payouts that breach the treasury reserve floor, and rejects two perfectly clean
-$5,000 payouts with no recoverable explanation. The society gets all 36 right —
-including the two rejections that require doing the funding-waterfall arithmetic
-across the whole batch — and every one of its decisions has a replayable event
-trail (`runs/*.jsonl`).
+$5,000 payouts with no recoverable explanation. The society gets all 36 right,
+and every one of its decisions has a replayable, hash-verified event trail.
 
-The trail is not just explanation — it's *repair*: an earlier run's log showed
-Treasury hallucinating a compliance violation, caught in-band by the Auditor
-agent; the fix (separation of duties) came straight from reading the recorded
-reasoning. See `docs/demo-notes.md`.
+### The repair ladder
+
+We publish every n=36 run, including the ones where the society lost — because
+each regression was diagnosed *from the recorded trail* and fixed with
+governance, not prompt-tweaking:
+
+| run | governance in place | society | monolith | what the trail caught |
+|---|---|---|---|---|
+| 1 | written policy · cited vetoes · separation of duties | 100% | 89% | (earlier: Treasury hallucinating P2 — caught in-band by the Auditor) |
+| 2 | same, fresh run (first hash-chained) | 94% | 92% | Treasury judging payouts individually — "sufficient balance" ×24, floor breached |
+| 3 | + **agents judge, ledgers add**: deterministic cumulative ledger for both systems | 97% | 89% | Treasury's recorded reason ends "…Reject." while its action says `pay_now` — a reason/action self-contradiction, machine-checkable |
+| 4 | + **code flags, agents rule**: every treasury decision reconciled against the ledger; mismatches become recorded disputes ruled by Resolution | **100%** | 89% | chain verified, guard armed (did not need to fire) |
+
+The monolith wobbles run-to-run (89–92%) and there is nothing to read, nobody
+to fix. That's the actual claim: the trail is not just explanation — it's
+*repair*. See `docs/demo-notes.md` for the full event chains behind each row.
 
 ## Replay Time Machine
 
@@ -70,9 +83,16 @@ cd src && python -m clearcrew.bench   # BATCH_N=36 for the large batch
 
 ## Production posture
 
-- **Resilient LLM calls**: SDK-level timeout (120s) and retry-with-backoff on
-  transient faults; malformed model JSON gets one re-ask then fails loudly — a
-  payout never proceeds on a half-parsed decision (`llm.ModelResponseError`).
+- **Resilient LLM calls**: SDK-level timeout and retry-with-backoff on transient
+  faults; malformed model JSON gets one re-ask then fails loudly — a payout never
+  proceeds on a half-parsed decision (`llm.ModelResponseError`). (The timeout must
+  exceed the worst-case legitimate call: the monolith baseline reasons over an
+  entire batch in ONE ~140s request — operationally fragile in exactly the way
+  its decisions are unauditable.)
+- **Agents judge, ledgers add**: cumulative funding arithmetic is computed
+  deterministically in code (`agents.build_ledger`) and handed to the models —
+  both the society's Treasury and the monolith baseline. A judgment engine is
+  never asked to be a calculator.
 - **Fail-safe defaults**: any payout without an explicit final decision is
   rejected-by-default, with the reason on the record.
 - **Tests**: `pytest src/tests/` — ground-truth labeling invariants (including

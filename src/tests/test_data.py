@@ -40,3 +40,10 @@ def test_p3_waterfall_is_lowest_amount_first():
     # anything rejected purely for the floor must be >= every approved payout
     if clean_rejects and approved:
         assert min(clean_rejects) >= max(approved)
+
+
+def test_build_ledger_is_sorted_cumulative():
+    from clearcrew.agents import build_ledger
+    rows = build_ledger([{"id": "b", "amount": 300.0}, {"id": "a", "amount": 100.0}, {"id": "c", "amount": 200.0}])
+    assert [r["payout_id"] for r in rows] == ["a", "c", "b"]
+    assert [r["cumulative_total"] for r in rows] == [100.0, 300.0, 600.0]

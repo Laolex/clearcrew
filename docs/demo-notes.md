@@ -64,6 +64,33 @@ Monolith's four n=36 errors, both failure directions:
 - rejected 6bf46c69 + 5affb229 (clean $5k payouts) → recipients unpaid, no reason
   retrievable
 
+## Act 3 — "but wait — … Reject." (action: pay_now)
+
+With hash chaining live, a fresh n=36 run scored 94%: Treasury, asked to do the
+funding waterfall as mental arithmetic across 24 payouts, collapsed into
+per-payout boilerplate ("Cleared payout; sufficient treasury balance") and
+breached the reserve floor. Fix: **agents judge, ledgers add** — the orchestrator
+computes the cumulative ledger deterministically and hands it to Treasury AND to
+the monolith (fairness).
+
+Next run, 97% — and the single miss is the best artifact in the repo. Treasury's
+recorded decision for 62c33a4f, verbatim (`runs/events-20260702-205623-n36.jsonl`):
+
+> reason: "Cumulative total 99460.0 > headroom 90000.0, but wait — 84460 + 15000
+> = 99460 > 90000. **Reject.**"
+> action: **"pay_now"**
+
+The model's own reasoning concluded Reject; its structured action said pay_now.
+The trail didn't just explain the error — it showed the error was detectable at
+decision time. Fix: **code flags, agents rule** — P3 over a computed ledger is
+arithmetic, so the orchestrator reconciles every treasury action against the
+ledger; mismatches become recorded `reconciliation.flagged` disputes ruled on by
+Resolution.
+
+Final run (`runs/events-20260702-210640-n36.jsonl`): society **100%**, monolith
+89%, hash chain verified across all 179 events. The reconciliation guard was
+armed and did not need to fire — Treasury, with the ledger, got it right.
+
 ## Video beat sequence
 
 1. Benchmark table n=12: 100% vs 100%. "At toy scale, everyone looks trustworthy."
@@ -75,4 +102,9 @@ Monolith's four n=36 errors, both failure directions:
 5. "The trail didn't just explain the error — it told us which agent to fix
    (separation of duties) and then caught our own benchmark mislabeling correct
    treasury behavior. History isn't a log. It's how the system gets better."
-6. Replay Time Machine walkthrough (real events, real IDs, nothing staged).
+6. The "but wait" screenshot: Treasury's reason ends "Reject." — its action says
+   pay_now. "The contradiction was sitting in the event, machine-checkable. Now
+   the orchestrator checks: code flags, agents rule."
+7. Replay Time Machine walkthrough on the final verified run: green ⛓ chain
+   badge, step to the end of a chain, land on the assertions —
+   "✓ reconstructed · ✓ chain verified · ✓ matches policy". Nothing staged.

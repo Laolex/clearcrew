@@ -25,6 +25,28 @@ def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floo
     # 3. Treasury decides funding for cleared payouts (pay_now | reject, no limbo)
     treasury_result = agents.treasury(cleared, balance, reserve_floor)
     treasury_actions = {d.get("payout_id"): d.get("action") for d in treasury_result.get("decisions", [])}
+    treasury_decisions = {d.get("payout_id"): d for d in treasury_result.get("decisions", [])}
+
+    # 3b. Reconciliation: P3 over the ledger is arithmetic, so every treasury
+    # decision is checked against it in code. Mismatches become recorded
+    # disputes ruled on by Resolution — code flags, agents rule.
+    ledger = agents.build_ledger(cleared)
+    headroom = balance - reserve_floor
+    mechanical = {r["payout_id"]: ("pay_now" if r["cumulative_total"] <= headroom else "reject")
+                  for r in ledger}
+    ledger_rows = {r["payout_id"]: r for r in ledger}
+    for pid, expected in mechanical.items():
+        actual = treasury_actions.get(pid)
+        if actual is not None and actual != expected:
+            events.emit("reconciliation.flagged", pid, "orchestrator", {
+                "treasury_action": actual,
+                "ledger_expected": expected,
+                "ledger_row": ledger_rows[pid],
+                "headroom": headroom,
+            })
+            ruling = agents.reconcile(pid, ledger_rows[pid], headroom, treasury_decisions[pid])
+            if ruling.get("ruling") == "enforce_ledger":
+                treasury_actions[pid] = expected
 
     # 4. Conflict resolution: high-value vetoes get a policy review by Resolution
     for payout in vetoed:

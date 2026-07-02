@@ -95,6 +95,30 @@ treasury *and* strands clean payouts, with no recoverable explanation for
 either. The society gets all 36 — including the two rejections that require
 doing waterfall arithmetic across the entire batch.
 
+## Round four: "but wait — … Reject." (action: pay_now)
+
+After adding hash chaining to the event log (tamper-evident history — each event
+commits to its predecessor), fresh runs surfaced two more failures, each caught
+by reading the trail. First, Treasury — asked to do the funding waterfall as
+mental arithmetic across 24 payouts — collapsed into per-payout boilerplate and
+breached the reserve floor. Fix: *agents judge, ledgers add* — the cumulative
+ledger is computed in code and handed to both systems. A judgment engine should
+never be asked to be a calculator.
+
+Then the best artifact in the repo. Treasury's recorded decision on a $15,000
+payout, verbatim:
+
+> reason: "Cumulative total 99460.0 > headroom 90000.0, but wait — 84460 + 15000
+> = 99460 > 90000. **Reject.**"
+> action: **"pay_now"**
+
+Its own reasoning concluded Reject. Its structured action said pay_now. The
+contradiction was sitting in the event, machine-checkable — so now the
+orchestrator checks: every treasury action is reconciled against the ledger in
+code, and mismatches become recorded disputes ruled on by the Resolution agent.
+*Code flags, agents rule.* The final n=36 run: society 100%, monolith 89%, hash
+chain verified across all 179 events.
+
 ## What I actually learned
 
 1. **Agent societies don't win by default.** Ungoverned, mine lost badly. The
