@@ -13,3 +13,7 @@ MODEL_STRONG = os.environ.get("CLEARCREW_MODEL_STRONG", "qwen3.7-max")
 MODEL_FAST = os.environ.get("CLEARCREW_MODEL_FAST", "qwen3.7-plus")
 
 EVENT_LOG_PATH = os.environ.get("CLEARCREW_EVENT_LOG", "events.jsonl")
+
+# LLM call resilience: SDK-level timeout + retry-with-backoff on transient faults
+REQUEST_TIMEOUT = float(os.environ.get("CLEARCREW_REQUEST_TIMEOUT", "120"))
+MAX_RETRIES = int(os.environ.get("CLEARCREW_MAX_RETRIES", "3"))

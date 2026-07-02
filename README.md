@@ -62,6 +62,26 @@ export DASHSCOPE_API_KEY=sk-...   # Qwen Cloud / Model Studio key
 cd src && python -m clearcrew.bench   # BATCH_N=36 for the large batch
 ```
 
+## Production posture
+
+- **Resilient LLM calls**: SDK-level timeout (120s) and retry-with-backoff on
+  transient faults; malformed model JSON gets one re-ask then fails loudly — a
+  payout never proceeds on a half-parsed decision (`llm.ModelResponseError`).
+- **Fail-safe defaults**: any payout without an explicit final decision is
+  rejected-by-default, with the reason on the record.
+- **Tests**: `pytest src/tests/` — ground-truth labeling invariants (including
+  the reserve-floor waterfall), event-log fold/explain/replay invariants, and
+  every replay API endpoint including path-traversal rejection.
+- **Deployable**: containerized (see `Dockerfile`), `/healthz` endpoint, all
+  config via environment variables, secrets never in the repo.
+- **Honest scope**: this is a working trust-layer demonstration; hooking it to
+  real money movement would additionally need API auth, idempotency keys, and a
+  durable event store in place of JSONL files.
+
+```bash
+pip install -r requirements-dev.txt && cd src && python -m pytest tests/
+```
+
 ## Stack
 
 - **Models**: `qwen3.7-max` (reasoning roles), `qwen3.7-plus` (triage/audit) via Qwen Cloud
