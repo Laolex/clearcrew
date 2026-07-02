@@ -40,12 +40,26 @@ Treasury hallucinating a compliance violation, caught in-band by the Auditor
 agent; the fix (separation of duties) came straight from reading the recorded
 reasoning. See `docs/demo-notes.md`.
 
-## Run
+## Replay Time Machine
+
+![Replay Time Machine](docs/replay-time-machine.png)
+
+Every run archives its full event log to `runs/`. The Replay Time Machine steps
+through any payout's real event chain — intake triage, compliance veto with the
+policy rule cited, the recorded dispute-resolution ruling, the final verdict, and
+the auditor's plain-English explanation. Real payout IDs, real model output,
+nothing staged. Deep-linkable: `#<run>/<payout_id>`.
+
+```bash
+cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhost:9000
+```
+
+## Run the benchmark
 
 ```bash
 pip install -r requirements.txt
 export DASHSCOPE_API_KEY=sk-...   # Qwen Cloud / Model Studio key
-cd src && python -m clearcrew.bench
+cd src && python -m clearcrew.bench   # BATCH_N=36 for the large batch
 ```
 
 ## Stack

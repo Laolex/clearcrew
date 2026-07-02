@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ClearCrew — Replay Time Machine</title>
+<style>
+  :root {
+    --bg: #0b1120; --panel: #111a2e; --card: #16213a; --line: #24314f;
+    --ink: #e8edf7; --muted: #8b9ac2; --dim: #5a6a94;
+    --violet: #8b5cf6; --violet-soft: rgba(139,92,246,.14);
+    --green: #34d399; --green-soft: rgba(52,211,153,.12);
+    --red: #f87171; --red-soft: rgba(248,113,113,.12);
+    --gold: #fbbf24; --gold-soft: rgba(251,191,36,.12);
+    --blue: #60a5fa; --blue-soft: rgba(96,165,250,.12);
+  }
+  * { box-sizing: border-box; margin: 0; }
+  * { scrollbar-width: thin; scrollbar-color: var(--line) transparent; }
+  ::-webkit-scrollbar { width: 8px; }
+  ::-webkit-scrollbar-thumb { background: var(--line); border-radius: 99px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  body {
+    background: var(--bg); color: var(--ink); min-height: 100vh;
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+
+  header {
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 22px 28px 16px; border-bottom: 1px solid var(--line);
+  }
+  header h1 { font-size: 19px; letter-spacing: -.01em; }
+  header h1 .tm { color: var(--violet); }
+  header .sub { color: var(--muted); font-size: 13px; }
+  header select {
+    margin-left: auto; background: var(--card); color: var(--ink);
+    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+    font: inherit; font-size: 13px;
+  }
+  .stats { display: flex; gap: 10px; padding: 14px 28px 0; flex-wrap: wrap; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 8px 14px; font-size: 12.5px; color: var(--muted);
+  }
+  .stat b { color: var(--ink); font-size: 15px; margin-right: 4px; }
+  .stat.win b { color: var(--green); }
+  .stat.lose b { color: var(--red); }
+
+  main { display: grid; grid-template-columns: 430px 1fr; gap: 0; min-height: calc(100vh - 130px); }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  /* ---- payout list ---- */
+  #list { border-right: 1px solid var(--line); padding: 16px 14px 40px; overflow-y: auto; max-height: calc(100vh - 130px); }
+  #list h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
+  .payout {
+    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
+    padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 4px;
+  }
+  .payout:hover { background: var(--panel); }
+  .payout.active { background: var(--card); border-color: var(--violet); }
+  .payout .amt { font-weight: 650; font-size: 14.5px; white-space: nowrap; }
+  .payout .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chips { display: flex; gap: 5px; align-items: center; justify-content: flex-end; grid-row: span 2; align-self: center; flex-wrap: wrap; }
+  .chip {
+    font-size: 10.5px; font-weight: 650; letter-spacing: .04em; padding: 2.5px 8px;
+    border-radius: 99px; text-transform: uppercase;
+  }
+  .chip.approved { background: var(--green-soft); color: var(--green); }
+  .chip.rejected { background: var(--red-soft); color: var(--red); }
+  .chip.disputed { background: var(--gold-soft); color: var(--gold); }
+  .chip.miss { background: var(--red-soft); color: var(--red); outline: 1px solid var(--red); }
+
+  /* ---- replay panel ---- */
+  #replay { padding: 22px 30px 60px; overflow-y: auto; max-height: calc(100vh - 130px); }
+  #placeholder { color: var(--dim); padding: 60px 0; text-align: center; font-size: 14px; }
+
+  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
+  .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
+  .payout-head .facts { color: var(--muted); font-size: 13px; }
+
+  .controls { display: flex; gap: 8px; align-items: center; margin: 16px 0 22px; }
+  .controls button {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
+  }
+  .controls button:hover { border-color: var(--violet); }
+  .controls button.primary { background: var(--violet); border-color: var(--violet); font-weight: 600; }
+  .controls .pos { color: var(--dim); font-size: 12.5px; margin-left: 6px; }
+  .controls .hint { color: var(--dim); font-size: 11.5px; margin-left: auto; }
+
+  /* ---- timeline ---- */
+  .timeline { position: relative; padding-left: 26px; }
+  .timeline::before {
+    content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px;
+    width: 2px; background: var(--line);
+  }
+  .event {
+    position: relative; margin-bottom: 14px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px;
+    opacity: .18; filter: saturate(.3); transition: opacity .35s, filter .35s, border-color .35s;
+  }
+  .event.shown { opacity: 1; filter: none; }
+  .event.current { border-color: var(--ac, var(--violet)); box-shadow: 0 0 0 1px var(--ac, var(--violet)); }
+  .event::before {
+    content: ""; position: absolute; left: -25px; top: 18px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color .35s;
+  }
+  .event.shown::before { border-color: var(--ac, var(--violet)); }
+  .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
+  .actor {
+    font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    padding: 2.5px 9px; border-radius: 99px; background: var(--acs, var(--violet-soft)); color: var(--ac, var(--violet));
+  }
+  .etype { font-size: 13px; color: var(--ink); font-weight: 600; }
+  .toff { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
+  .event .body b { color: var(--ink); }
+  .kv { display: inline-block; margin-right: 14px; }
+  .kv .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-right: 5px; }
+
+  .event.a-intake { --ac: var(--blue); --acs: var(--blue-soft); }
+  .event.a-compliance { --ac: var(--violet); --acs: var(--violet-soft); }
+  .event.a-treasury { --ac: #c084fc; --acs: rgba(192,132,252,.13); }
+  .event.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
+  .event.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
+  .event.a-orchestrator { --ac: var(--muted); --acs: rgba(139,154,194,.13); }
+  .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
+  .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+
+  footer {
+    position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
+    padding: 8px; font-size: 11.5px; color: var(--dim);
+    background: linear-gradient(transparent, var(--bg) 40%); pointer-events: none;
+  }
+  footer code { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>ClearCrew <span class="tm">Replay Time Machine</span></h1>
+  <span class="sub">every event below was emitted by a live run — nothing staged</span>
+  <select id="runSel"></select>
+</header>
+<div class="stats" id="stats"></div>
+<main>
+  <div id="list"></div>
+  <div id="replay"><div id="placeholder">Select a payout to replay its event chain.</div></div>
+</main>
+<footer id="foot"></footer>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let runName = null, chain = [], step = 0, playTimer = null;
+
+const fmtUSD = (a) => a == null ? "" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
+
+async function j(url) { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.json(); }
+
+async function init() {
+  const { runs } = await j("/api/runs");
+  const sel = $("#runSel");
+  sel.innerHTML = runs.map(r =>
+    `<option value="${r.name}">${r.stamp} · n=${r.n}${r.results ? " · benchmarked" : ""}</option>`).join("");
+  sel.onchange = () => loadRun(sel.value, runs);
+  if (!runs.length) return;
+  // deep link: #<run>/<payout>
+  const [hashRun, hashPayout] = location.hash.slice(1).split("/");
+  const withResults = runs.filter(r => r.results);
+  const def = runs.find(r => r.name === hashRun) || withResults[withResults.length - 1] || runs[runs.length - 1];
+  sel.value = def.name;
+  await loadRun(def.name, runs);
+  if (hashPayout) {
+    const el = document.querySelector(`.payout[data-id="${CSS.escape(hashPayout)}"]`);
+    if (el) { el.scrollIntoView({ block: "center" }); await selectPayout(el); go(chain.length); }
+  }
+}
+
+async function loadRun(name, runs) {
+  runName = name;
+  stopPlay();
+  const run = runs.find(r => r.name === name);
+  const st = $("#stats");
+  if (run && run.results) {
+    const s = run.results.society, m = run.results.monolith;
+    st.innerHTML = `
+      <div class="stat win"><b>${Math.round(s.accuracy*100)}%</b> society accuracy</div>
+      <div class="stat ${m.accuracy < s.accuracy ? "lose" : ""}"><b>${Math.round(m.accuracy*100)}%</b> single-agent baseline</div>
+      <div class="stat"><b>${s.tokens.toLocaleString()}</b> society tokens</div>
+      <div class="stat"><b>${s.seconds.toFixed(0)}s</b> wall time</div>`;
+  } else st.innerHTML = "";
+  $("#foot").innerHTML = `source: <code>runs/${name}</code> — append-only JSONL event log, state = fold(events)`;
+
+  const detail = await j(`/api/runs/${name}`);
+  $("#list").innerHTML = `<h2>${detail.payouts.length} payouts · ${detail.total_events} events</h2>` +
+    detail.payouts.map(p => `
+      <div class="payout" data-id="${p.id}">
+        <span class="amt">${fmtUSD(p.amount)} <span class="meta">${p.corridor ?? ""}</span></span>
+        <div class="chips">
+          ${p.disputed ? '<span class="chip disputed">disputed</span>' : ""}
+          ${p.miss ? '<span class="chip miss">miss</span>' : ""}
+          <span class="chip ${p.status}">${p.status}</span>
+        </div>
+        <span class="meta mono">${p.id} · recipient ${p.recipient_age_days ?? "?"}d · ${p.events} events</span>
+      </div>`).join("");
+  document.querySelectorAll(".payout").forEach(el => el.onclick = () => selectPayout(el));
+  $("#replay").innerHTML = '<div id="placeholder">Select a payout to replay its event chain.</div>';
+}
+
+async function selectPayout(el) {
+  document.querySelectorAll(".payout").forEach(e => e.classList.remove("active"));
+  el.classList.add("active");
+  history.replaceState(null, "", `#${runName}/${el.dataset.id}`);
+  stopPlay();
+  const data = await j(`/api/runs/${runName}/explain/${el.dataset.id}`);
+  chain = data.chain; step = 0;
+  const p = data.payout || {};
+  $("#replay").innerHTML = `
+    <div class="payout-head">
+      <h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${data.subject}</span></h2>
+      <span class="facts">${p.from_country ?? "?"} → ${p.to_country ?? "?"} · recipient account ${p.recipient_age_days}d old
+        · memo “${p.memo || "—"}” · expected: <b style="color:var(--ink)">${p._expected ?? "?"}</b></span>
+    </div>
+    <div class="controls">
+      <button id="prev">← Prev</button>
+      <button id="next" class="primary">Next →</button>
+      <button id="play">▶ Play</button>
+      <span class="pos" id="pos"></span>
+      <span class="hint">arrow keys work too</span>
+    </div>
+    <div class="timeline">${chain.map(renderEvent).join("")}</div>`;
+  $("#prev").onclick = () => go(step - 1);
+  $("#next").onclick = () => go(step + 1);
+  $("#play").onclick = togglePlay;
+  go(1);
+}
+
+function renderEvent(e, i) {
+  const actor = e.actor.toLowerCase();
+  let cls = `event a-${actor}`;
+  if (e.type === "payout.approved") cls += " verdict-approved";
+  if (e.type === "payout.rejected") cls += " verdict-rejected";
+  const P = e.payload || {};
+  let body = "";
+  const kv = (k, v) => v ? `<span class="kv"><span class="k">${k}</span><b>${v}</b></span>` : "";
+  body += kv("risk tier", P.risk_tier) + kv("verdict", P.verdict) + kv("rule cited", P.policy_rule)
+        + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
+  const text = P.reason || P.explanation || "";
+  if (text) body += (body ? "\n" : "") + text;
+  if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
+  if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + P.reason : "");
+  if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
+  return `<div class="${cls}" data-i="${i}">
+    <div class="top">
+      <span class="actor">${e.actor}</span>
+      <span class="etype">${e.type}</span>
+      <span class="toff mono">t+${e.t_offset}s · ${e.id}</span>
+    </div>
+    <div class="body">${body}</div>
+  </div>`;
+}
+
+function go(n) {
+  step = Math.max(1, Math.min(chain.length, n));
+  document.querySelectorAll(".event").forEach((el, i) => {
+    el.classList.toggle("shown", i < step);
+    el.classList.toggle("current", i === step - 1);
+  });
+  const cur = document.querySelector(".event.current");
+  if (cur) cur.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  $("#pos").textContent = `event ${step} / ${chain.length}`;
+  if (step === chain.length) stopPlay();
+}
+
+function togglePlay() {
+  if (playTimer) return stopPlay();
+  $("#play").textContent = "⏸ Pause";
+  playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800);
+}
+function stopPlay() {
+  clearInterval(playTimer); playTimer = null;
+  const b = $("#play"); if (b) b.textContent = "▶ Play";
+}
+
+document.addEventListener("keydown", (e) => {
+  if (!chain.length) return;
+  if (e.key === "ArrowRight") go(step + 1);
+  if (e.key === "ArrowLeft") go(step - 1);
+});
+
+init();
+</script>
+</body>
+</html>
