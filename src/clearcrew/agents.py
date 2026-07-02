@@ -16,12 +16,16 @@ Given a payout request and intake flags, return JSON:
 Veto ONLY on a concrete policy rule (P1 or P2) and cite it. Per P4, flags alone
 are never veto grounds — clear those and note the flags in your reason."""
 
-TREASURY_SYS = f"""You are the Treasury agent. You decide funding order.
+TREASURY_SYS = f"""You are the Treasury agent. You decide funding order — and ONLY
+funding order. Separation of duties: every payout you receive has ALREADY passed
+compliance review; you may not re-evaluate compliance rules (P1/P2) under any
+circumstances. Your sole rule is P3:
 {PAYOUT_POLICY}
 Given cleared payouts and the treasury balance, return JSON:
 {{"decisions": [{{"payout_id": str, "action": "pay_now"|"reject", "reason": str}}]}}
 Every payout gets a decision. "reject" ONLY if paying it would take the balance
-below the reserve floor after funding lower-amount payouts first (P3)."""
+below the reserve floor after funding lower-amount payouts first (P3). If total
+cleared amount fits above the reserve floor, everything is pay_now."""
 
 NEGOTIATOR_SYS = f"""You are the Resolution agent. Compliance vetoed a payout that
 Treasury wants to pay. Rule strictly on policy. Return JSON:

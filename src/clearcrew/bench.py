@@ -58,6 +58,15 @@ def run() -> None:
     for name, r in (("society", society), ("monolith", monolith)):
         print(f"{name:<12}{r['accuracy']:>10.0%}{r['tokens']:>10}{r['seconds']:>10}{str(r['auditable']):>11}")
 
+    # archive this run's event log — the trails ARE the product, never overwrite them
+    stamp = time.strftime("%Y%m%d-%H%M%S")
+    os.makedirs("runs", exist_ok=True)
+    os.replace(config.EVENT_LOG_PATH, f"runs/events-{stamp}-n{len(batch)}.jsonl")
+    with open(f"runs/results-{stamp}-n{len(batch)}.json", "w") as f:
+        import json
+        json.dump({"society": society, "monolith": monolith}, f, indent=2)
+    print(f"\nrun archived: runs/events-{stamp}-n{len(batch)}.jsonl")
+
 
 if __name__ == "__main__":
     run()
