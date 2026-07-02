@@ -1,0 +1,14 @@
+{
+  "society": {
+    "seconds": 399.2,
+    "tokens": 62374,
+    "accuracy": 1.0,
+    "auditable": true
+  },
+  "monolith": {
+    "seconds": 139.1,
+    "tokens": 9961,
+    "accuracy": 0.8888888888888888,
+    "auditable": false
+  }
+}

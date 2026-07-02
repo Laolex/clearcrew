@@ -40,11 +40,39 @@ forbids re-evaluating P1/P2 — cleared payouts are cleared; treasury only appli
 P3 (reserve floor / funding order). This mirrors how real back offices prevent
 exactly this class of error, and the audit trail is what surfaced the need for it.
 
+## Act 2 — the benchmark itself was wrong, and the trail caught that too
+
+After the separation-of-duties fix, the society appeared to DROP to 94% while the
+monolith held 97%. Reading the trail: the society's two "misses" were the two
+$15,000 payouts, rejected by Treasury for the reserve floor. Check the math —
+policy-clean payouts totaled $114,460 against $90,000 available above the floor.
+Rejecting exactly those two is the OPTIMAL application of P3 (no single cut
+suffices: $99,460 still over). The society was 36/36; the ground-truth labels
+only modeled P1/P2 and were scoring correct treasury behavior as errors — while
+rewarding the monolith for silently approving a $24,460 overdraw as "97%".
+
+## Final result (labels now model the full policy, run archived
+`runs/events-20260702-152154-n36.jsonl`)
+
+| batch | society | monolith |
+|---|---|---|
+| n=12 | 100% | 100% |
+| n=36 | **100%** | **89%** |
+
+Monolith's four n=36 errors, both failure directions:
+- approved 62c33a4f + dbf4a8b2 ($15k each) → breaches the treasury reserve floor
+- rejected 6bf46c69 + 5affb229 (clean $5k payouts) → recipients unpaid, no reason
+  retrievable
+
 ## Video beat sequence
 
-1. Show benchmark table: 97% vs 97%. "Both made one mistake."
-2. Monolith's mistake: show the decision. "Why? There is no why."
-3. Society's mistake: step through the 5 events above. Land on the auditor line.
-4. "The system that keeps history doesn't just explain its errors — it catches
-   them, and tells you which agent to fix."
-5. Show the separation-of-duties fix + the post-fix run.
+1. Benchmark table n=12: 100% vs 100%. "At toy scale, everyone looks trustworthy."
+2. n=36: 100% vs 89%. "At real batch sizes the single agent fails silently in
+   both directions — it overdraws your treasury AND strands clean payouts."
+3. Monolith's mistake: show the decision. "Why? There is no why."
+4. The society's earlier error: step through the 5-event trail. Land on the
+   auditor line catching Treasury's hallucination in-band.
+5. "The trail didn't just explain the error — it told us which agent to fix
+   (separation of duties) and then caught our own benchmark mislabeling correct
+   treasury behavior. History isn't a log. It's how the system gets better."
+6. Replay Time Machine walkthrough (real events, real IDs, nothing staged).

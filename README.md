@@ -18,8 +18,27 @@ batch → Intake (triage, qwen-turbo)
 ## Why a society beats one big agent
 
 `python -m clearcrew.bench` runs the same labeled batch through the society and
-through a single monolithic agent, and reports accuracy, token cost, latency —
-and auditability, which the monolith can't offer at all.
+through a single monolithic agent. Both receive the identical org policy; the
+labels model the full policy, including the reserve-floor funding waterfall.
+
+| batch | system | accuracy | tokens | seconds | auditable |
+|---|---|---|---|---|---|
+| n=12 | society | 100% | 21,992 | 146 | ✓ |
+| n=12 | monolith | 100% | 3,894 | 54 | ✗ |
+| n=36 | society | **100%** | 62,374 | 399 | ✓ |
+| n=36 | monolith | **89%** | 9,961 | 139 | ✗ |
+
+At n=36 the monolith fails silently in both directions: it approves $30,000 of
+payouts that breach the treasury reserve floor, and rejects two perfectly clean
+$5,000 payouts with no recoverable explanation. The society gets all 36 right —
+including the two rejections that require doing the funding-waterfall arithmetic
+across the whole batch — and every one of its decisions has a replayable event
+trail (`runs/*.jsonl`).
+
+The trail is not just explanation — it's *repair*: an earlier run's log showed
+Treasury hallucinating a compliance violation, caught in-band by the Auditor
+agent; the fix (separation of duties) came straight from reading the recorded
+reasoning. See `docs/demo-notes.md`.
 
 ## Run
 
