@@ -45,6 +45,8 @@
   .stat b { color: var(--ink); font-size: 15px; margin-right: 4px; }
   .stat.win b { color: var(--green); }
   .stat.lose b { color: var(--red); }
+  .stat.chain-ok { border-color: var(--green); color: var(--green); }
+  .stat.chain-bad { border-color: var(--red); color: var(--red); }
 
   main { display: grid; grid-template-columns: 430px 1fr; gap: 0; min-height: calc(100vh - 130px); }
   @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
@@ -87,6 +89,24 @@
   .controls button.primary { background: var(--violet); border-color: var(--violet); font-weight: 600; }
   .controls .pos { color: var(--dim); font-size: 12.5px; margin-left: 6px; }
   .controls .hint { color: var(--dim); font-size: 11.5px; margin-left: auto; }
+
+  /* evolving state strip: the fold, computed live as you scrub */
+  .statebar {
+    display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; font-size: 13.5px;
+  }
+  .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
+  .statebar .v { font-weight: 650; transition: color .3s; }
+  .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
+
+  /* end-of-replay assertions */
+  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 12px;
+    background: var(--green-soft); border: 1px solid var(--green);
+    font-size: 13.5px; color: var(--green); display: none; }
+  .asserts.show { display: block; }
+  .asserts div { margin: 2px 0; }
+  .asserts .warn { color: var(--gold); }
 
   /* ---- timeline ---- */
   .timeline { position: relative; padding-left: 26px; }
@@ -150,7 +170,7 @@
 
 <script>
 const $ = (s) => document.querySelector(s);
-let runName = null, chain = [], step = 0, playTimer = null;
+let runName = null, chain = [], step = 0, playTimer = null, runChain = null, payoutExpected = null;
 
 const fmtUSD = (a) => a == null ? "" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
 
@@ -191,6 +211,15 @@ async function loadRun(name, runs) {
   $("#foot").innerHTML = `source: <code>runs/${name}</code> — append-only JSONL event log, state = fold(events)`;
 
   const detail = await j(`/api/runs/${name}`);
+  runChain = detail.chain;
+  const st2 = $("#stats");
+  if (runChain) {
+    st2.insertAdjacentHTML("beforeend", runChain.hashed
+      ? (runChain.verified
+        ? `<div class="stat chain-ok">⛓ <b>hash chain verified</b> ${runChain.events} events</div>`
+        : `<div class="stat chain-bad">⛓ <b>CHAIN BROKEN</b> at event ${runChain.broken_at}</div>`)
+      : `<div class="stat">recorded before hash chaining — replayable, not tamper-evident</div>`);
+  }
   $("#list").innerHTML = `<h2>${detail.payouts.length} payouts · ${detail.total_events} events</h2>` +
     detail.payouts.map(p => `
       <div class="payout" data-id="${p.id}">
@@ -213,6 +242,7 @@ async function selectPayout(el) {
   stopPlay();
   const data = await j(`/api/runs/${runName}/explain/${el.dataset.id}`);
   chain = data.chain; step = 0;
+  payoutExpected = (data.payout || {})._expected || null;
   const p = data.payout || {};
   $("#replay").innerHTML = `
     <div class="payout-head">
@@ -227,7 +257,10 @@ async function selectPayout(el) {
       <span class="pos" id="pos"></span>
       <span class="hint">arrow keys work too</span>
     </div>
-    <div class="timeline">${chain.map(renderEvent).join("")}</div>`;
+    <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span>
+      <span class="t" id="foldTime"></span></div>
+    <div class="timeline">${chain.map(renderEvent).join("")}</div>
+    <div class="asserts" id="asserts"></div>`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
@@ -259,6 +292,31 @@ function renderEvent(e, i) {
   </div>`;
 }
 
+// the fold, one prefix at a time: state derived ONLY from events shown so far
+function foldUpTo(k) {
+  let s = { label: "pending", color: "var(--muted)" };
+  for (const e of chain.slice(0, k)) {
+    const P = e.payload || {};
+    if (e.type === "intake.classified") s = { label: `triaged — ${P.risk_tier} risk`, color: "var(--blue)" };
+    if (e.type === "compliance.fast_tracked") s = { label: "fast-tracked", color: "var(--blue)" };
+    if (e.type === "compliance.reviewed")
+      s = P.verdict === "veto"
+        ? { label: `vetoed (${P.policy_rule}) — in dispute`, color: "var(--gold)" }
+        : { label: "compliance-cleared", color: "var(--violet)" };
+    if (e.type === "treasury.decided")
+      s = P.action === "pay_now"
+        ? { label: "cleared for funding", color: "var(--violet)" }
+        : { label: "treasury-rejected", color: "var(--red)" };
+    if (e.type === "dispute.resolved")
+      s = P.ruling === "uphold_veto"
+        ? { label: "veto upheld", color: "var(--gold)" }
+        : { label: "veto overridden", color: "var(--gold)" };
+    if (e.type === "payout.approved") s = { label: "APPROVED", color: "var(--green)" };
+    if (e.type === "payout.rejected") s = { label: "REJECTED", color: "var(--red)" };
+  }
+  return s;
+}
+
 function go(n) {
   step = Math.max(1, Math.min(chain.length, n));
   document.querySelectorAll(".event").forEach((el, i) => {
@@ -268,6 +326,33 @@ function go(n) {
   const cur = document.querySelector(".event.current");
   if (cur) cur.scrollIntoView({ block: "nearest", behavior: "smooth" });
   $("#pos").textContent = `event ${step} / ${chain.length}`;
+
+  const s = foldUpTo(step);
+  const fs = $("#foldState");
+  if (fs) { fs.textContent = s.label; fs.style.color = s.color; }
+  const ft = $("#foldTime");
+  if (ft) ft.textContent = `t+${chain[step - 1].t_offset}s`;
+
+  const az = $("#asserts");
+  if (az) {
+    az.classList.toggle("show", step === chain.length);
+    if (step === chain.length) {
+      const final = s.label;
+      const matches = payoutExpected &&
+        ((payoutExpected === "approve") === (final === "APPROVED"));
+      az.innerHTML =
+        `<div>✓ reconstructed from ${chain.length} recorded events — replay of the actual run, nothing staged</div>` +
+        (runChain && runChain.hashed
+          ? (runChain.verified
+            ? `<div>✓ hash chain verified across all ${runChain.events} events in this run</div>`
+            : `<div class="warn">✗ hash chain broken at event ${runChain.broken_at} — history was altered</div>`)
+          : `<div class="warn">— run recorded before hash chaining (replayable, not tamper-evident)</div>`) +
+        (payoutExpected
+          ? (matches ? `<div>✓ outcome matches policy ground truth (${payoutExpected})</div>`
+                     : `<div class="warn">✗ outcome differs from policy ground truth (expected: ${payoutExpected})</div>`)
+          : "");
+    }
+  }
   if (step === chain.length) stopPlay();
 }
 

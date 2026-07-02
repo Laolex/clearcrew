@@ -12,7 +12,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
-from . import data
+from . import data, events as event_log
 
 RUNS_DIR = Path(os.environ.get("CLEARCREW_RUNS_DIR", Path(__file__).parent.parent / "runs"))
 STATIC_DIR = Path(__file__).parent / "static"
@@ -44,7 +44,19 @@ def _load_events(run_name: str) -> list[dict]:
         raise HTTPException(404, "no such run")
     with open(path) as f:
         events = [json.loads(line) for line in f if line.strip()]
+    # file order is emission order (hash chain verifies against it);
+    # stable sort by ts preserves it for equal timestamps
     return sorted(events, key=lambda e: e["ts"])
+
+
+_chain_cache: dict[str, dict] = {}
+
+
+def _verify(run_name: str, events: list[dict]) -> dict:
+    """Chain verification, cached — archived run files are immutable."""
+    if run_name not in _chain_cache:
+        _chain_cache[run_name] = event_log.verify_chain(events)
+    return _chain_cache[run_name]
 
 
 def _batch_lookup(n: int) -> dict[str, dict]:
@@ -96,7 +108,8 @@ def run_detail(run_name: str):
             p["miss"] = (p["status"] == "approved") != (detail["_expected"] == "approve")
 
     ordered = sorted(payouts.values(), key=lambda p: (-p["disputed"], -(p.get("amount") or 0)))
-    return {"run": run_name, "t0": t0, "total_events": len(events), "payouts": ordered}
+    return {"run": run_name, "t0": t0, "total_events": len(events),
+            "chain": _verify(run_name, events), "payouts": ordered}
 
 
 @app.get("/api/runs/{run_name}/explain/{subject}")
@@ -111,6 +124,7 @@ def explain(run_name: str, subject: str):
     return {
         "subject": subject,
         "payout": detail,
+        "verification": _verify(run_name, events),
         "chain": [{**e, "t_offset": round(e["ts"] - t0, 2)} for e in chain],
     }
 

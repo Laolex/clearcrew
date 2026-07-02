@@ -62,6 +62,7 @@ def run() -> None:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs("runs", exist_ok=True)
     os.replace(config.EVENT_LOG_PATH, f"runs/events-{stamp}-n{len(batch)}.jsonl")
+    events.reset_chain()
     with open(f"runs/results-{stamp}-n{len(batch)}.json", "w") as f:
         import json
         json.dump({"society": society, "monolith": monolith}, f, indent=2)

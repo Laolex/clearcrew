@@ -15,7 +15,13 @@ batch → Intake (triage, qwen-turbo)
       → Auditor (plain-English explanation of every payout's event chain)
 ```
 
-## Why a society beats one big agent
+## Why specialization + provenance beats an opaque monolith
+
+The claim is not that five agents are smarter than one big one. It's that when
+the monolith errs, you cannot locate responsibility — there is no *why* to
+retrieve, no agent to fix, no record to check. The society produces
+**accountable failure**: every error is attributed to a specific agent, with
+its reasoning on the record, contradicted or confirmed by the events around it.
 
 `python -m clearcrew.bench` runs the same labeled batch through the society and
 through a single monolithic agent. Both receive the identical org policy; the
@@ -87,8 +93,10 @@ pip install -r requirements-dev.txt && cd src && python -m pytest tests/
 - **Models**: `qwen3.7-max` (reasoning roles), `qwen3.7-plus` (triage/audit) via Qwen Cloud
   DashScope OpenAI-compatible endpoint
 - **Deploy**: Alibaba Cloud Function Compute (see `Dockerfile`)
-- **Provenance**: append-only JSONL event log; `events.explain(id)` reconstructs any
-  payout's causal chain
+- **Provenance**: append-only, hash-chained JSONL event log — each event commits
+  to its predecessor's hash, so recorded history is tamper-evident (`events.verify_chain`);
+  `events.explain(id)` reconstructs any payout's causal chain. (External anchoring of
+  the head hash would make runs independently verifiable — that's the roadmap, not a claim.)
 
 ## License
 
