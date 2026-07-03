@@ -54,8 +54,9 @@
     font: inherit; font-size: 13px; cursor: pointer;
     transition: border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
   }
-  #liveBtn:active { transform: scale(.97); }
-  @media (hover: hover) and (pointer: fine) { #liveBtn:hover { border-color: var(--gold); } }
+  #liveBtn:active:not(:disabled) { transform: scale(.97); }
+  #liveBtn:disabled { opacity: .55; cursor: default; }
+  @media (hover: hover) and (pointer: fine) { #liveBtn:hover:not(:disabled) { border-color: var(--gold); } }
   #liveBtn + select { margin-left: 0; }
 
   /* live-run panel */
@@ -151,11 +152,18 @@
     transition: background 200ms ease, border-color 200ms ease;
   }
   /* solid tints (not alpha) so the sticky bar never bleeds content through */
-  .statebar.ok { background: #e6f4f0; border-color: var(--green); }
+  .statebar.ok { background: #e6f4f0; border-color: var(--green);
+    animation: settled-pulse 700ms cubic-bezier(.23,1,.32,1) 1; }
   .statebar.bad { background: #f9eded; border-color: var(--red); }
+  /* the settled moment: one brand-teal ring, once, like the Verasettle mark */
+  @keyframes settled-pulse {
+    from { box-shadow: 0 2px 8px rgba(23,33,28,.05), 0 0 0 0 rgba(5,150,105,.35); }
+    to   { box-shadow: 0 2px 8px rgba(23,33,28,.05), 0 0 0 16px rgba(5,150,105,0); }
+  }
   .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
-  .statebar .v { font-weight: 650; transition: color 200ms ease, font-size 200ms ease; }
-  .statebar.ok .v, .statebar.bad .v { font-size: 15px; letter-spacing: .02em; }
+  .statebar .v { font-weight: 650; transform-origin: left center;
+    transition: color 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
+  .statebar.ok .v, .statebar.bad .v { transform: scale(1.12); letter-spacing: .02em; }
   .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
 
   /* end-of-replay assertions */
@@ -291,7 +299,7 @@
 </details>
 <main>
   <div id="list"></div>
-  <div id="replay"><div id="placeholder">Select a payout to replay its event chain.</div></div>
+  <div id="replay"><div id="placeholder">Click a payout to replay its recorded event chain — → and ← step through it, Play auto-runs.</div></div>
 </main>
 <footer id="foot"></footer>
 
@@ -380,7 +388,7 @@ async function loadRun(name, runs) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectPayout(el); }
     };
   });
-  $("#replay").innerHTML = '<div id="placeholder">Select a payout to replay its event chain.</div>';
+  $("#replay").innerHTML = '<div id="placeholder">Click a payout to replay its recorded event chain — → and ← step through it, Play auto-runs.</div>';
   $("#cfOut").innerHTML = "";
 }
 
@@ -603,6 +611,8 @@ async function startLive() {
   const body = await r.json().catch(() => ({}));
   if (!r.ok) { alert(body.detail || "couldn't start a live run"); return; }
   $("#live").classList.add("on");
+  $("#liveBtn").disabled = true;
+  $("#liveBtn").textContent = "⚡ running…";
   $("#liveFeed").innerHTML = "";
   $("#liveMeta").textContent = "live Qwen calls + real testnet settlement · 3–6 min";
   liveTimer = setInterval(pollLive, 2500);
@@ -625,6 +635,8 @@ async function pollLive() {
     return;
   }
   clearInterval(liveTimer); liveTimer = null;
+  $("#liveBtn").disabled = false;
+  $("#liveBtn").textContent = "⚡ live run";
   if (s.state === "done" && s.run) {
     $("#liveMeta").textContent = "done — loading your run";
     location.hash = `#${s.run}`;
