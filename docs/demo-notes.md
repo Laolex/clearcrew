@@ -99,7 +99,11 @@ real payout 5affb229 on both sides. Use it as the bridge between beats 3 and 4.
 1. Benchmark table n=12: 100% vs 100%. "At toy scale, everyone looks trustworthy."
 2. n=36: 100% vs 89%. "At real batch sizes the single agent fails silently in
    both directions — it overdraws your treasury AND strands clean payouts."
-3. Monolith's mistake: show the decision. "Why? There is no why."
+3. Monolith's mistake: show the decision. "We tried to replay the monolith's
+   decision. We couldn't. It never recorded why it chose what it chose — the
+   verdict was printed and discarded. That absence IS the problem." (True
+   story: until commit d2d747f the bench didn't even archive monolith
+   verdicts — only the society left anything behind to archive.)
 4. The society's earlier error: step through the 5-event trail. Land on the
    auditor line catching Treasury's hallucination in-band.
 5. "The trail didn't just explain the error — it told us which agent to fix

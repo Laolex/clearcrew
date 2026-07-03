@@ -83,6 +83,11 @@ policy rule cited, the recorded dispute-resolution ruling, the final verdict, an
 the auditor's plain-English explanation. Real payout IDs, real model output,
 nothing staged. Deep-linkable: `#<run>/<payout_id>`.
 
+Replay reconstructs recorded history — it never re-runs models or simulates
+alternate outcomes. Counterfactual policy replay ("what would this batch have
+done under a different reserve floor?") is the next capability that replayable
+history enables; it's roadmap, not a claim.
+
 ```bash
 cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhost:9000
 ```
