@@ -15,6 +15,31 @@ divide a batch of payout requests through task decomposition and negotiated
 conflict resolution. Every decision is an event in an append-only log: state is a
 fold over events, and any outcome can be replayed and explained.
 
+This is not a diagram — it's four events from a recorded run
+(`runs/events-20260703-165045-settled-n6.jsonl`, payout `1818e811`, trimmed
+for width; the chain is global, so events from other payouts sit between
+these). An agent's judgment, the final verdict, and the **real on-chain
+settlement it caused** — every event committing to the hash of the one
+before it in the log:
+
+```jsonc
+{"type":"treasury.decided",    "actor":"treasury",     "payload":{"action":"pay_now","reason":"Cumulative total 11500.0 <= headroom 90000.0"},
+ "prev_hash":"254a6bb6…", "event_hash":"9f7548e9…"}
+{"type":"payout.approved",     "actor":"orchestrator", "payload":{},
+ "prev_hash":"ac3bbae8…", "event_hash":"b1d8e01f…"}
+{"type":"settlement.confirmed","actor":"verasettle",   "payload":{"source_amount_usd":9800.0,"settled_amount_usdc":0.98,
+   "scale":"1:10000 testnet conversion (recorded, not implied)","chain":"BASE-SEPOLIA",
+   "tx_hash":"0xee004e0813fd239840821471f5c70752bb963264df3cfea65dbeab37a7d96866"},
+ "prev_hash":"b8e986dd…", "event_hash":"da0d55de…"}
+{"type":"payout.settled",      "actor":"orchestrator", "payload":{"tx_hash":"0xee004e08…","chain":"BASE-SEPOLIA"},
+ "prev_hash":"da0d55de…", "event_hash":"447f28c8…"}
+```
+
+Tamper with any earlier event — the reason, the amount, the verdict — and
+`events.verify_chain` breaks at that index. The tx hash is checkable on any
+Base Sepolia RPC. That's the whole thesis in one screenful: **judgment,
+verdict, and money movement in one tamper-evident history.**
+
 ```
 batch → Intake (triage, qwen-turbo)
       → Compliance (veto power, qwen-max)   ─┐ disputes → Resolution agent
