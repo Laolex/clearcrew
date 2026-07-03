@@ -289,7 +289,9 @@ async function init() {
   // deep link: #<run>/<payout>
   const [hashRun, hashPayout] = location.hash.slice(1).split("/");
   const withResults = runs.filter(r => r.results);
-  const def = runs.find(r => r.name === hashRun) || withResults[withResults.length - 1] || runs[runs.length - 1];
+  const settled = runs.filter(r => r.name.includes("-settled-"));
+  const def = runs.find(r => r.name === hashRun) || settled[settled.length - 1]
+    || withResults[withResults.length - 1] || runs[runs.length - 1];
   sel.value = def.name;
   await loadRun(def.name, runs);
   if (hashPayout) {
