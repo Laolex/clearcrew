@@ -5,3 +5,5 @@ events.jsonl
 .venv/
 alibaba.env
 *.env
+PRODUCT.md
+DESIGN.md
