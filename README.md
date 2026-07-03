@@ -92,6 +92,25 @@ history enables; it's roadmap, not a claim.
 cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhost:9000
 ```
 
+## MCP server — the audit trail as tools
+
+The same read paths the Replay Time Machine uses are exposed as an MCP server,
+so any MCP-capable agent framework (Qwen, Claude, anything) can interrogate
+ClearCrew's recorded history as tools — `list_runs`, `get_run`,
+`explain_payout`, `verify_run`, `get_policy`. Read-only, no model calls, no
+API key needed: an orchestrator asks *why* a payout was rejected and gets the
+hash-verified event chain back, not a summary someone wrote after the fact.
+
+```bash
+cd src && python -m clearcrew.mcp_server        # stdio transport
+```
+
+```json
+{ "mcpServers": { "clearcrew": {
+    "command": "python", "args": ["-m", "clearcrew.mcp_server"],
+    "cwd": "<repo>/src" } } }
+```
+
 ## Run the benchmark
 
 ```bash
