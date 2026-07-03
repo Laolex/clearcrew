@@ -115,9 +115,18 @@ real payout 5affb229 on both sides. Use it as the bridge between beats 3 and 4.
 7. Replay Time Machine walkthrough on the final verified run: green ⛓ chain
    badge, step to the end of a chain, land on the assertions —
    "✓ reconstructed · ✓ chain verified · ✓ matches policy". Nothing staged.
-8. Closer — counterfactual replay (`docs/counterfactual-replay.png`): open the
+8. Counterfactual replay (`docs/counterfactual-replay.png`): open the
    ⑂ panel on the verified run, set reserve floor to 40,000, click Replay.
    Three $9,800 payouts flip approve→reject, rule P3, recorded outcomes
    untouched. "History here isn't just a record — it's executable. What would
    this batch have done under next quarter's policy? That's not prediction.
-   That's arithmetic over history." End card.
+   That's arithmetic over history."
+9. CLOSER — real money moves (`docs/settled-on-chain.png`, run
+   `events-20260703-165045-settled-n6.jsonl`, deep link `/1818e811`): step the
+   $9,800 payout to the end. Intake → fast-track → treasury ledger →
+   approved → auditor → settlement.requested → VERASETTLE
+   settlement.confirmed with a real Base Sepolia tx hash → SETTLED ON-CHAIN.
+   "These aren't simulated payouts. The society's verdicts execute as real
+   testnet USDC through Verasettle — and the settlement receipt lives in the
+   same tamper-evident history as the reasoning that caused it. Decision to
+   movement, one verifiable chain." Click the tx link to Basescan. End card.

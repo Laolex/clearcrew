@@ -106,7 +106,7 @@ def run_detail(run_name: str):
                 memo=detail["memo"],
                 expected=detail["_expected"],
             )
-            p["miss"] = (p["status"] == "approved") != (detail["_expected"] == "approve")
+            p["miss"] = (p["status"] in ("approved", "settled")) != (detail["_expected"] == "approve")
 
     ordered = sorted(payouts.values(), key=lambda p: (-p["disputed"], -(p.get("amount") or 0)))
     return {"run": run_name, "t0": t0, "total_events": len(events),

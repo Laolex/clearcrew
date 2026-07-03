@@ -65,3 +65,12 @@ def test_path_traversal_rejected(client):
 def test_index_serves_ui(client):
     r = client.get("/")
     assert r.status_code == 200 and "Replay Time Machine" in r.text
+
+
+def test_settled_run_settled_is_not_a_miss():
+    # against the real archived run: settled == correctly approved, never a miss
+    detail = replay.run_detail("events-20260703-165045-settled-n6.jsonl")
+    settled = [p for p in detail["payouts"] if p["status"] == "settled"]
+    assert len(settled) == 3
+    assert all(p["miss"] is False for p in settled)
+    assert detail["chain"]["verified"] and detail["chain"]["events"] == 41

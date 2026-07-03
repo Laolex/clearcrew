@@ -113,6 +113,34 @@ GET /api/runs/<run>/counterfactual?reserve_floor=40000
 cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhost:9000
 ```
 
+## From verdict to movement — real testnet settlement
+
+![Settled on-chain](docs/settled-on-chain.png)
+
+The society's verdicts don't stop at "approved" — run
+`python -m clearcrew.settle_demo` and every approved payout is executed as a
+**real USDC transfer on Base Sepolia** through [Verasettle](https://verasettle.com)
+(a non-custodial USDC payout orchestrator) as the settlement rail. The
+settlement lives in the same hash-chained history as the decision that caused
+it: `settlement.requested` → `settlement.confirmed` (on-chain tx hash + rail
+receipt id + receipt content hash) → `payout.settled`.
+
+Archived run `runs/events-20260703-165045-settled-n6.jsonl` (chain verified,
+41 events): the society vetoed a sanctioned-corridor payout, rejected two P2
+violations, and settled the three clean payouts on-chain — 6/6 against ground
+truth. Verify the transfers yourself on any Base Sepolia RPC:
+
+| payout | source | settled | tx |
+|---|---|---|---|
+| 6513270e | $850 | 0.085 USDC | [`0xea031e…`](https://sepolia.basescan.org/tx/0xea031ed652f5c8d7bfae7117832b32847fe655429ed6f5e8a247da101be318cd) |
+| 1818e811 | $9,800 | 0.98 USDC | [`0xee004e…`](https://sepolia.basescan.org/tx/0xee004e0813fd239840821471f5c70752bb963264df3cfea65dbeab37a7d96866) |
+| 099950d8 | $850 | 0.085 USDC | [`0x8ccd4f…`](https://sepolia.basescan.org/tx/0x8ccd4f77e52852ba0ab7e5b0db1bb0288ecf3fb28665a8c61ae317bb567b1cea) |
+
+Honesty notes, as always: benchmark USD amounts settle at an explicitly
+recorded 1:10,000 testnet conversion — every event carries both figures and
+the scale; nothing is implied. Rail failures are recorded as
+`settlement.failed` events, never silently retried or hidden.
+
 ## MCP server — the audit trail as tools
 
 The same read paths the Replay Time Machine uses are exposed as an MCP server,

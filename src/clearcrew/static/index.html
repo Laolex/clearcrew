@@ -91,6 +91,7 @@
   .chip.approved { background: var(--green-soft); color: var(--green); }
   .chip.rejected { background: var(--red-soft); color: var(--red); }
   .chip.disputed { background: var(--gold-soft); color: var(--gold); }
+  .chip.settled { background: var(--green-soft); color: var(--green); outline: 1px solid var(--green); }
   .chip.miss { background: var(--red-soft); color: var(--red); outline: 1px solid var(--red); }
 
   /* ---- replay panel ---- */
@@ -188,8 +189,10 @@
   .event.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
   .event.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
   .event.a-orchestrator { --ac: var(--muted); --acs: rgba(139,154,194,.13); }
+  .event.a-verasettle { --ac: #2dd4bf; --acs: rgba(45,212,191,.13); }
   .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
   .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+  .event .body a { color: var(--blue); text-decoration: none; border-bottom: 1px solid var(--blue); }
 
   footer {
     position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
@@ -422,6 +425,23 @@ function renderEvent(e, i) {
   }
   if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
   if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + P.reason : "");
+  if (e.type === "settlement.requested")
+    body = `→ Execution requested on the ${P.rail} rail: ` +
+      `<b>${fmtUSD(P.source_amount_usd)}</b> source → <b>${P.settled_amount_usdc} USDC</b> on ${P.chain} (${P.scale}).`;
+  if (e.type === "settlement.confirmed") {
+    cls = "event a-verasettle";
+    body = `💠 Real testnet USDC moved on ${P.chain}: <b>${P.settled_amount_usdc} USDC</b>` +
+      (P.tx_hash ? `\ntx <a href="${P.explorer}" target="_blank" rel="noopener" class="mono">${P.tx_hash.slice(0, 22)}…</a>` : "") +
+      (P.receipt_id ? `\nrail receipt <span class="mono">${P.receipt_id}</span> · content hash <span class="mono">${(P.receipt_content_hash || "").slice(0, 16)}…</span>` : "");
+  }
+  if (e.type === "settlement.failed") {
+    cls = "event verdict-rejected";
+    body = `✗ Settlement failed on the rail — recorded, not retried silently.\n${P.error || ""}`;
+  }
+  if (e.type === "payout.settled") {
+    cls += " verdict-approved";
+    body = "💸 Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${P.tx_hash.slice(0, 22)}…</span>` : "");
+  }
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
   return `<div class="${cls}" data-i="${i}">
     <div class="top">
@@ -454,6 +474,10 @@ function foldUpTo(k) {
       s = { label: (P.ruling || "resolved").replace(/_/g, " "), color: "var(--gold)" };
     if (e.type === "payout.approved") s = { label: "APPROVED", color: "var(--green)" };
     if (e.type === "payout.rejected") s = { label: "REJECTED", color: "var(--red)" };
+    if (e.type === "settlement.requested") s = { label: "executing on rail…", color: "#2dd4bf" };
+    if (e.type === "settlement.confirmed") s = { label: "USDC moved — tx confirmed", color: "#2dd4bf" };
+    if (e.type === "settlement.failed") s = { label: "settlement failed", color: "var(--red)" };
+    if (e.type === "payout.settled") s = { label: "SETTLED ON-CHAIN", color: "var(--green)" };
   }
   return s;
 }
@@ -482,7 +506,7 @@ function go(n) {
   if (fs) { fs.textContent = s.label; fs.style.color = s.color; }
   const sb = document.querySelector(".statebar");
   if (sb) {
-    sb.classList.toggle("ok", s.label === "APPROVED");
+    sb.classList.toggle("ok", s.label === "APPROVED" || s.label === "SETTLED ON-CHAIN");
     sb.classList.toggle("bad", s.label === "REJECTED");
   }
   const ft = $("#foldTime");
@@ -493,8 +517,9 @@ function go(n) {
     az.classList.toggle("show", step === chain.length);
     if (step === chain.length) {
       const final = s.label;
+      const finalApproved = final === "APPROVED" || final === "SETTLED ON-CHAIN";
       const matches = payoutExpected &&
-        ((payoutExpected === "approve") === (final === "APPROVED"));
+        ((payoutExpected === "approve") === finalApproved);
       az.innerHTML =
         `<div>✓ reconstructed from ${chain.length} recorded events — replay of the actual run, nothing staged</div>` +
         (runChain && runChain.hashed
