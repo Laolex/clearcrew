@@ -116,9 +116,13 @@
     display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
     background: var(--card); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 16px; font-size: 13.5px;
+    transition: background 200ms ease, border-color 200ms ease;
   }
+  .statebar.ok { background: var(--green-soft); border-color: var(--green); }
+  .statebar.bad { background: var(--red-soft); border-color: var(--red); }
   .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
-  .statebar .v { font-weight: 650; transition: color 200ms ease; }
+  .statebar .v { font-weight: 650; transition: color 200ms ease, font-size 200ms ease; }
+  .statebar.ok .v, .statebar.bad .v { font-size: 15px; letter-spacing: .02em; }
   .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
 
   /* end-of-replay assertions */
@@ -129,7 +133,11 @@
     transition: opacity var(--t-fast), transform var(--t-fast), visibility var(--t-fast); }
   .asserts.show { visibility: visible; opacity: 1; transform: none;
     transition: opacity var(--t-med), transform var(--t-med), visibility var(--t-med); }
-  .asserts div { margin: 2px 0; }
+  .asserts div { margin: 2px 0; opacity: 0; transform: translateY(3px);
+    transition: opacity 180ms cubic-bezier(.23,1,.32,1), transform 180ms cubic-bezier(.23,1,.32,1); }
+  .asserts.show div { opacity: 1; transform: none; }
+  .asserts.show div:nth-child(2) { transition-delay: 60ms; }
+  .asserts.show div:nth-child(3) { transition-delay: 120ms; }
   .asserts .warn { color: var(--gold); }
 
   /* ---- timeline ---- */
@@ -137,6 +145,12 @@
   .timeline::before {
     content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px;
     width: 2px; background: var(--line);
+  }
+  /* recorded time elapsed: draws down to the current event as you scrub */
+  .tl-progress {
+    position: absolute; left: 7px; top: 8px; width: 2px; height: calc(100% - 16px);
+    background: var(--violet); transform-origin: top; transform: scaleY(0);
+    transition: transform var(--t-med);
   }
   .event {
     position: relative; margin-bottom: 14px; background: var(--panel);
@@ -359,7 +373,7 @@ async function selectPayout(el) {
     </div>
     <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span>
       <span class="t" id="foldTime"></span></div>
-    <div class="timeline">${chain.map(renderEvent).join("")}</div>
+    <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
     <div class="asserts" id="asserts"></div>`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
@@ -437,9 +451,20 @@ function go(n) {
   $("#prev").disabled = step <= 1;
   $("#next").disabled = step >= chain.length;
 
+  const tl = document.querySelector(".timeline"), prog = document.querySelector(".tl-progress");
+  if (cur && tl && prog) {
+    const f = (cur.offsetTop + 24) / (tl.scrollHeight - 16);
+    prog.style.transform = `scaleY(${Math.min(1, f)})`;
+  }
+
   const s = foldUpTo(step);
   const fs = $("#foldState");
   if (fs) { fs.textContent = s.label; fs.style.color = s.color; }
+  const sb = document.querySelector(".statebar");
+  if (sb) {
+    sb.classList.toggle("ok", s.label === "APPROVED");
+    sb.classList.toggle("bad", s.label === "REJECTED");
+  }
   const ft = $("#foldTime");
   if (ft) ft.textContent = `t+${chain[step - 1].t_offset}s`;
 
