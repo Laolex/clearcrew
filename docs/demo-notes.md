@@ -91,6 +91,29 @@ Final run (`runs/events-20260702-210640-n36.jsonl`): society **100%**, monolith
 89%, hash chain verified across all 179 events. The reconciliation guard was
 armed and did not need to fire — Treasury, with the ledger, got it right.
 
+## SHOOT LIST — exactly what to record (~3:00 total)
+
+Setup once: 1920×1080 display, browser at 100% zoom, bookmarks bar hidden,
+one tab, record https://clearcrew.verasettle.com (the LIVE deploy — judges may
+recognize the URL). Move the cursor slowly; every click below is deliberate.
+Record screen+voice in one take per shot; stitch after.
+
+| # | time | on screen | you do | you say (gist) |
+|---|---|---|---|---|
+| 1 | 0:00–0:15 | `docs/thumbnail.png` full-screen | nothing | "ClearCrew: five Qwen agents run payout operations. Agents decide, history verifies, money moves. All three are real — here's the proof." |
+| 2 | 0:15–0:35 | README **headline run** table (scroll to it on GitHub) | hover the 100% and 89% rows | "Same batch, same policy, same models. At n=12 everyone's perfect. At n=36 the single agent silently overdraws the treasury AND strands clean payouts — 89%. The society: 100%." |
+| 3 | 0:35–1:00 | `docs/accountable-failure.png` full-screen | pause on left panel, then right | "Both systems once wrongly rejected this same $5,000 payout. We tried to replay the monolith's decision — we couldn't; it never recorded why. The society's failure came with a name, a rule, and a fix. Failure that can be explained is failure that can be repaired." |
+| 4 | 1:00–1:30 | live site → deep link `#events-20260702-152154-n36.jsonl/5affb229` | step with → key through all 5 events, land on the green auditor card | "Watch the recorded trail: compliance clears it, Treasury hallucinates a violation — and the society's own Auditor catches the error in-band, unprompted. That told us which agent to fix." |
+| 5 | 1:30–1:50 | deep link `#events-20260702-205623-n36.jsonl/62c33a4f` | step to Treasury's event, hover the reason text | "Best artifact in the repo. Treasury's reasoning ends 'Reject.' Its action field says pay_now. Machine-checkable contradiction — so now code flags, agents rule: every treasury action is reconciled against the ledger." |
+| 6 | 1:50–2:10 | deep link `#events-20260702-210640-n36.jsonl` (headline run) | point at green ⛓ badge; open any payout, press Play, let it run to the assertions | "Final run: 100 percent, hash chain verified across 179 events. Every replay ends with these three checks — reconstructed, verified, matches policy. Nothing on this screen is staged." |
+| 7 | 2:10–2:30 | same run, ⑂ counterfactual panel | type 40000 in reserve floor, click Replay, point at the 3 flips | "History is executable. Fold the same recorded batch through next quarter's policy: three payouts flip, rule P3, recorded outcomes untouched. Not prediction — arithmetic over history." |
+| 8 | 2:30–2:55 | deep link `#events-20260703-165045-settled-n6.jsonl/1818e811` | step to the teal VERASETTLE event, **click the tx link**, let Basescan load | "And verdicts move money. This $9,800 approval executed as real testnet USDC through Verasettle — the tx hash is on Base Sepolia, the receipt lives in the same tamper-evident chain as the reasoning that caused it. Decision to movement, one verifiable history." |
+| 9 | 2:55–3:00 | back to the UI on **SETTLED ON-CHAIN** state bar | nothing | "ClearCrew — clearcrew.verasettle.com. Nothing staged." (end card: repo URL) |
+
+Highlight priorities if trimming: shots 2, 5, 8 are the ones judges must see
+(the number, the contradiction, the money). Shot 4 is the emotional core.
+Cut 7 first, then 3, never 8.
+
 ## Video beat sequence
 
 Slide asset: `docs/accountable-failure.png` — opaque-vs-accountable failure,
