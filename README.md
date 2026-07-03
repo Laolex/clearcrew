@@ -175,6 +175,7 @@ ClearCrew's recorded history as tools — `list_runs`, `get_run`,
 (deterministic what-if over the recorded batch). Read-only, no model calls, no
 API key needed: an orchestrator asks *why* a payout was rejected and gets the
 hash-verified event chain back, not a summary someone wrote after the fact.
+Full docs with real session transcripts: [docs/MCP.md](docs/MCP.md).
 
 ```bash
 cd src && python -m clearcrew.mcp_server        # stdio transport
@@ -185,6 +186,30 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
     "command": "python", "args": ["-m", "clearcrew.mcp_server"],
     "cwd": "<repo>/src" } } }
 ```
+
+## Try it yourself (no setup → full setup)
+
+1. **Zero setup — the live demo**: https://clearcrew.verasettle.com — pick the
+   `settled` run, click any payout, step its chain (arrow keys). Deep link to
+   the on-chain one: [`#…-settled-n6.jsonl/1818e811`](https://clearcrew.verasettle.com/#events-20260703-165045-settled-n6.jsonl/1818e811).
+2. **Verify a settlement independently** — don't trust us, ask the chain:
+   ```bash
+   curl -s https://sepolia.base.org -H 'content-type: application/json' -d \
+     '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt","params":["0xee004e0813fd239840821471f5c70752bb963264df3cfea65dbeab37a7d96866"]}'
+   ```
+3. **Verify the hash chain yourself** (clone, no API key needed):
+   ```bash
+   pip install -r requirements-dev.txt && cd src
+   python -c "import json; from clearcrew import events; \
+     print(events.verify_chain([json.loads(l) for l in open('runs/events-20260703-165045-settled-n6.jsonl')]))"
+   python -m pytest tests/ -q        # 38 tests
+   ```
+4. **Query history as an agent** — the [MCP server](docs/MCP.md), read-only,
+   keyless.
+5. **Re-run the benchmark or the settlement demo** — needs your own
+   `DASHSCOPE_API_KEY` (and a Verasettle sandbox for settlement); see below.
+   Recorded runs in `runs/` are the originals — reruns produce new history,
+   they never overwrite it.
 
 ## Run the benchmark
 
