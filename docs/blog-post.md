@@ -119,6 +119,42 @@ code, and mismatches become recorded disputes ruled on by the Resolution agent.
 *Code flags, agents rule.* The final n=36 run: society 100%, monolith 89%, hash
 chain verified across all 179 events.
 
+## Round five: history became executable
+
+Once the log was trustworthy, two things fell out almost for free.
+
+First, **policy became data**. The written policy the agents are prompted with
+is now rendered from a versioned `PolicyVersion` object, every run opens with a
+`policy.enacted` event recording the parameters in force, and the same
+`evaluate()` function that labels the benchmark's ground truth can re-fold any
+recorded batch under *hypothetical* parameters. Ask the replay UI "what would
+this exact batch have done under a $40,000 reserve floor?" and it answers
+deterministically: three specific $9,800 payouts flip to rejected, rule P3,
+recorded outcomes untouched. No model re-runs, no simulated realities —
+arithmetic over history.
+
+Second, and this is the part I didn't expect to pull off inside a hackathon:
+**the verdicts started moving real money.** I wired the orchestrator to a
+settlement rail — [Verasettle](https://verasettle.com), a non-custodial USDC
+payout orchestrator I also build, called strictly through its public API, no
+shared code — and ran a fresh six-payout batch end to end. The society vetoed
+a sanctioned-corridor payout, rejected two policy violations, and the three
+clean approvals executed as **real testnet USDC transfers on Base Sepolia**.
+Each settlement wrote back into the *same hash chain* as the reasoning that
+caused it: `settlement.requested` → `settlement.confirmed` (carrying the
+on-chain tx hash and the rail's receipt) → `payout.settled`. You can verify
+the transfers on any public Base Sepolia RPC without trusting me at all.
+
+Judgment, verdict, and money movement — one tamper-evident history. That
+sentence is the whole project.
+
+And because "trust me, it works" is exactly the thing this project exists to
+kill, the deployed demo has a **judge mode**: an access-coded button that
+spawns a genuinely live run — real Qwen calls, real recorded disputes, real
+settlement — and streams the events into your browser as the agents
+deliberate, then hands you the finished run to replay, hash-chained like
+every other. Nothing pre-recorded about it.
+
 ## What I actually learned
 
 1. **Agent societies don't win by default.** Ungoverned, mine lost badly. The
@@ -131,13 +167,20 @@ chain verified across all 179 events.
 3. **Route by risk, not by habit.** qwen3.7-max where judgment matters,
    qwen3.7-plus with thinking disabled for triage and narration. Most payouts
    never touch the big model, and accuracy didn't suffer.
+4. **Decision and execution belong in separate accountable layers.** ClearCrew
+   never holds funds and Verasettle never judges; the API boundary between
+   them is the same separation-of-duties idea that fixed Treasury, applied one
+   level up. The event log is what binds the layers together.
 
 Everything above is replayable — the repo ships the actual event logs and a
 **Replay Time Machine** UI that steps through any payout's real chain, disputed
-negotiations included. Nothing in the demo is staged; the moment you mock up a
-transcript, you've become the thing you're pitching against.
+negotiations and on-chain settlements included. Nothing in the demo is staged;
+the moment you mock up a transcript, you've become the thing you're pitching
+against.
 
+**Live demo:** https://clearcrew.verasettle.com
 **Code:** https://github.com/Laolex/clearcrew (MIT)
 
 *Built solo, July 2026, on qwen3.7-max and qwen3.7-plus via Qwen Cloud Model
-Studio, deployed on Alibaba Cloud Function Compute.*
+Studio, deployed on Alibaba Cloud Function Compute, settling through
+Verasettle on Base Sepolia.*
