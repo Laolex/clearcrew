@@ -40,6 +40,27 @@ Tamper with any earlier event — the reason, the amount, the verdict — and
 Base Sepolia RPC. That's the whole thesis in one screenful: **judgment,
 verdict, and money movement in one tamper-evident history.**
 
+## 30-second surface area
+
+| | |
+|---|---|
+| **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
+| **Headline** | society **100%** vs monolith **89%**, same n=36 batch, same policy, same models — hash chain verified, 179 events |
+| **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
+| **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
+| **For agents** | 6-tool read-only [MCP server](docs/MCP.md) over the audit trail |
+| **Sharp edges we hit** | [GOTCHAS.md](GOTCHAS.md) — documented so you don't |
+
+**Lift these** — each piece is independently useful, none needs the others:
+
+| file | what it is |
+|---|---|
+| `src/clearcrew/events.py` | hash-chained append-only event log — `emit` / `fold_state` / `explain` / `verify_chain`, ~110 lines, stdlib only |
+| `src/clearcrew/policy.py` | versioned executable policy — one `evaluate()` is both the ground-truth labeler and the counterfactual engine |
+| `src/clearcrew/settlement.py` | thin honest settlement-rail client — per-payout idempotent batches, receipt→event, fails loudly |
+| `src/clearcrew/mcp_server.py` | your event log as MCP tools, ~90 lines |
+| `deploy/fc_handler.py` | Alibaba FC HTTP-event → ASGI adapter (FC's URL does **not** speak WSGI, whatever the docs say) |
+
 ```
 batch → Intake (triage, qwen-turbo)
       → Compliance (veto power, qwen-max)   ─┐ disputes → Resolution agent
