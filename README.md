@@ -146,6 +146,23 @@ cd src && python -m clearcrew.bench   # BATCH_N=36 for the large batch
 pip install -r requirements-dev.txt && cd src && python -m pytest tests/
 ```
 
+## Roadmap (direction, not claims)
+
+V1 proved that recorded history makes an agent system explainable — and, read
+carefully, repairable. The next steps make recorded history *executable*:
+
+1. **Policy as history** — governance changes (like this repo's
+   separation-of-duties fix) become recorded events themselves, so every payout
+   replays against the policy version in force and the system's own repair
+   ladder is auditable the same way its decisions are.
+2. **Counterfactual policy replay** — fold the *recorded* events through a
+   different policy version, deterministically. No model re-runs, no simulated
+   realities: only the ledger-and-rules layer is re-folded, so the
+   replay-vs-simulate boundary holds.
+3. **Durable event store + pluggable anchoring** — JSONL → append-only store,
+   head hash anchored via a provider interface (RFC-3161 TSA default). Recorded
+   history stays immutable; repairs only ever arrive as new events.
+
 ## Stack
 
 - **Models**: `qwen3.7-max` (reasoning roles), `qwen3.7-plus` (triage/audit) via Qwen Cloud
