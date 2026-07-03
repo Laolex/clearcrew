@@ -1,0 +1,23 @@
+edition: 3.0.0
+name: clearcrew
+access: clearcrew
+
+resources:
+  replay:
+    component: fc3
+    props:
+      region: ap-southeast-1
+      functionName: clearcrew-replay
+      description: ClearCrew Replay Time Machine — Qwen Cloud Global AI Hackathon
+      runtime: python3.10
+      code: ./build   # assembled by deploy/README.md steps
+      handler: index.handler
+      memorySize: 512
+      timeout: 60
+      triggers:
+        - triggerName: http
+          triggerType: http
+          triggerConfig:
+            authType: anonymous
+            methods: [GET, HEAD]
+            disableURLInternet: false

@@ -183,7 +183,10 @@ in the UI, API, and MCP server. What's next:
 
 - **Models**: `qwen3.7-max` (reasoning roles), `qwen3.7-plus` (triage/audit) via Qwen Cloud
   DashScope OpenAI-compatible endpoint
-- **Deploy**: Alibaba Cloud Function Compute (see `Dockerfile`)
+- **Deploy**: **live on Alibaba Cloud Function Compute 3.0** —
+  https://clearcrw-replay-ilccmqckdu.ap-southeast-1.fcapp.run (public read-only
+  API; see `deploy/` for the FC handler + IaC, or `Dockerfile` for the
+  container path)
 - **Provenance**: append-only, hash-chained JSONL event log — each event commits
   to its predecessor's hash, so recorded history is tamper-evident (`events.verify_chain`);
   `events.explain(id)` reconstructs any payout's causal chain. (External anchoring of
