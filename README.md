@@ -77,6 +77,9 @@ to fix. That's the actual claim: the trail is not just explanation — it's
 
 ![Replay Time Machine](docs/replay-time-machine.png)
 
+**Live demo: https://clearcrew.verasettle.com** (backed by Alibaba Cloud
+Function Compute — see `deploy/`).
+
 Every run archives its full event log to `runs/`. The Replay Time Machine steps
 through any payout's real event chain — intake triage, compliance veto with the
 policy rule cited, the recorded dispute-resolution ruling, the final verdict, and

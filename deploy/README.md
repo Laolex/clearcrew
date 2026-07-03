@@ -15,8 +15,11 @@ curl "https://clearcrw-replay-ilccmqckdu.ap-southeast-1.fcapp.run/api/runs/event
 
 Note: Function Compute forces `Content-Disposition: attachment` on the default
 `fcapp.run` domain, so browsers download `/` instead of rendering it — the
-JSON API is unaffected. The UI renders via a custom domain in front of the
-same function.
+JSON API is unaffected. The browser UI is served through a thin reverse proxy
+in front of the same function (nothing but TLS + header stripping happens
+there; all compute and data live on Function Compute):
+
+**https://clearcrew.verasettle.com** — the Replay Time Machine, in-browser.
 
 ## How it's deployed
 
