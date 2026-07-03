@@ -67,6 +67,40 @@ def test_index_serves_ui(client):
     assert r.status_code == 200 and "Replay Time Machine" in r.text
 
 
+def test_live_disabled_without_judge_code(client, monkeypatch):
+    monkeypatch.delenv("CLEARCREW_JUDGE_CODE", raising=False)
+    assert client.post("/api/live/start?code=x").status_code == 503
+
+
+def test_live_rejects_wrong_code(client, monkeypatch):
+    monkeypatch.setenv("CLEARCREW_JUDGE_CODE", "secret")
+    assert client.post("/api/live/start?code=nope").status_code == 401
+
+
+def test_live_status_idle(client):
+    replay._live.update(proc=None, run=None)
+    assert client.get("/api/live/status").json() == {"state": "idle"}
+
+
+def test_live_start_spawns_and_respects_lock(client, monkeypatch):
+    monkeypatch.setenv("CLEARCREW_JUDGE_CODE", "secret")
+    monkeypatch.setattr(replay, "_runs_today", lambda: 0)
+
+    class FakeProc:
+        returncode = None
+        def poll(self): return None
+        def kill(self): pass
+
+    spawned = []
+    monkeypatch.setattr(replay.subprocess, "Popen", lambda *a, **k: spawned.append(a) or FakeProc())
+    replay._live.update(proc=None, run=None)
+    assert client.post("/api/live/start?code=secret").status_code == 200
+    assert len(spawned) == 1 and "clearcrew.settle_demo" in spawned[0][0]
+    # second start while running -> 409
+    assert client.post("/api/live/start?code=secret").status_code == 409
+    replay._live.update(proc=None, run=None)
+
+
 def test_settled_run_settled_is_not_a_miss():
     # against the real archived run: settled == correctly approved, never a miss
     detail = replay.run_detail("events-20260703-165045-settled-n6.jsonl")

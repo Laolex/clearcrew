@@ -3,10 +3,17 @@
 Reads archived event logs from runs/ — every event shown was emitted by a live
 run of the society. Nothing is staged. This FastAPI app is also the backend
 deployed to Alibaba Cloud Function Compute.
+
+Judge mode (/api/live/*) only works where the secrets live: it spawns a real
+settle_demo run (live Qwen calls + real testnet settlement) on the host, so it
+is enabled only when CLEARCREW_JUDGE_CODE is set — never on the FC deployment.
 """
 import json
 import os
 import re
+import subprocess
+import sys
+import time
 from dataclasses import replace
 from pathlib import Path
 
@@ -178,6 +185,74 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
         "summary": {"in_force": tally(base), "hypothetical": tally(hypo)},
         "changes": sorted(changes, key=lambda c: -c["amount"]),
     }
+
+
+# ── judge mode: run the society live, watch it deliberate, then replay it ────
+
+SRC_DIR = Path(__file__).parent.parent
+LIVE_DAILY_CAP = 10
+_live: dict = {"proc": None, "started": 0.0, "run": None}
+
+
+def _judge_code() -> str:
+    return os.environ.get("CLEARCREW_JUDGE_CODE", "")
+
+
+def _runs_today() -> int:
+    stamp = time.strftime("%Y%m%d")
+    return len(list((SRC_DIR / "runs").glob(f"events-{stamp}-*-settled-*.jsonl")))
+
+
+def _read_live_events() -> list[dict]:
+    path = SRC_DIR / "events.jsonl"
+    if not path.exists():
+        return []
+    out = []
+    for line in path.read_text().splitlines():
+        try:
+            out.append(json.loads(line))
+        except json.JSONDecodeError:
+            break  # partial last line mid-write
+    return out
+
+
+@app.post("/api/live/start")
+def live_start(code: str = ""):
+    if not _judge_code():
+        raise HTTPException(503, "judge mode is not enabled on this deployment")
+    if code != _judge_code():
+        raise HTTPException(401, "wrong access code")
+    proc = _live["proc"]
+    if proc is not None and proc.poll() is None:
+        if time.time() - _live["started"] < 900:
+            raise HTTPException(409, "a live run is already in progress")
+        proc.kill()  # stale beyond any legitimate duration
+    if _runs_today() >= LIVE_DAILY_CAP:
+        raise HTTPException(429, "daily live-run budget spent — the archived runs replay everything")
+    _live.update(
+        proc=subprocess.Popen(
+            [sys.executable, "-m", "clearcrew.settle_demo"],
+            cwd=SRC_DIR, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ),
+        started=time.time(), run=None,
+    )
+    return {"state": "running", "note": "live Qwen calls + real testnet settlement — 3–6 minutes"}
+
+
+@app.get("/api/live/status")
+def live_status():
+    proc = _live["proc"]
+    if proc is None:
+        return {"state": "idle"}
+    elapsed = round(time.time() - _live["started"], 1)
+    if proc.poll() is None:
+        return {"state": "running", "elapsed": elapsed, "events": _read_live_events()}
+    if _live["run"] is None:
+        runs = sorted((SRC_DIR / "runs").glob("events-*-settled-*.jsonl"), key=os.path.getmtime)
+        if runs and os.path.getmtime(runs[-1]) >= _live["started"]:
+            _live["run"] = runs[-1].name
+    state = "done" if proc.returncode == 0 and _live["run"] else "failed"
+    return {"state": state, "elapsed": elapsed, "run": _live["run"]}
 
 
 @app.get("/", response_class=HTMLResponse)

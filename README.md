@@ -48,6 +48,7 @@ verdict, and money movement in one tamper-evident history.**
 | **Headline** | society **100%** vs monolith **89%**, same n=36 batch, same policy, same models — hash chain verified, 179 events |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
+| **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
 | **For agents** | 6-tool read-only [MCP server](docs/MCP.md) over the audit trail |
 | **Sharp edges we hit** | [GOTCHAS.md](GOTCHAS.md) — documented so you don't |
 
@@ -213,21 +214,27 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
 1. **Zero setup — the live demo**: https://clearcrew.verasettle.com — pick the
    `settled` run, click any payout, step its chain (arrow keys). Deep link to
    the on-chain one: [`#…-settled-n6.jsonl/1818e811`](https://clearcrew.verasettle.com/#events-20260703-165045-settled-n6.jsonl/1818e811).
-2. **Verify a settlement independently** — don't trust us, ask the chain:
+2. **Judges: run the society live from the browser** — the **⚡ live run**
+   button (access code in the submission notes) spawns a real 6-payout run:
+   live Qwen calls, recorded disputes, real testnet settlement. You watch the
+   events stream in as the agents deliberate (~2–4 min), then your run loads
+   for replay — hash-chained like every other. Budget-capped per day; if the
+   cap is spent, every archived run replays identically.
+3. **Verify a settlement independently** — don't trust us, ask the chain:
    ```bash
    curl -s https://sepolia.base.org -H 'content-type: application/json' -d \
      '{"jsonrpc":"2.0","id":1,"method":"eth_getTransactionReceipt","params":["0xee004e0813fd239840821471f5c70752bb963264df3cfea65dbeab37a7d96866"]}'
    ```
-3. **Verify the hash chain yourself** (clone, no API key needed):
+4. **Verify the hash chain yourself** (clone, no API key needed):
    ```bash
    pip install -r requirements-dev.txt && cd src
    python -c "import json; from clearcrew import events; \
      print(events.verify_chain([json.loads(l) for l in open('runs/events-20260703-165045-settled-n6.jsonl')]))"
    python -m pytest tests/ -q        # 38 tests
    ```
-4. **Query history as an agent** — the [MCP server](docs/MCP.md), read-only,
+5. **Query history as an agent** — the [MCP server](docs/MCP.md), read-only,
    keyless.
-5. **Re-run the benchmark or the settlement demo** — needs your own
+6. **Re-run the benchmark or the settlement demo** — needs your own
    `DASHSCOPE_API_KEY` (and a Verasettle sandbox for settlement); see below.
    Recorded runs in `runs/` are the originals — reruns produce new history,
    they never overwrite it.
