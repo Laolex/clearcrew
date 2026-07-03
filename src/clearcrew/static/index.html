@@ -143,13 +143,16 @@
 
   /* evolving state strip: the fold, computed live as you scrub */
   .statebar {
+    position: sticky; top: 0; z-index: 2;
     display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
-    background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
     padding: 10px 16px; font-size: 13.5px;
+    box-shadow: 0 2px 8px rgba(23,33,28,.05);
     transition: background 200ms ease, border-color 200ms ease;
   }
-  .statebar.ok { background: var(--green-soft); border-color: var(--green); }
-  .statebar.bad { background: var(--red-soft); border-color: var(--red); }
+  /* solid tints (not alpha) so the sticky bar never bleeds content through */
+  .statebar.ok { background: #e6f4f0; border-color: var(--green); }
+  .statebar.bad { background: #f9eded; border-color: var(--red); }
   .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
   .statebar .v { font-weight: 650; transition: color 200ms ease, font-size 200ms ease; }
   .statebar.ok .v, .statebar.bad .v { font-size: 15px; letter-spacing: .02em; }
@@ -242,6 +245,7 @@
     border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px;
   }
   #cf input { transition: border-color var(--t-fast); }
+  #cf input::placeholder { color: var(--muted); opacity: 1; }
   #cf button {
     background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal);
     border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
