@@ -211,6 +211,8 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
 
 ## Try it yourself (no setup → full setup)
 
+![The live demo — pick a run, or hit ⚡ live run to spawn a real one](docs/replay-landing.png)
+
 1. **Zero setup — the live demo**: https://clearcrew.verasettle.com — pick the
    `settled` run, click any payout, step its chain (arrow keys). Deep link to
    the on-chain one: [`#…-settled-n6.jsonl/1818e811`](https://clearcrew.verasettle.com/#events-20260703-165045-settled-n6.jsonl/1818e811).
@@ -230,7 +232,7 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
    pip install -r requirements-dev.txt && cd src
    python -c "import json; from clearcrew import events; \
      print(events.verify_chain([json.loads(l) for l in open('runs/events-20260703-165045-settled-n6.jsonl')]))"
-   python -m pytest tests/ -q        # 38 tests
+   python -m pytest tests/ -q        # 42 tests
    ```
 5. **Query history as an agent** — the [MCP server](docs/MCP.md), read-only,
    keyless.
