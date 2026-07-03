@@ -1,9 +1,16 @@
 # ClearCrew
 
-**A verifiable agent society for payout operations** — built on Qwen Cloud for the
-Global AI Hackathon Series (Agent Society track).
+**Autonomous agents are hard to trust with money because their decisions vanish
+the moment they're made — no trail to replay, no reasoning to audit, no specific
+agent to fix.**
 
-Five specialist Qwen agents — Intake, Compliance, Treasury, Resolution, Auditor —
+**ClearCrew replaces the opaque single-agent decision with a society of five
+specialist Qwen agents whose disagreements, vetoes, and negotiated resolutions
+are recorded as replayable, hash-chained history. Starting with payout
+operations.**
+
+Built on Qwen Cloud for the Global AI Hackathon Series (Agent Society track).
+Five specialist agents — Intake, Compliance, Treasury, Resolution, Auditor —
 divide a batch of payout requests through task decomposition and negotiated
 conflict resolution. Every decision is an event in an append-only log: state is a
 fold over events, and any outcome can be replayed and explained.
@@ -22,6 +29,13 @@ the monolith errs, you cannot locate responsibility — there is no *why* to
 retrieve, no agent to fix, no record to check. The society produces
 **accountable failure**: every error is attributed to a specific agent, with
 its reasoning on the record, contradicted or confirmed by the events around it.
+
+![Accountable failure](docs/accountable-failure.png)
+
+Both systems wrongly rejected the same clean $5,000 payout at some point in
+these benchmarks. The monolith's rejection is a dead end. The society's is a
+five-event recorded chain in which its own Auditor flags Treasury's reasoning
+as incorrect — which is what told us which agent to fix.
 
 `python -m clearcrew.bench` runs the same labeled batch through the society and
 through a single monolithic agent. Both receive the identical org policy AND the

@@ -65,7 +65,14 @@ def run() -> None:
     events.reset_chain()
     with open(f"runs/results-{stamp}-n{len(batch)}.json", "w") as f:
         import json
-        json.dump({"society": society, "monolith": monolith}, f, indent=2)
+        # per-payout verdicts too: the monolith leaves no event trail, so its
+        # archived verdict here is the ONLY record of what it decided
+        per_payout = {p["id"]: {"expected": p["_expected"],
+                                "society": society_decisions.get(p["id"]),
+                                "monolith": mono_decisions.get(p["id"])}
+                      for p in batch}
+        json.dump({"society": society, "monolith": monolith,
+                   "decisions": per_payout}, f, indent=2)
     print(f"\nrun archived: runs/events-{stamp}-n{len(batch)}.jsonl")
 
 
