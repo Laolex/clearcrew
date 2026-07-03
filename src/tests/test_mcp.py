@@ -7,7 +7,8 @@ from clearcrew import mcp_server
 
 def test_tools_registered():
     names = {t.name for t in mcp_server.mcp._tool_manager.list_tools()}
-    assert names == {"list_runs", "get_run", "explain_payout", "verify_run", "get_policy"}
+    assert names == {"list_runs", "get_run", "explain_payout", "verify_run",
+                     "get_policy", "counterfactual_policy"}
 
 
 def test_list_runs_matches_replay():
@@ -39,3 +40,11 @@ def test_bad_run_is_plain_tool_error():
 def test_get_policy_is_the_agents_policy():
     from clearcrew.policy import PAYOUT_POLICY
     assert mcp_server.get_policy() == PAYOUT_POLICY
+
+
+def test_counterfactual_tool_diffs_and_errors():
+    run = "events-20260702-210640-n36.jsonl"
+    out = mcp_server.counterfactual_policy(run, reserve_floor=40_000.0)
+    assert out["changes"] and "never re-generated" in out["note"]
+    with pytest.raises(ValueError):
+        mcp_server.counterfactual_policy("../../etc/passwd")

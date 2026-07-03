@@ -7,12 +7,13 @@ deployed to Alibaba Cloud Function Compute.
 import json
 import os
 import re
+from dataclasses import replace
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import HTMLResponse
 
-from . import data, events as event_log
+from . import data, events as event_log, policy
 
 RUNS_DIR = Path(os.environ.get("CLEARCREW_RUNS_DIR", Path(__file__).parent.parent / "runs"))
 STATIC_DIR = Path(__file__).parent / "static"
@@ -126,6 +127,56 @@ def explain(run_name: str, subject: str):
         "payout": detail,
         "verification": _verify(run_name, events),
         "chain": [{**e, "t_offset": round(e["ts"] - t0, 2)} for e in chain],
+    }
+
+
+@app.get("/api/runs/{run_name}/counterfactual")
+def counterfactual(run_name: str, reserve_floor: float | None = None,
+                   p2_amount: float | None = None, p2_age_days: int | None = None):
+    """Deterministic counterfactual replay: fold the SAME recorded batch through
+    a hypothetical policy version. Only the mechanical layer (P1/P2/P3 over
+    known amounts) is re-evaluated — recorded agent judgments are replayed
+    as-is, never re-generated. Executable history, not prediction."""
+    events = _load_events(run_name)
+    m = _RUN_RE.match(run_name)
+    batch = data.make_batch(int(m["n"]))
+
+    in_force = policy.CURRENT
+    overrides = {k: v for k, v in (("reserve_floor", reserve_floor),
+                                   ("p2_amount", p2_amount),
+                                   ("p2_age_days", p2_age_days)) if v is not None}
+    hypothetical = replace(in_force, version=f"{in_force.version}+counterfactual",
+                           reason="hypothetical — evaluated, never enacted", **overrides)
+
+    base = policy.evaluate(batch, in_force)
+    hypo = policy.evaluate(batch, hypothetical)
+    recorded = {e["subject"]: e["type"].split(".", 1)[1] for e in events
+                if e["type"] in ("payout.approved", "payout.rejected")}
+    amounts = {p["id"]: p["amount"] for p in batch}
+
+    changes = []
+    for pid in amounts:
+        if base[pid] != hypo[pid]:
+            b, h = base[pid], hypo[pid]
+            changes.append({
+                "payout_id": pid, "amount": amounts[pid],
+                "recorded_outcome": recorded.get(pid),
+                "in_force": b, "hypothetical": h,
+                "cause": f"rule {h['rule'] or b['rule']} under changed parameters",
+            })
+
+    def tally(verdicts):
+        approved = sum(1 for v in verdicts.values() if v["verdict"] == "approve")
+        return {"approve": approved, "reject": len(verdicts) - approved}
+
+    return {
+        "run": run_name,
+        "note": ("deterministic policy layer only — recorded agent judgments are "
+                 "replayed as-is, never re-generated"),
+        "policy_in_force": in_force.params(),
+        "policy_hypothetical": hypothetical.params(),
+        "summary": {"in_force": tally(base), "hypothetical": tally(hypo)},
+        "changes": sorted(changes, key=lambda c: -c["amount"]),
     }
 
 

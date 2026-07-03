@@ -84,9 +84,27 @@ the auditor's plain-English explanation. Real payout IDs, real model output,
 nothing staged. Deep-linkable: `#<run>/<payout_id>`.
 
 Replay reconstructs recorded history — it never re-runs models or simulates
-alternate outcomes. Counterfactual policy replay ("what would this batch have
-done under a different reserve floor?") is the next capability that replayable
-history enables; it's roadmap, not a claim.
+alternate outcomes.
+
+## Executable policy — counterfactual replay
+
+![Counterfactual replay](docs/counterfactual-replay.png)
+
+Policy is data, not prose: a versioned `PolicyVersion` renders the binding text
+the agents are prompted with, and `policy.evaluate()` — the same function that
+labels the benchmark's ground truth — computes what the written rules say for
+any batch. New runs open with a `policy.enacted` event recording the version
+and parameters in force (archived runs predate this and honestly lack it).
+
+That makes history *executable*: the replay UI and API can fold a run's
+recorded batch through hypothetical parameters — raise the reserve floor,
+move the P2 threshold — and show exactly which payouts would flip, and under
+which rule. Strictly the deterministic layer: recorded agent judgments are
+replayed as-is, never re-generated. Not prediction — arithmetic over history.
+
+```
+GET /api/runs/<run>/counterfactual?reserve_floor=40000
+```
 
 ```bash
 cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhost:9000
@@ -97,7 +115,8 @@ cd src && uvicorn clearcrew.replay:app --port 9000   # then open http://localhos
 The same read paths the Replay Time Machine uses are exposed as an MCP server,
 so any MCP-capable agent framework (Qwen, Claude, anything) can interrogate
 ClearCrew's recorded history as tools — `list_runs`, `get_run`,
-`explain_payout`, `verify_run`, `get_policy`. Read-only, no model calls, no
+`explain_payout`, `verify_run`, `get_policy`, `counterfactual_policy`
+(deterministic what-if over the recorded batch). Read-only, no model calls, no
 API key needed: an orchestrator asks *why* a payout was rejected and gets the
 hash-verified event chain back, not a summary someone wrote after the fact.
 
@@ -149,19 +168,16 @@ pip install -r requirements-dev.txt && cd src && python -m pytest tests/
 ## Roadmap (direction, not claims)
 
 V1 proved that recorded history makes an agent system explainable — and, read
-carefully, repairable. The next steps make recorded history *executable*:
+carefully, repairable. V2 (in this repo) made policy versioned and history
+executable: `policy.enacted` events, and deterministic counterfactual replay
+in the UI, API, and MCP server. What's next:
 
-1. **Policy as history** — governance changes (like this repo's
-   separation-of-duties fix) become recorded events themselves, so every payout
-   replays against the policy version in force and the system's own repair
-   ladder is auditable the same way its decisions are.
-2. **Counterfactual policy replay** — fold the *recorded* events through a
-   different policy version, deterministically. No model re-runs, no simulated
-   realities: only the ledger-and-rules layer is re-folded, so the
-   replay-vs-simulate boundary holds.
-3. **Durable event store + pluggable anchoring** — JSONL → append-only store,
+1. **Durable event store + pluggable anchoring** — JSONL → append-only store,
    head hash anchored via a provider interface (RFC-3161 TSA default). Recorded
    history stays immutable; repairs only ever arrive as new events.
+2. **Evidence packs** — an exportable, offline-verifiable bundle per run
+   (events, policy version, chain head, verification report) that an auditor
+   can check without trusting this codebase or any network service.
 
 ## Stack
 

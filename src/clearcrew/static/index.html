@@ -153,6 +153,30 @@
     background: linear-gradient(transparent, var(--bg) 40%); pointer-events: none;
   }
   footer code { color: var(--muted); }
+
+  /* ---- counterfactual replay ---- */
+  #cf { margin: 10px 28px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  #cf summary { cursor: pointer; padding: 9px 14px; font-size: 12.5px; color: var(--muted); list-style: none; }
+  #cf summary::-webkit-details-marker { display: none; }
+  #cf summary b { color: var(--violet); }
+  #cf .cfbody { padding: 4px 14px 12px; }
+  #cf .cfrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  #cf label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
+  #cf input {
+    width: 110px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px;
+  }
+  #cf button {
+    background: var(--violet-soft); color: var(--violet); border: 1px solid var(--violet);
+    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
+  }
+  .cfsum { font-size: 13px; margin: 6px 0; }
+  .cfsum b { color: var(--ink); }
+  .cfchg { font-size: 12px; color: var(--muted); padding: 3px 0; border-top: 1px solid var(--line); }
+  .cfchg b.toreject { color: var(--red); }
+  .cfchg b.toapprove { color: var(--green); }
+  .cfcause { color: var(--dim); margin-left: 8px; }
+  .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -162,6 +186,18 @@
   <select id="runSel"></select>
 </header>
 <div class="stats" id="stats"></div>
+<details id="cf">
+  <summary>⑂ <b>Counterfactual policy replay</b> — fold this run's recorded batch through different policy parameters (deterministic rules only, nothing re-generated)</summary>
+  <div class="cfbody">
+    <div class="cfrow">
+      <label>reserve floor $<input id="cfFloor" type="number" step="5000" min="0" placeholder="10000"></label>
+      <label>P2 threshold $<input id="cfP2" type="number" step="1000" min="0" placeholder="9000"></label>
+      <label>P2 age ≤ days<input id="cfAge" type="number" step="1" min="0" placeholder="7"></label>
+      <button id="cfRun">Replay under this policy</button>
+    </div>
+    <div id="cfOut"></div>
+  </div>
+</details>
 <main>
   <div id="list"></div>
   <div id="replay"><div id="placeholder">Select a payout to replay its event chain.</div></div>
@@ -233,6 +269,26 @@ async function loadRun(name, runs) {
       </div>`).join("");
   document.querySelectorAll(".payout").forEach(el => el.onclick = () => selectPayout(el));
   $("#replay").innerHTML = '<div id="placeholder">Select a payout to replay its event chain.</div>';
+  $("#cfOut").innerHTML = "";
+}
+
+async function runCounterfactual() {
+  const q = new URLSearchParams();
+  if ($("#cfFloor").value) q.set("reserve_floor", $("#cfFloor").value);
+  if ($("#cfP2").value) q.set("p2_amount", $("#cfP2").value);
+  if ($("#cfAge").value) q.set("p2_age_days", $("#cfAge").value);
+  const r = await j(`/api/runs/${runName}/counterfactual?` + q);
+  const s = r.summary;
+  $("#cfOut").innerHTML = `
+    <div class="cfsum">policy in force: <b>${s.in_force.approve}</b> approve / <b>${s.in_force.reject}</b> reject
+      &nbsp;→&nbsp; hypothetical: <b>${s.hypothetical.approve}</b> approve / <b>${s.hypothetical.reject}</b> reject
+      &nbsp;·&nbsp; <b>${r.changes.length}</b> payout${r.changes.length === 1 ? "" : "s"} would change</div>` +
+    (r.changes.length ? r.changes.map(c => `
+      <div class="cfchg mono">${c.payout_id} · ${fmtUSD(c.amount)} · recorded ${c.recorded_outcome ?? "—"} ·
+        ${c.in_force.verdict} → <b class="to${c.hypothetical.verdict}">${c.hypothetical.verdict}</b>
+        <span class="cfcause">${c.cause}</span></div>`).join("")
+      : '<div class="cfchg">no payout changes under these parameters</div>') +
+    `<div class="cfnote">${r.note}</div>`;
 }
 
 async function selectPayout(el) {
@@ -379,6 +435,7 @@ document.addEventListener("keydown", (e) => {
   if (e.key === "ArrowLeft") go(step - 1);
 });
 
+$("#cfRun").onclick = runCounterfactual;
 init();
 </script>
 </body>

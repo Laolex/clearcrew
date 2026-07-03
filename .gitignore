@@ -3,3 +3,5 @@ __pycache__/
 events.jsonl
 .env
 .venv/
+alibaba.env
+*.env

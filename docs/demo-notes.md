@@ -115,3 +115,9 @@ real payout 5affb229 on both sides. Use it as the bridge between beats 3 and 4.
 7. Replay Time Machine walkthrough on the final verified run: green ⛓ chain
    badge, step to the end of a chain, land on the assertions —
    "✓ reconstructed · ✓ chain verified · ✓ matches policy". Nothing staged.
+8. Closer — counterfactual replay (`docs/counterfactual-replay.png`): open the
+   ⑂ panel on the verified run, set reserve floor to 40,000, click Replay.
+   Three $9,800 payouts flip approve→reject, rule P3, recorded outcomes
+   untouched. "History here isn't just a record — it's executable. What would
+   this batch have done under next quarter's policy? That's not prediction.
+   That's arithmetic over history." End card.

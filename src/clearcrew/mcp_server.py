@@ -68,7 +68,20 @@ def get_policy() -> str:
     return PAYOUT_POLICY
 
 
-for _fn in (list_runs, get_run, explain_payout, verify_run, get_policy):
+def counterfactual_policy(run_name: str, reserve_floor: float | None = None,
+                          p2_amount: float | None = None,
+                          p2_age_days: int | None = None) -> dict:
+    """Deterministic counterfactual replay: what would the written policy have
+    ruled for this run's recorded batch under different parameters (reserve
+    floor, P2 amount threshold, P2 recipient-age cutoff)? Re-folds ONLY the
+    mechanical policy layer — recorded agent judgments are never re-generated.
+    Returns per-payout diffs with the rule that caused each change."""
+    return _unwrap(lambda: replay.counterfactual(run_name, reserve_floor,
+                                                 p2_amount, p2_age_days))
+
+
+for _fn in (list_runs, get_run, explain_payout, verify_run, get_policy,
+            counterfactual_policy):
     mcp.tool()(_fn)
 
 

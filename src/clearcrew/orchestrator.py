@@ -5,6 +5,12 @@ from . import agents, events, policy
 
 
 def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
+    # policy is history too: record which version governs this batch, so any
+    # replay knows exactly what the rules were at decision time
+    events.emit("policy.enacted", "batch", "orchestrator",
+                {"version": policy.CURRENT.version, "reason": policy.CURRENT.reason,
+                 "params": {**policy.CURRENT.params(), "balance": balance,
+                            "reserve_floor": reserve_floor}})
     events.emit("batch.received", "batch", "orchestrator", {"count": len(payouts)})
 
     # 1. Decompose: intake triages every request (cheap model, in parallel)
