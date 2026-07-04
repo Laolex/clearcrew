@@ -30,7 +30,7 @@
     font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   }
   code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-  .num, .amt, .pos, .toff, .stat b, .statebar .t, .cfchg { font-variant-numeric: tabular-nums; }
+  .amt, .pos, .toff, .stat b, .statebar .t, .cfchg { font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; }
@@ -129,7 +129,14 @@
 
   /* ---- replay panel ---- */
   #replay { padding: 22px 30px 60px; overflow-y: auto; max-height: calc(100vh - 130px); }
-  #placeholder { color: var(--dim); padding: 60px 0; text-align: center; font-size: 14px; }
+  /* reading measure: audit prose must not run 130ch on wide screens */
+  .payout-head, .controls, .statebar, .timeline, .asserts { max-width: 980px; }
+  #placeholder { color: var(--muted); padding: 56px 0; font-size: 14px;
+    max-width: 52ch; margin: 0 auto; }
+  #placeholder p { margin-bottom: 10px; }
+  #placeholder .ph-how { color: var(--dim); font-size: 13px; }
+  #placeholder .ph-tip { color: var(--dim); font-size: 13px; }
+  #placeholder .chip { vertical-align: 1px; }
 
   .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
   .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
@@ -297,7 +304,7 @@
   <div id="liveFeed"></div>
 </div>
 <details id="cf">
-  <summary>⑂ <b>Counterfactual policy replay</b> — fold this run's recorded batch through different policy parameters (deterministic rules only, nothing re-generated)</summary>
+  <summary>⑂ <b>Counterfactual policy replay</b> — re-fold this run's recorded batch under different policy parameters. Deterministic: nothing is re-generated.</summary>
   <div class="cfbody">
     <div class="cfrow">
       <label>reserve floor $<input id="cfFloor" type="number" step="5000" min="0" placeholder="10000"></label>
@@ -310,7 +317,7 @@
 </details>
 <main>
   <div id="list"></div>
-  <div id="replay"><div id="placeholder">Click a payout to replay its recorded event chain — → and ← step through it, Play auto-runs.</div></div>
+  <div id="replay"></div>
 </main>
 <footer id="foot"></footer>
 
@@ -321,6 +328,12 @@ let pulsed = false;    // settled-pulse fires once per payout selection
 let keyRepeat = false; // held arrow key → instant scroll, no smooth-scroll lag
 
 const fmtUSD = (a) => a == null ? "" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
+
+const PLACEHOLDER = `<div id="placeholder">
+  <p>Pick a payout on the left to replay its recorded event chain.</p>
+  <p class="ph-how">→ and ← step one event at a time · Play auto-runs · state at the top is folded live from the events shown</p>
+  <p class="ph-tip">Start with a <span class="chip disputed">disputed</span> one — you'll watch a veto argued and ruled on the record.</p>
+</div>`;
 
 async function j(url) { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.json(); }
 
@@ -401,7 +414,7 @@ async function loadRun(name, runs) {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectPayout(el); }
     };
   });
-  $("#replay").innerHTML = '<div id="placeholder">Click a payout to replay its recorded event chain — → and ← step through it, Play auto-runs.</div>';
+  $("#replay").innerHTML = PLACEHOLDER;
   $("#cfOut").innerHTML = "";
 }
 
@@ -626,14 +639,20 @@ async function startLive() {
   if (!code) return;
   const r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, { method: "POST" });
   const body = await r.json().catch(() => ({}));
+  if (r.status === 409) { watchLive("a run is already in progress — watching it live"); return; }
   if (!r.ok) { alert(body.detail || "couldn't start a live run"); return; }
+  watchLive("live Qwen calls + real testnet settlement · 3–6 min");
+}
+
+function watchLive(meta) {
   $("#live").classList.add("on");
   $("#liveBtn").disabled = true;
   $("#liveBtn").classList.add("running");
   $("#liveBtn").textContent = "⚡ running…";
   $("#liveFeed").innerHTML = ""; liveRendered = 0;
-  $("#liveMeta").textContent = "live Qwen calls + real testnet settlement · 3–6 min";
+  $("#liveMeta").textContent = meta;
   liveTimer = setInterval(pollLive, 2500);
+  pollLive();
 }
 
 async function pollLive() {
@@ -671,7 +690,7 @@ async function pollLive() {
     await init();
     $("#live").classList.remove("on");
   } else {
-    $("#liveMeta").textContent = "run failed — recorded honestly; the archived runs still replay everything";
+    $("#liveMeta").textContent = "the live run failed — its events are recorded, not hidden; every archived run above still replays";
   }
 }
 

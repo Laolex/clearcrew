@@ -221,7 +221,7 @@ def live_start(code: str = ""):
     if not _judge_code():
         raise HTTPException(503, "judge mode is not enabled on this deployment")
     if code != _judge_code():
-        raise HTTPException(401, "wrong access code")
+        raise HTTPException(401, "That access code didn't match — it's in the Devpost submission notes.")
     proc = _live["proc"]
     if proc is not None and proc.poll() is None:
         if time.time() - _live["started"] < 900:
