@@ -69,6 +69,17 @@
   @keyframes liveIn { from { opacity: 0; transform: translateY(-4px); } }
   #live .lhead { color: var(--gold); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
   #live .lhead .mono { font-weight: 400; color: var(--muted); margin-left: 10px; }
+  /* the society as a pipeline: nodes light and pulse as each agent speaks */
+  #liveGraph { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; }
+  #liveGraph .ln { display: flex; align-items: center; gap: 6px; color: var(--dim);
+    font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
+    transition: color 200ms ease; }
+  #liveGraph .ln i { width: 10px; height: 10px; border-radius: 50%; flex: none;
+    background: var(--panel); border: 2px solid var(--line); transition: border-color 200ms ease, background 200ms ease; }
+  #liveGraph .ln.spoke { color: var(--lac); }
+  #liveGraph .ln.spoke i { border-color: var(--lac); }
+  #liveGraph .ln.done i { background: var(--lac); }
+  #liveGraph .sep { flex: none; width: 14px; height: 1px; background: var(--line); }
   #liveFeed { max-height: 220px; overflow-y: auto; font-size: 12px; }
   #liveFeed div { padding: 2px 0; color: var(--muted);
     transition: opacity 200ms cubic-bezier(.23,1,.32,1), transform 200ms cubic-bezier(.23,1,.32,1); }
@@ -223,6 +234,12 @@
     border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color var(--t-med);
   }
   .event.shown::before { border-color: var(--ac, var(--teal)); }
+  /* the commit moment: this event just chained onto its predecessor (forward steps only) */
+  .event.commit::before { animation: commit 450ms cubic-bezier(.23,1,.32,1) 1; }
+  @keyframes commit {
+    from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); }
+    to   { box-shadow: 0 0 0 10px rgba(13,148,136,0); }
+  }
   .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .actor {
     font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
@@ -289,6 +306,13 @@
   .cfchg b.toapprove { color: var(--green); }
   .cfcause { color: var(--dim); margin-left: 8px; }
   .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
+
+  /* ---- payout → replay morph (View Transitions; no-op where unsupported) ---- */
+  ::view-transition-group(payout-amt) {
+    animation-duration: 260ms;
+    animation-timing-function: cubic-bezier(.23,1,.32,1);
+  }
+  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; }
 </style>
 </head>
 <body>
@@ -301,6 +325,7 @@
 <div class="stats" id="stats"></div>
 <div id="live" role="status">
   <div class="lhead">⚡ live run in progress <span class="mono" id="liveMeta"></span></div>
+  <div id="liveGraph" aria-hidden="true"></div>
   <div id="liveFeed"></div>
 </div>
 <details id="cf">
@@ -440,13 +465,33 @@ async function runCounterfactual() {
 }
 
 async function selectPayout(el) {
-  document.querySelectorAll(".payout").forEach(e => e.classList.remove("active"));
-  el.classList.add("active");
   history.replaceState(null, "", `#${runName}/${el.dataset.id}`);
   stopPlay();
   let data;
   try { data = await j(`/api/runs/${runName}/explain/${el.dataset.id}`); }
   catch { return showError("#replay", () => selectPayout(el)); }
+  const render = () => renderReplay(el, data);
+  // morph the clicked row's amount into the replay heading (graceful no-op elsewhere)
+  if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    const amt = el.querySelector(".amt");
+    if (amt) amt.style.viewTransitionName = "payout-amt";
+    const vt = document.startViewTransition(() => {
+      if (amt) amt.style.viewTransitionName = "";
+      render();
+      const h2 = document.querySelector(".payout-head h2");
+      if (h2) h2.style.viewTransitionName = "payout-amt";
+    });
+    vt.finished.then(() => {
+      const h2 = document.querySelector(".payout-head h2");
+      if (h2) h2.style.viewTransitionName = "";
+    });
+    await vt.updateCallbackDone.catch(() => {}); // callers rely on chain being set on return
+  } else render();
+}
+
+function renderReplay(el, data) {
+  document.querySelectorAll(".payout").forEach(e => e.classList.remove("active"));
+  el.classList.add("active");
   chain = data.chain; step = 0; pulsed = false;
   payoutExpected = (data.payout || {})._expected || null;
   const p = data.payout || {};
@@ -552,12 +597,15 @@ function foldUpTo(k) {
 }
 
 function go(n) {
-  step = Math.max(1, Math.min(chain.length, n));
+  const target = Math.max(1, Math.min(chain.length, n));
+  const forward = target > step;
+  step = target;
   document.querySelectorAll(".event").forEach((el, i) => {
     el.classList.toggle("shown", i < step);
     el.classList.toggle("current", i === step - 1);
   });
   const cur = document.querySelector(".event.current");
+  if (cur && forward) { cur.classList.remove("commit"); void cur.offsetWidth; cur.classList.add("commit"); }
   const smooth = (keyRepeat || matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
   keyRepeat = false;
   if (cur) cur.scrollIntoView({ block: "nearest", behavior: smooth });
@@ -644,8 +692,28 @@ async function startLive() {
   watchLive("live Qwen calls + real testnet settlement · 3–6 min");
 }
 
+const GRAPH_ACTORS = ["intake", "compliance", "treasury", "resolution", "auditor", "verasettle"];
+
+function buildLiveGraph() {
+  $("#liveGraph").innerHTML = GRAPH_ACTORS.map((a, i) =>
+    (i ? '<span class="sep"></span>' : "") +
+    `<span class="ln" data-actor="${a}" style="--lac:${ACTORS[a]}"><i></i>${a}</span>`).join("");
+}
+
+function pulseActor(actor, done) {
+  const node = document.querySelector(`#liveGraph .ln[data-actor="${actor}"]`);
+  if (!node) return;
+  node.classList.add("spoke");
+  if (done) node.classList.add("done");
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  node.querySelector("i").animate(
+    [{ transform: "scale(1)" }, { transform: "scale(1.6)" }, { transform: "scale(1)" }],
+    { duration: 420, easing: "cubic-bezier(.23,1,.32,1)" });
+}
+
 function watchLive(meta) {
   $("#live").classList.add("on");
+  buildLiveGraph();
   $("#liveBtn").disabled = true;
   $("#liveBtn").classList.add("running");
   $("#liveBtn").textContent = "⚡ running…";
@@ -674,6 +742,7 @@ async function pollLive() {
         <b>${e.type}</b> <span class="mono">${e.subject !== "batch" ? e.subject : ""}</span> ${gist}`;
       feed.appendChild(d);
       requestAnimationFrame(() => requestAnimationFrame(() => d.classList.remove("new")));
+      pulseActor(e.actor, e.type === "settlement.confirmed"); // filled dot = USDC actually moved
     }
     liveRendered = evs.length;
     $("#liveMeta").textContent = `${evs.length} events · ${Math.round(s.elapsed)}s elapsed`;
