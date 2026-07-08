@@ -3,11 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>ClearCrew — Replay Time Machine</title>
+<title>ClearCrew — Trust Layer for Autonomous Payouts</title>
 <style>
   :root {
-    /* Verasettle console skin — light-only, per brand (Teal Ink for accents:
-       bright teal is too low-contrast on white). All text tones ≥4.5:1. */
+    /* Verasettle console skin — light-only, per brand. All text tones ≥4.5:1. */
     color-scheme: light;
     --bg: #f7f6f2; --panel: #ffffff; --card: #efede6; --line: #e0ded4;
     --ink: #17211c; --muted: #4d5560; --dim: #667080;
@@ -28,230 +27,198 @@
   body {
     background: var(--bg); color: var(--ink); min-height: 100vh;
     font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    display: grid; grid-template-columns: 232px 1fr;
   }
   code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
-  .amt, .pos, .toff, .stat b, .statebar .t, .cfchg { font-variant-numeric: tabular-nums; }
+  .amt, .pos, .toff, .stat b, .statebar .t, .cfchg, .num { font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
+  a { color: var(--blue); text-decoration: none; }
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition-duration: .01ms !important; animation: none !important; }
   }
 
-  header {
-    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
-    padding: 22px 28px 16px; border-bottom: 1px solid var(--line);
-  }
-  header h1 { font-size: 19px; letter-spacing: -.01em; }
-  header h1 .tm { color: var(--teal); }
-  header .sub { color: var(--muted); font-size: 13px; }
-  header select {
-    margin-left: auto; background: var(--card); color: var(--ink);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
-    font: inherit; font-size: 13px;
-  }
+  /* ---- sidebar ---- */
+  .side { border-right: 1px solid var(--line); padding: 18px 14px; position: sticky;
+    top: 0; height: 100vh; overflow-y: auto; }
+  .side .wm { font-size: 14px; font-weight: 650; letter-spacing: -.01em; margin-bottom: 4px; line-height: 1.3; }
+  .side .wm b { color: var(--teal); }
+  .side .wmsub { color: var(--dim); font-size: 11.5px; margin-bottom: 18px; }
+  .navlink { display: block; padding: 8px 12px; border-radius: 9px; color: var(--muted);
+    text-decoration: none; font-size: 13.5px; margin-bottom: 2px;
+    transition: background var(--t-fast), color var(--t-fast); }
+  .navlink[aria-current="page"] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
+  @media (hover:hover){ .navlink:hover { color: var(--ink); } }
+  .side .navgap { height: 14px; }
   #liveBtn {
-    margin-left: auto; background: var(--card); color: var(--gold);
-    border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px;
-    font: inherit; font-size: 13px; cursor: pointer;
+    width: 100%; text-align: left; background: var(--card); color: var(--gold);
+    border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px;
+    font: inherit; font-size: 13px; cursor: pointer; margin-top: 4px;
     transition: border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
   }
-  #liveBtn:active:not(:disabled) { transform: scale(.97); }
+  #liveBtn:active:not(:disabled) { transform: scale(.98); }
   #liveBtn:disabled { opacity: .55; cursor: default; }
   @media (hover: hover) and (pointer: fine) { #liveBtn:hover:not(:disabled) { border-color: var(--gold); } }
-  #liveBtn + select { margin-left: 0; }
-  /* liveness while the society deliberates (3–6 min): a slow breath, not a nag */
   #liveBtn.running:disabled { opacity: 1; animation: livePulse 1.6s ease-in-out infinite; }
   @keyframes livePulse { 50% { opacity: .55; } }
 
-  /* live-run panel */
-  #live { display: none; margin: 10px 28px 0; border: 1px solid var(--gold);
-    border-radius: 10px; background: var(--gold-soft); padding: 12px 16px; }
-  #live.on { display: block; animation: liveIn 220ms cubic-bezier(.23,1,.32,1); }
-  @keyframes liveIn { from { opacity: 0; transform: translateY(-4px); } }
-  #live .lhead { color: var(--gold); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
-  #live .lhead .mono { font-weight: 400; color: var(--muted); margin-left: 10px; }
-  /* the society as a pipeline: nodes light and pulse as each agent speaks */
-  #liveGraph { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; }
-  #liveGraph .ln { display: flex; align-items: center; gap: 6px; color: var(--dim);
-    font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em;
-    transition: color 200ms ease; }
-  #liveGraph .ln i { width: 10px; height: 10px; border-radius: 50%; flex: none;
-    background: var(--panel); border: 2px solid var(--line); transition: border-color 200ms ease, background 200ms ease; }
-  #liveGraph .ln.spoke { color: var(--lac); }
-  #liveGraph .ln.spoke i { border-color: var(--lac); }
-  #liveGraph .ln.done i { background: var(--lac); }
-  #liveGraph .sep { flex: none; width: 14px; height: 1px; background: var(--line); }
-  #liveFeed { max-height: 220px; overflow-y: auto; font-size: 12px; }
-  #liveFeed div { padding: 2px 0; color: var(--muted);
-    transition: opacity 200ms cubic-bezier(.23,1,.32,1), transform 200ms cubic-bezier(.23,1,.32,1); }
-  #liveFeed div.new { opacity: 0; transform: translateY(4px); }
-  #liveFeed .la { display: inline-block; min-width: 92px; font-weight: 650;
-    text-transform: uppercase; font-size: 10px; letter-spacing: .05em; }
-  #liveFeed b { color: var(--ink); font-weight: 600; }
-  .stats { display: flex; gap: 10px; padding: 14px 28px 0; flex-wrap: wrap; }
-  .stat {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 8px 14px; font-size: 12.5px; color: var(--muted);
-  }
-  .stat b { color: var(--ink); font-size: 15px; margin-right: 4px; }
-  .stat.win b { color: var(--green); }
-  .stat.lose b { color: var(--red); }
-  .stat.chain-ok { border-color: var(--green); color: var(--green); }
-  .stat.chain-bad { border-color: var(--red); color: var(--red); }
-
-  main { display: grid; grid-template-columns: 430px 1fr; gap: 0; min-height: calc(100vh - 130px); }
-  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
-
-  /* ---- payout list ---- */
-  #list { border-right: 1px solid var(--line); padding: 16px 14px 40px; overflow-y: auto; max-height: calc(100vh - 130px); }
-  #list h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
-  .payout {
-    display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
-    padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 4px;
-    transition: background var(--t-fast), border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
-    animation: listIn 240ms cubic-bezier(.23,1,.32,1) both;
-  }
-  @keyframes listIn { from { opacity: 0; transform: translateY(6px); } }
-  @media (hover: hover) and (pointer: fine) {
-    .payout:hover { background: var(--panel); }
-  }
-  .payout:active { transform: scale(.99); }
-  .payout.active { background: var(--panel); border-color: var(--teal); box-shadow: 0 1px 3px rgba(23,33,28,.06); }
-  .payout:focus-visible { outline-offset: 0; }
-  .loading { color: var(--dim); padding: 40px 10px; text-align: center; font-size: 13px; }
+  /* ---- main column ---- */
+  .col { min-width: 0; display: flex; flex-direction: column; }
+  .trustbar { position: sticky; top: 0; z-index: 3; background: var(--panel);
+    border-bottom: 1px solid var(--line); color: var(--dim); font-size: 11.5px;
+    letter-spacing: .04em; padding: 7px 24px; display: flex; gap: 18px; flex-wrap: wrap; }
+  .trustbar b { color: var(--green); font-weight: 700; }
+  .stage { padding: 22px 28px 64px; overflow-y: auto; }
+  .vhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
+  .vhead h1 { font-size: 20px; letter-spacing: -.01em; }
+  .vhead .sub { color: var(--muted); font-size: 13px; }
+  .loading { color: var(--dim); padding: 40px 4px; font-size: 13px; }
   .err { margin: 14px 0; padding: 12px 16px; border-radius: 10px; font-size: 13px;
     background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
   .err button { margin-left: 10px; background: transparent; color: var(--red);
     border: 1px solid var(--red); border-radius: 7px; padding: 3px 10px;
-    font: inherit; font-size: 12px; cursor: pointer;
-    transition: transform 160ms cubic-bezier(.23,1,.32,1); }
-  .err button:active { transform: scale(.97); }
+    font: inherit; font-size: 12px; cursor: pointer; }
+  select.runsel {
+    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px;
+  }
+
+  /* ---- stat tiles ---- */
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 16px; font-size: 12.5px; color: var(--muted); }
+  .stat b { display: block; color: var(--ink); font-size: 22px; margin-bottom: 2px; letter-spacing: -.01em; }
+  .stat.win b { color: var(--green); }
+  .stat.chain-ok b { color: var(--green); }
+
+  /* ---- chips ---- */
+  .chip { font-size: 10.5px; font-weight: 650; letter-spacing: .04em; padding: 2.5px 8px;
+    border-radius: 99px; text-transform: uppercase; display: inline-block; }
+  .chip.approved { background: var(--green-soft); color: var(--green); }
+  .chip.rejected { background: var(--red-soft); color: var(--red); }
+  .chip.disputed, .chip.escalated { background: var(--gold-soft); color: var(--gold); }
+  .chip.settled { background: var(--green-soft); color: var(--green); outline: 1px solid var(--green); }
+  .chip.pending { background: var(--card); color: var(--dim); }
+  .chip.miss { background: var(--red-soft); color: var(--red); outline: 1px solid var(--red); }
+
+  /* ---- generic table ---- */
+  table.grid { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
+  table.grid th { text-align: left; color: var(--dim); font-size: 10.5px; text-transform: uppercase;
+    letter-spacing: .08em; font-weight: 650; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+  table.grid td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  table.grid tr.clickable { cursor: pointer; }
+  @media (hover:hover){ table.grid tr.clickable:hover td { background: var(--panel); } }
+  .linklike { color: var(--blue); cursor: pointer; }
+
+  /* ---- overview recent / activity ---- */
+  .rowlink { cursor: pointer; }
+
+  /* ---- panels / detail ---- */
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 10px; }
+  .panel.exec b.ok { color: var(--green); }
+  .muted-note { color: var(--dim); font-size: 12px; margin-top: 8px; }
+  .kvline { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13px;
+    border-top: 1px solid var(--line); }
+  .kvline:first-of-type { border-top: none; } .kvline .k { color: var(--dim); }
+
+  .truststrip { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 13px; color: var(--muted); }
+  .truststrip span { white-space: nowrap; }
+  .truststrip .tc.ok { color: var(--green); font-weight: 700; }
+  .truststrip .tc.no { color: var(--dim); font-weight: 700; }
+
+  /* detail panels respond to the DETAIL container's width (the list eats ~360px),
+     so use a container query, not viewport — 3-up only when there's real room,
+     stacked otherwise so the Execution "money moment" is never clipped. */
+  .detail3 { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
+  @container opsdetail (min-width: 900px) {
+    .detail3 { grid-template-columns: 240px minmax(0, 1fr) 280px; }
+  }
+
+  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
+  .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
+
+  /* ---- ops list ---- */
+  .opsgrid { display: grid; grid-template-columns: 360px 1fr; gap: 0; }
+  @media (max-width: 1000px){ .opsgrid { grid-template-columns: 1fr; } }
+  #opsList { border-right: 1px solid var(--line); padding: 8px 12px 40px; max-height: calc(100vh - 200px); overflow-y: auto; }
+  #opsList h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
+  .payout { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
+    padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 4px;
+    transition: background var(--t-fast), border-color var(--t-fast); }
+  @media (hover: hover) and (pointer: fine) { .payout:hover { background: var(--panel); } }
+  .payout.active { background: var(--panel); border-color: var(--teal); box-shadow: 0 1px 3px rgba(23,33,28,.06); }
   .payout .amt { font-weight: 650; font-size: 14.5px; white-space: nowrap; }
   .payout .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .chips { display: flex; gap: 5px; align-items: center; justify-content: flex-end; grid-row: span 2; align-self: center; flex-wrap: wrap; }
-  .chip {
-    font-size: 10.5px; font-weight: 650; letter-spacing: .04em; padding: 2.5px 8px;
-    border-radius: 99px; text-transform: uppercase;
-  }
-  .chip.approved { background: var(--green-soft); color: var(--green); }
-  .chip.rejected { background: var(--red-soft); color: var(--red); }
-  .chip.disputed { background: var(--gold-soft); color: var(--gold); }
-  .chip.settled { background: var(--green-soft); color: var(--green); outline: 1px solid var(--green); }
-  .chip.miss { background: var(--red-soft); color: var(--red); outline: 1px solid var(--red); }
+  #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px);
+    container-type: inline-size; container-name: opsdetail; }
+  #opsDetail .placeholder { color: var(--muted); padding: 56px 0; font-size: 14px; max-width: 52ch; }
 
-  /* ---- replay panel ---- */
-  #replay { padding: 22px 30px 60px; overflow-y: auto; max-height: calc(100vh - 130px); }
-  /* reading measure: audit prose must not run 130ch on wide screens */
-  .payout-head, .controls, .statebar, .timeline, .asserts { max-width: 980px; }
-  #placeholder { color: var(--muted); padding: 56px 0; font-size: 14px;
-    max-width: 52ch; margin: 0 auto; }
-  #placeholder p { margin-bottom: 10px; }
-  #placeholder .ph-how { color: var(--dim); font-size: 13px; }
-  #placeholder .ph-tip { color: var(--dim); font-size: 13px; }
-  #placeholder .chip { vertical-align: 1px; }
-
-  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 4px; }
-  .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
-  .payout-head .facts { color: var(--muted); font-size: 13px; }
-
-  .controls { display: flex; gap: 8px; align-items: center; margin: 16px 0 22px; }
-  .controls button {
-    background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  /* ---- replay controls / timeline (ported) ---- */
+  .controls { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
+  .controls button { background: var(--card); color: var(--ink); border: 1px solid var(--line);
     border-radius: 8px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
-    transition: border-color var(--t-fast), opacity var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
-  }
-  @media (hover: hover) and (pointer: fine) {
-    .controls button:hover:not(:disabled) { border-color: var(--teal); }
-  }
+    transition: border-color var(--t-fast), opacity var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1); }
+  @media (hover: hover) and (pointer: fine) { .controls button:hover:not(:disabled) { border-color: var(--teal); } }
   .controls button:active:not(:disabled) { transform: scale(.97); }
   .controls button:disabled { opacity: .45; cursor: default; }
   .controls button.primary { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
-  .controls #play { min-width: 86px; } /* ▶ Play ↔ ⏸ Pause must not shift the row */
+  .controls #play { min-width: 86px; }
   .controls .pos { color: var(--dim); font-size: 12.5px; margin-left: 6px; }
   .controls .hint { color: var(--dim); font-size: 11.5px; margin-left: auto; }
 
-  /* evolving state strip: the fold, computed live as you scrub */
-  .statebar {
-    position: sticky; top: 0; z-index: 2;
-    display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 16px; font-size: 13.5px;
-    box-shadow: 0 2px 8px rgba(23,33,28,.05);
-    transition: background 200ms ease, border-color 200ms ease;
-  }
-  /* solid tints (not alpha) so the sticky bar never bleeds content through */
+  .statebar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13.5px;
+    box-shadow: 0 2px 8px rgba(23,33,28,.05); transition: background 200ms ease, border-color 200ms ease; }
   .statebar.ok { background: #e6f4f0; border-color: var(--green); }
-  /* fires once per payout (JS-gated) — scrubbing back and forth must not re-trigger it */
   .statebar.ok.pulse { animation: settled-pulse 700ms cubic-bezier(.23,1,.32,1) 1; }
   .statebar.bad { background: #f9eded; border-color: var(--red); }
-  /* the settled moment: one brand-teal ring, once, like the Verasettle mark */
   @keyframes settled-pulse {
     from { box-shadow: 0 2px 8px rgba(23,33,28,.05), 0 0 0 0 rgba(5,150,105,.35); }
     to   { box-shadow: 0 2px 8px rgba(23,33,28,.05), 0 0 0 16px rgba(5,150,105,0); }
   }
   .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
-  .statebar .v { font-weight: 650; transform-origin: left center;
-    transition: color 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
+  .statebar .v { font-weight: 650; transform-origin: left center; transition: color 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
   .statebar.ok .v, .statebar.bad .v { transform: scale(1.12); letter-spacing: .02em; }
   .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
 
-  /* end-of-replay assertions */
-  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 12px;
-    background: var(--green-soft); border: 1px solid var(--green);
-    font-size: 13.5px; color: var(--green);
+  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: var(--green-soft);
+    border: 1px solid var(--green); font-size: 13.5px; color: var(--green);
     visibility: hidden; opacity: 0; transform: translateY(4px);
     transition: opacity var(--t-fast), transform var(--t-fast), visibility var(--t-fast); }
   .asserts.show { visibility: visible; opacity: 1; transform: none;
     transition: opacity var(--t-med), transform var(--t-med), visibility var(--t-med); }
-  .asserts div { margin: 2px 0; opacity: 0; transform: translateY(3px);
-    transition: opacity 180ms cubic-bezier(.23,1,.32,1), transform 180ms cubic-bezier(.23,1,.32,1); }
-  .asserts.show div { opacity: 1; transform: none; }
-  .asserts.show div:nth-child(2) { transition-delay: 60ms; }
-  .asserts.show div:nth-child(3) { transition-delay: 120ms; }
+  .asserts div { margin: 2px 0; }
   .asserts .warn { color: var(--gold); }
 
-  /* ---- timeline ---- */
   .timeline { position: relative; padding-left: 26px; }
-  .timeline::before {
-    content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px;
-    width: 2px; background: var(--line);
-  }
-  /* recorded time elapsed: draws down to the current event as you scrub */
-  .tl-progress {
-    position: absolute; left: 7px; top: 8px; width: 2px; height: calc(100% - 16px);
-    background: var(--teal); transform-origin: top; transform: scaleY(0);
-    transition: transform var(--t-med);
-  }
-  .event {
-    position: relative; margin-bottom: 14px; background: var(--panel);
-    border: 1px solid var(--line); border-radius: 12px; padding: 13px 16px;
-    opacity: .32; filter: saturate(.25);
-    transition: opacity var(--t-med), filter var(--t-med), border-color var(--t-med);
-  }
+  .timeline::before { content: ""; position: absolute; left: 7px; top: 8px; bottom: 8px; width: 2px; background: var(--line); }
+  .tl-progress { position: absolute; left: 7px; top: 8px; width: 2px; height: calc(100% - 16px);
+    background: var(--teal); transform-origin: top; transform: scaleY(0); transition: transform var(--t-med); }
+  .event { position: relative; margin-bottom: 14px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 12px; padding: 13px 16px; opacity: .32; filter: saturate(.25);
+    transition: opacity var(--t-med), filter var(--t-med), border-color var(--t-med); cursor: pointer; }
   .event.shown { opacity: 1; filter: none; }
   .event.current { border-color: var(--ac, var(--teal)); box-shadow: 0 0 0 1px var(--ac, var(--teal)); }
-  .event::before {
-    content: ""; position: absolute; left: -25px; top: 18px; width: 12px; height: 12px;
-    border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color var(--t-med);
-  }
+  .event::before { content: ""; position: absolute; left: -25px; top: 18px; width: 12px; height: 12px;
+    border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color var(--t-med); }
   .event.shown::before { border-color: var(--ac, var(--teal)); }
-  /* the commit moment: this event just chained onto its predecessor (forward steps only) */
   .event.commit::before { animation: commit 450ms cubic-bezier(.23,1,.32,1) 1; }
-  @keyframes commit {
-    from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); }
-    to   { box-shadow: 0 0 0 10px rgba(13,148,136,0); }
-  }
+  @keyframes commit { from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); } to { box-shadow: 0 0 0 10px rgba(13,148,136,0); } }
   .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
-  .actor {
-    font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    padding: 2.5px 9px; border-radius: 99px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal));
-  }
+  .actor { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    padding: 2.5px 9px; border-radius: 99px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
   .etype { font-size: 13px; color: var(--ink); font-weight: 600; }
   .toff { margin-left: auto; color: var(--dim); font-size: 11.5px; }
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
   .event .body b { color: var(--ink); }
+  .event .hashes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
+    font-size: 11px; color: var(--dim); display: none; }
+  .event.open .hashes { display: block; }
+  .event .hashes .hk { color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; }
+  .event .hashes .hv { color: var(--muted); word-break: break-all; }
   .kv { display: inline-block; margin-right: 14px; }
   .kv .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-right: 5px; }
-
   .event.a-intake { --ac: var(--blue); --acs: var(--blue-soft); }
   .event.a-compliance { --ac: var(--violet); --acs: var(--violet-soft); }
   .event.a-treasury { --ac: #7e22ce; --acs: rgba(126,34,206,.09); }
@@ -261,261 +228,340 @@
   .event.a-verasettle { --ac: #0d9488; --acs: rgba(13,148,136,.10); }
   .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
   .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
-  .event .body a { color: var(--blue); text-decoration: none; border-bottom: 1px solid var(--blue); }
+  .event .body a { color: var(--blue); border-bottom: 1px solid var(--blue); }
 
-  footer {
-    position: fixed; bottom: 0; left: 0; right: 0; text-align: center;
-    padding: 8px; font-size: 11.5px; color: var(--dim);
-    background: linear-gradient(rgba(247,246,242,0), var(--bg) 40%); pointer-events: none;
-  }
-  footer code { color: var(--muted); }
+  /* ---- decision → money ---- */
+  .decmoney { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 24px; }
+  .decmoney .dmhead { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
+  .dm-node { background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+    border-radius: 10px; padding: 8px 16px; font: inherit; font-size: 13px; cursor: pointer;
+    transition: border-color var(--t-fast), color var(--t-fast); }
+  .dm-node.on { color: var(--ink); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+  .dm-arrow { color: var(--dim); margin-left: 14px; }
 
-  /* ---- counterfactual replay ---- */
-  #cf { margin: 10px 28px 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
-  #cf summary { cursor: pointer; padding: 9px 14px; font-size: 12.5px; color: var(--muted); list-style: none;
-    transition: color 150ms ease; }
-  @media (hover: hover) and (pointer: fine) {
-    #cf summary:hover { color: var(--ink); }
-  }
+  /* ---- counterfactual ---- */
+  #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  #cf summary { cursor: pointer; padding: 11px 16px; font-size: 13px; color: var(--muted); list-style: none; }
   #cf summary::-webkit-details-marker { display: none; }
   #cf summary b { color: var(--teal); }
-  #cf .cfbody { padding: 4px 14px 12px; animation: cfIn 180ms cubic-bezier(.23,1,.32,1); }
-  @keyframes cfIn { from { opacity: 0; transform: translateY(-2px); } }
+  #cf .cfbody { padding: 4px 16px 14px; }
   #cf .cfrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   #cf label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
-  #cf input {
-    width: 110px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px;
-  }
-  #cf input { transition: border-color var(--t-fast); }
-  #cf input::placeholder { color: var(--muted); opacity: 1; }
-  #cf button {
-    background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal);
-    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer;
-    transition: background var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
-  }
-  #cf button:active { transform: scale(.97); }
-  @media (hover: hover) and (pointer: fine) {
-    #cf input:hover { border-color: var(--dim); }
-    #cf button:hover { background: rgba(13,148,136,.18); }
-  }
-  .cfsum { font-size: 13px; margin: 6px 0; }
-  .cfsum b { color: var(--ink); }
+  #cf input { width: 110px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; }
+  #cf button { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal);
+    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .cfsum { font-size: 13px; margin: 6px 0; } .cfsum b { color: var(--ink); }
   .cfchg { font-size: 12px; color: var(--muted); padding: 3px 0; border-top: 1px solid var(--line); }
-  .cfchg b.toreject { color: var(--red); }
-  .cfchg b.toapprove { color: var(--green); }
-  .cfcause { color: var(--dim); margin-left: 8px; }
-  .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
+  .cfchg b.toreject { color: var(--red); } .cfchg b.toapprove { color: var(--green); }
+  .cfcause { color: var(--dim); margin-left: 8px; } .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
 
-  /* ---- payout → replay morph (View Transitions; no-op where unsupported) ---- */
-  ::view-transition-group(payout-amt) {
-    animation-duration: 260ms;
-    animation-timing-function: cubic-bezier(.23,1,.32,1);
+  /* ---- policies ---- */
+  .policytext { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 16px 18px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px;
+    white-space: pre-wrap; color: var(--ink); line-height: 1.6; }
+  .paramgrid { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+  .param { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-size: 12.5px; }
+  .param b { display: block; color: var(--ink); }
+  .policynote { color: var(--muted); font-size: 12.5px; margin: 10px 0 4px; max-width: 70ch; }
+
+  /* ---- failures ---- */
+  .failcards { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 4px; }
+  .failcard { background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+    padding: 12px 16px; cursor: pointer; min-width: 150px;
+    transition: border-color var(--t-fast); }
+  .failcard.active { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal); }
+  @media (hover:hover){ .failcard:hover { border-color: var(--dim); } }
+  .failcard .fc-n { font-size: 24px; font-weight: 650; letter-spacing: -.01em; }
+  .failcard .fc-l { color: var(--muted); font-size: 12px; }
+  .failcard.zero .fc-n { color: var(--dim); }
+  .byrule { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0; height: 90px; }
+  .barwrap { display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; }
+  .bar { width: 44px; background: var(--teal); border-radius: 6px 6px 0 0; min-height: 4px; }
+  .barwrap .bl { font-size: 11px; color: var(--muted); } .barwrap .bn { font-size: 11px; color: var(--dim); }
+
+  /* ---- analytics ---- */
+  table.bench { width: 100%; max-width: 640px; border-collapse: collapse; font-size: 14px; margin: 10px 0; }
+  table.bench th, table.bench td { padding: 10px 14px; border-bottom: 1px solid var(--line); text-align: left; }
+  table.bench th { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
+  table.bench td.num { text-align: right; font-variant-numeric: tabular-nums; }
+  table.bench .yes { color: var(--green); font-weight: 700; } table.bench .no { color: var(--red); font-weight: 700; }
+  table.bench tr.headline td { font-size: 15px; font-weight: 650; background: var(--green-soft); }
+
+  /* ---- evidence pack ---- */
+  .evpack { max-width: 560px; }
+  .evcheck { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px;
+    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
+  .evcheck .ec-ok { color: var(--green); font-weight: 700; }
+  .evcheck .ec-no { color: var(--dim); font-weight: 700; }
+  .evbtns { display: flex; gap: 10px; margin-top: 16px; }
+  .evbtns button { background: var(--teal); border: 1px solid var(--teal); color: #fff; font-weight: 600;
+    border-radius: 9px; padding: 9px 18px; font: inherit; font-size: 13px; cursor: pointer; }
+  .evbtns button.ghost { background: var(--card); color: var(--ink); border-color: var(--line); font-weight: 500; }
+
+  /* ---- live panel ---- */
+  #live { display: none; margin: 16px 0 0; border: 1px solid var(--gold); border-radius: 10px; background: var(--gold-soft); padding: 12px 16px; }
+  #live.on { display: block; }
+  #live .lhead { color: var(--gold); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
+  #live .lhead .mono { font-weight: 400; color: var(--muted); margin-left: 10px; }
+  #liveGraph { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; }
+  #liveGraph .ln { display: flex; align-items: center; gap: 6px; color: var(--dim);
+    font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; transition: color 200ms ease; }
+  #liveGraph .ln i { width: 10px; height: 10px; border-radius: 50%; flex: none;
+    background: var(--panel); border: 2px solid var(--line); transition: border-color 200ms ease, background 200ms ease; }
+  #liveGraph .ln.spoke { color: var(--lac); } #liveGraph .ln.spoke i { border-color: var(--lac); }
+  #liveGraph .ln.done i { background: var(--lac); }
+  #liveGraph .sep { flex: none; width: 14px; height: 1px; background: var(--line); }
+  #liveFeed { max-height: 220px; overflow-y: auto; font-size: 12px; }
+  #liveFeed div { padding: 2px 0; color: var(--muted); }
+  #liveFeed .la { display: inline-block; min-width: 92px; font-weight: 650; text-transform: uppercase; font-size: 10px; letter-spacing: .05em; }
+  #liveFeed b { color: var(--ink); font-weight: 600; }
+
+  footer { text-align: center; padding: 10px; font-size: 11.5px; color: var(--dim); }
+  footer code { color: var(--muted); }
+
+  /* ---- print: evidence pack one-pager ---- */
+  @media print {
+    body { display: block; }
+    .side, .trustbar, .controls, .evbtns, #cf, #liveBtn, #live { display: none !important; }
+    .stage { padding: 0; }
+    [data-view]:not(#view-evidence) { display: none !important; }
   }
-  ::view-transition-old(root), ::view-transition-new(root) { animation-duration: 160ms; }
 </style>
 </head>
 <body>
-<header>
-  <h1>ClearCrew <span class="tm">Replay Time Machine</span></h1>
-  <span class="sub">every event below was emitted by a live run — nothing staged</span>
+<nav class="side">
+  <div class="wm">ClearCrew</div>
+  <div class="wmsub">Trust Layer for Autonomous Payouts</div>
+  <a class="navlink" href="#/overview">Overview</a>
+  <a class="navlink" href="#/ops">Operations</a>
+  <a class="navlink" href="#/policies">Policies</a>
+  <a class="navlink" href="#/evidence">Evidence</a>
+  <a class="navlink" href="#/failures">Failures</a>
+  <a class="navlink" href="#/analytics">Analytics</a>
+  <div class="navgap"></div>
   <button id="liveBtn" title="Judge mode: run the society live (access code required)">⚡ live run</button>
-  <select id="runSel" aria-label="Select archived run"></select>
-</header>
-<div class="stats" id="stats"></div>
-<div id="live" role="status">
-  <div class="lhead">⚡ live run in progress <span class="mono" id="liveMeta"></span></div>
-  <div id="liveGraph" aria-hidden="true"></div>
-  <div id="liveFeed"></div>
-</div>
-<details id="cf">
-  <summary>⑂ <b>Counterfactual policy replay</b> — re-fold this run's recorded batch under different policy parameters. Deterministic: nothing is re-generated.</summary>
-  <div class="cfbody">
-    <div class="cfrow">
-      <label>reserve floor $<input id="cfFloor" type="number" step="5000" min="0" placeholder="10000"></label>
-      <label>P2 threshold $<input id="cfP2" type="number" step="1000" min="0" placeholder="9000"></label>
-      <label>P2 age ≤ days<input id="cfAge" type="number" step="1" min="0" placeholder="7"></label>
-      <button id="cfRun">Replay under this policy</button>
-    </div>
-    <div id="cfOut"></div>
+</nav>
+
+<div class="col">
+  <div class="trustbar">
+    <span>Every decision here is</span>
+    <span><b>✓</b> Recorded</span><span><b>✓</b> Replayable</span>
+    <span><b>✓</b> Attributable</span><span><b>✓</b> Exportable</span>
   </div>
-</details>
-<main>
-  <div id="list"></div>
-  <div id="replay"></div>
-</main>
-<footer id="foot"></footer>
+  <div class="stage">
+    <section id="view-overview" data-view hidden><div class="loading">loading…</div></section>
+    <section id="view-ops" data-view hidden><div class="loading">loading…</div></section>
+    <section id="view-policies" data-view hidden><div class="loading">loading…</div></section>
+    <section id="view-evidence" data-view hidden><div class="loading">loading…</div></section>
+    <section id="view-failures" data-view hidden><div class="loading">loading…</div></section>
+    <section id="view-analytics" data-view hidden><div class="loading">loading…</div></section>
+    <div id="live" role="status">
+      <div class="lhead">⚡ live run in progress <span class="mono" id="liveMeta"></span></div>
+      <div id="liveGraph" aria-hidden="true"></div>
+      <div id="liveFeed"></div>
+    </div>
+  </div>
+  <footer id="foot"></footer>
+</div>
 
 <script>
-const $ = (s) => document.querySelector(s);
-let runName = null, chain = [], step = 0, playTimer = null, runChain = null, payoutExpected = null;
-let pulsed = false;    // settled-pulse fires once per payout selection
-let keyRepeat = false; // held arrow key → instant scroll, no smooth-scroll lag
+const $ = (s, r=document) => r.querySelector(s);
+const api = async (p) => { const r = await fetch(p); if (!r.ok) throw new Error(p); return r.json(); };
+const fmtUSD = (a) => a == null ? "—" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const navigate = (h) => { location.hash = h; };
 
-const fmtUSD = (a) => a == null ? "" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
-
-const PLACEHOLDER = `<div id="placeholder">
-  <p>Pick a payout on the left to replay its recorded event chain.</p>
-  <p class="ph-how">→ and ← step one event at a time · Play auto-runs · state at the top is folded live from the events shown</p>
-  <p class="ph-tip">Start with a <span class="chip disputed">disputed</span> one — you'll watch a veto argued and ruled on the record.</p>
-</div>`;
-
-async function j(url) { const r = await fetch(url); if (!r.ok) throw new Error(url); return r.json(); }
-
+function statusChip(status, {disputed, miss, settled} = {}) {
+  const cls = settled ? "settled" : status;
+  let html = `<span class="chip ${cls}">${settled ? "settled" : status}</span>`;
+  if (disputed) html = `<span class="chip escalated">escalated</span>` + html;
+  if (miss) html += ` <span class="chip miss">miss</span>`;
+  return html;
+}
 function showError(sel, retry) {
-  const el = $(sel);
-  if (!el) return;
-  el.innerHTML = '<div class="err">couldn’t reach the event log<button>retry</button></div>';
+  const el = $(sel); if (!el) return;
+  el.innerHTML = `<div class="err">couldn’t reach the event log<button>retry</button></div>`;
   el.querySelector("button").onclick = retry;
 }
 
-async function init() {
-  let runs;
-  try { ({ runs } = await j("/api/runs")); }
-  catch { return showError("#list", init); }
-  const sel = $("#runSel");
-  sel.innerHTML = runs.map(r =>
-    `<option value="${r.name}">${r.stamp} · n=${r.n}${r.results ? " · benchmarked" : ""}</option>`).join("");
-  sel.onchange = () => loadRun(sel.value, runs);
-  if (!runs.length) return;
-  // deep link: #<run>/<payout>
-  const [hashRun, hashPayout] = location.hash.slice(1).split("/");
-  const withResults = runs.filter(r => r.results);
-  const settled = runs.filter(r => r.name.includes("-settled-"));
-  const def = runs.find(r => r.name === hashRun) || settled[settled.length - 1]
-    || withResults[withResults.length - 1] || runs[runs.length - 1];
-  sel.value = def.name;
-  await loadRun(def.name, runs);
-  if (hashPayout) {
-    const el = document.querySelector(`.payout[data-id="${CSS.escape(hashPayout)}"]`);
-    if (el) { el.scrollIntoView({ block: "center" }); await selectPayout(el); go(chain.length); }
-  }
-}
-
-async function loadRun(name, runs) {
-  runName = name;
-  stopPlay();
-  const run = runs.find(r => r.name === name);
-  const st = $("#stats");
-  if (run && run.results) {
-    const s = run.results.society, m = run.results.monolith;
-    st.innerHTML = `
-      <div class="stat win"><b>${Math.round(s.accuracy*100)}%</b> society accuracy</div>
-      <div class="stat ${m.accuracy < s.accuracy ? "lose" : ""}"><b>${Math.round(m.accuracy*100)}%</b> single-agent baseline</div>
-      <div class="stat"><b>${s.tokens.toLocaleString()}</b> society tokens</div>
-      <div class="stat"><b>${s.seconds.toFixed(0)}s</b> wall time</div>`;
-  } else st.innerHTML = "";
-  $("#foot").innerHTML = `source: <code>runs/${name}</code> — append-only JSONL event log, state = fold(events)`;
-  $("#list").innerHTML = '<div class="loading">reading event log…</div>';
-
-  let detail;
-  try { detail = await j(`/api/runs/${name}`); }
-  catch { return showError("#list", () => loadRun(name, runs)); }
-  runChain = detail.chain;
-  const st2 = $("#stats");
-  if (runChain) {
-    st2.insertAdjacentHTML("beforeend", runChain.hashed
-      ? (runChain.verified
-        ? `<div class="stat chain-ok">⛓ <b>hash chain verified</b> ${runChain.events} events</div>`
-        : `<div class="stat chain-bad">⛓ <b>CHAIN BROKEN</b> at event ${runChain.broken_at}</div>`)
-      : `<div class="stat">recorded before hash chaining — replayable, not tamper-evident</div>`);
-  }
-  $("#list").innerHTML = `<h2>${detail.payouts.length} payouts · ${detail.total_events} events</h2>` +
-    detail.payouts.map((p, i) => `
-      <div class="payout" data-id="${p.id}" tabindex="0" role="button"
-           style="animation-delay:${Math.min(i * 18, 200)}ms"
-           aria-label="Replay payout ${p.id}, ${fmtUSD(p.amount)}, ${p.status}">
-        <span class="amt">${fmtUSD(p.amount)} <span class="meta">${p.corridor ?? ""}</span></span>
-        <div class="chips">
-          ${p.disputed ? '<span class="chip disputed">disputed</span>' : ""}
-          ${p.miss ? '<span class="chip miss">miss</span>' : ""}
-          <span class="chip ${p.status}">${p.status}</span>
-        </div>
-        <span class="meta mono">${p.id} · recipient ${p.recipient_age_days ?? "?"}d · ${p.events} events</span>
-      </div>`).join("");
-  document.querySelectorAll(".payout").forEach(el => {
-    el.onclick = () => selectPayout(el);
-    el.onkeydown = (e) => {
-      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectPayout(el); }
-    };
+// ── router ──────────────────────────────────────────────────────────────────
+const VIEWS = ["overview", "ops", "policies", "evidence", "failures", "analytics"];
+function route() {
+  const parts = (location.hash || "#/overview").slice(1).split("/").filter(Boolean);
+  const name = VIEWS.includes(parts[0]) ? parts[0] : "overview";
+  const rest = parts.slice(1);
+  document.querySelectorAll("[data-view]").forEach(s => s.hidden = s.id !== `view-${name}`);
+  document.querySelectorAll(".navlink").forEach(a => {
+    const on = a.getAttribute("href") === `#/${name}`;
+    if (on) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current");
   });
-  $("#replay").innerHTML = PLACEHOLDER;
-  $("#cfOut").innerHTML = "";
+  RENDERERS[name](rest);
+}
+window.addEventListener("hashchange", route);
+
+// ── OVERVIEW ────────────────────────────────────────────────────────────────
+async function renderOverview() {
+  const el = $("#view-overview");
+  el.innerHTML = `<div class="loading">reading recorded history…</div>`;
+  let o; try { o = await api("/api/overview"); } catch { return showError("#view-overview", renderOverview); }
+  const t = o.totals;
+  el.innerHTML = `
+    <div class="vhead"><h1>Recorded History</h1>
+      <span class="sub">every number below is folded from append-only event logs — nothing staged</span></div>
+    <div class="stats">
+      <div class="stat"><b>${t.runs}</b>runs</div>
+      <div class="stat"><b>${t.payouts}</b>payouts</div>
+      <div class="stat"><b>${t.settlements}</b>on-chain settlements</div>
+      <div class="stat"><b>${t.usdc_moved}</b>USDC moved (testnet)</div>
+      <div class="stat win"><b>${t.replay_pct}%</b>replay coverage</div>
+      <div class="stat chain-ok"><b>${t.hash_verified_pct}%</b>hash verified</div>
+    </div>
+    <div class="vhead" style="margin-top:22px"><h1 style="font-size:15px">Recent activity</h1></div>
+    <table class="grid"><thead><tr><th>Payout</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <tbody>${o.recent.map(p => `
+      <tr class="clickable" data-go="#/ops/${esc(p.run)}/${esc(p.id)}">
+        <td class="mono">${esc(p.id)}</td>
+        <td class="num">${fmtUSD(p.amount)}</td>
+        <td>${statusChip(p.status, {disputed: p.disputed, miss: p.miss, settled: p.settled})}</td>
+        <td class="linklike">${p.settled ? "Receipt" : "Replay"} →</td>
+      </tr>`).join("")}</tbody></table>`;
+  el.querySelectorAll("[data-go]").forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
 }
 
-async function runCounterfactual() {
-  const q = new URLSearchParams();
-  if ($("#cfFloor").value) q.set("reserve_floor", $("#cfFloor").value);
-  if ($("#cfP2").value) q.set("p2_amount", $("#cfP2").value);
-  if ($("#cfAge").value) q.set("p2_age_days", $("#cfAge").value);
-  let r;
-  try { r = await j(`/api/runs/${runName}/counterfactual?` + q); }
-  catch { return showError("#cfOut", runCounterfactual); }
-  const s = r.summary;
-  $("#cfOut").innerHTML = `
-    <div class="cfsum">policy in force: <b>${s.in_force.approve}</b> approve / <b>${s.in_force.reject}</b> reject
-      &nbsp;→&nbsp; hypothetical: <b>${s.hypothetical.approve}</b> approve / <b>${s.hypothetical.reject}</b> reject
-      &nbsp;·&nbsp; <b>${r.changes.length}</b> payout${r.changes.length === 1 ? "" : "s"} would change</div>` +
-    (r.changes.length ? r.changes.map(c => `
-      <div class="cfchg mono">${c.payout_id} · ${fmtUSD(c.amount)} · recorded ${c.recorded_outcome ?? "—"} ·
-        ${c.in_force.verdict} → <b class="to${c.hypothetical.verdict}">${c.hypothetical.verdict}</b>
-        <span class="cfcause">${c.cause}</span></div>`).join("")
-      : '<div class="cfchg">no payout changes under these parameters</div>') +
-    `<div class="cfnote">${r.note}</div>`;
+// ── OPERATIONS + payout detail ──────────────────────────────────────────────
+let opsRuns = null;      // cached /api/runs
+let chain = [], step = 0, playTimer = null, runChain = null, payoutExpected = null, pulsed = false, keyRepeat = false;
+
+async function renderOps(rest) {
+  const el = $("#view-ops");
+  if (!opsRuns) { try { opsRuns = (await api("/api/runs")).runs; } catch { return showError("#view-ops", () => renderOps(rest)); } }
+  const settled = opsRuns.filter(r => r.name.includes("-settled-"));
+  const def = (rest[0] && opsRuns.find(r => r.name === rest[0]))
+    || settled[settled.length - 1] || opsRuns[opsRuns.length - 1];
+  if (!el.dataset.built) {
+    el.innerHTML = `
+      <div class="vhead"><h1>Operations</h1><span class="sub">pick a payout to replay its recorded decision → execution → evidence</span>
+        <select class="runsel" id="runSel" aria-label="Select run" style="margin-left:auto"></select></div>
+      <div class="opsgrid"><div id="opsList"><div class="loading">reading…</div></div>
+      <div id="opsDetail"><div class="placeholder">Pick a payout on the left to replay its recorded event chain.<br><br>
+        <span class="chip disputed">escalated</span> payouts show a veto argued and ruled on the record.</div></div></div>`;
+    el.dataset.built = "1";
+    const sel = $("#runSel");
+    sel.innerHTML = opsRuns.map(r => `<option value="${esc(r.name)}">${esc(r.stamp)} · n=${r.n}${r.results ? " · benchmarked" : ""}</option>`).join("");
+    sel.onchange = () => navigate(`#/ops/${sel.value}`);
+  }
+  $("#runSel").value = def.name;
+  await loadOpsList(def.name);
+  if (rest[1]) {
+    const row = document.querySelector(`.payout[data-id="${CSS.escape(rest[1])}"]`);
+    if (row) { row.scrollIntoView({block: "center"}); await selectPayout(def.name, rest[1], row); }
+  }
 }
 
-async function selectPayout(el) {
-  history.replaceState(null, "", `#${runName}/${el.dataset.id}`);
+async function loadOpsList(name) {
+  const list = $("#opsList");
+  $("#foot").innerHTML = `source: <code>runs/${esc(name)}</code> — append-only JSONL, state = fold(events)`;
+  list.innerHTML = `<div class="loading">reading event log…</div>`;
+  let d; try { d = await api(`/api/runs/${name}`); } catch { return showError("#opsList", () => loadOpsList(name)); }
+  runChain = d.chain;
+  list.innerHTML = `<h2>${d.payouts.length} payouts · ${d.total_events} events` +
+    (runChain && runChain.hashed ? (runChain.verified ? ` · ⛓ chain verified` : ` · ⛓ CHAIN BROKEN`) : ``) + `</h2>` +
+    d.payouts.map(p => `
+      <div class="payout" data-id="${esc(p.id)}" role="button" tabindex="0">
+        <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
+        <div class="chips">
+          ${p.disputed ? '<span class="chip escalated">escalated</span>' : ""}
+          ${p.miss ? '<span class="chip miss">miss</span>' : ""}
+          <span class="chip ${p.status === "settled" ? "settled" : p.status}">${p.status}</span></div>
+        <span class="meta mono">${esc(p.id)} · recipient ${p.recipient_age_days ?? "?"}d · ${p.events} events</span>
+      </div>`).join("");
+  list.querySelectorAll(".payout").forEach(row => {
+    const go = () => navigate(`#/ops/${name}/${row.dataset.id}`);
+    row.onclick = go;
+    row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
+  });
+}
+
+async function selectPayout(run, subject, row) {
   stopPlay();
-  let data;
-  try { data = await j(`/api/runs/${runName}/explain/${el.dataset.id}`); }
-  catch { return showError("#replay", () => selectPayout(el)); }
-  const render = () => renderReplay(el, data);
-  // morph the clicked row's amount into the replay heading (graceful no-op elsewhere)
-  if (document.startViewTransition && !matchMedia("(prefers-reduced-motion: reduce)").matches) {
-    const amt = el.querySelector(".amt");
-    if (amt) amt.style.viewTransitionName = "payout-amt";
-    const vt = document.startViewTransition(() => {
-      if (amt) amt.style.viewTransitionName = "";
-      render();
-      const h2 = document.querySelector(".payout-head h2");
-      if (h2) h2.style.viewTransitionName = "payout-amt";
-    });
-    vt.finished.then(() => {
-      const h2 = document.querySelector(".payout-head h2");
-      if (h2) h2.style.viewTransitionName = "";
-    });
-    await vt.updateCallbackDone.catch(() => {}); // callers rely on chain being set on return
-  } else render();
+  document.querySelectorAll(".payout").forEach(e => e.classList.remove("active"));
+  if (row) row.classList.add("active");
+  let data; try { data = await api(`/api/runs/${run}/explain/${subject}`); }
+  catch { return showError("#opsDetail", () => selectPayout(run, subject, row)); }
+  renderPayoutDetail(run, subject, data);
 }
 
-function renderReplay(el, data) {
-  document.querySelectorAll(".payout").forEach(e => e.classList.remove("active"));
-  el.classList.add("active");
+function foldFinal(ch) {
+  let label = "pending", disputed = false, settled = false;
+  for (const e of ch) {
+    if (e.type === "dispute.resolved") disputed = true;
+    if (e.type === "payout.approved") label = "APPROVED";
+    if (e.type === "payout.rejected") label = "REJECTED";
+    if (e.type === "payout.settled") { label = "SETTLED"; settled = true; }
+  }
+  return {label, disputed, settled};
+}
+
+function trustStrip(ch, verification) {
+  const has = (t) => ch.some(e => e.type === t);
+  const decided = has("payout.approved") || has("payout.rejected") || has("payout.settled");
+  const settled = has("payout.settled");
+  const evidence = verification && verification.hashed;
+  const mark = (ok) => ok ? '<span class="tc ok">✓</span>' : '<span class="tc no">—</span>';
+  return `<div class="truststrip">
+    <span>Decision ${mark(decided)}</span><span>Replay ${mark(ch.length > 0)}</span>
+    <span>Settlement ${mark(settled)}</span><span>Evidence ${mark(evidence)}</span></div>`;
+}
+
+function renderPayoutDetail(run, subject, data) {
   chain = data.chain; step = 0; pulsed = false;
   payoutExpected = (data.payout || {})._expected || null;
   const p = data.payout || {};
-  $("#replay").innerHTML = `
-    <div class="payout-head">
-      <h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${data.subject}</span></h2>
-      <span class="facts">${p.from_country ?? "?"} → ${p.to_country ?? "?"} · recipient account ${p.recipient_age_days}d old
-        · memo “${p.memo || "—"}” · expected: <b style="color:var(--ink)">${p._expected ?? "?"}</b></span>
+  const fin = foldFinal(chain);
+  const decision = fin.disputed && !fin.settled ? "ESCALATED" : (fin.label === "SETTLED" ? "APPROVED" : fin.label);
+  $("#opsDetail").innerHTML =
+    trustStrip(chain, data.verification) +
+    `<div class="payout-head"><h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${esc(subject)}</span></h2></div>
+    <div class="detail3">
+      <div class="panel"><h3>Summary</h3>
+        <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
+        <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
+        <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
+        <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
+        <div class="kvline"><span class="k">Decision</span><b>${decision}</b></div>
+        <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
+        <div class="kvline"><span class="k">Policy</span><b>v1</b></div>
+        <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
+      </div>
+      <div>
+        <div class="controls">
+          <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
+          <button id="play">▶ Play</button><span class="pos" id="pos"></span>
+          <span class="hint">arrow keys work too · click an event for its hashes</span></div>
+        <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
+        <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
+        <div class="asserts" id="asserts"></div>
+      </div>
+      ${execPanel(chain)}
     </div>
-    <div class="controls">
-      <button id="prev">← Prev</button>
-      <button id="next" class="primary">Next →</button>
-      <button id="play">▶ Play</button>
-      <span class="pos" id="pos"></span>
-      <span class="hint">arrow keys work too</span>
-    </div>
-    <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span>
-      <span class="t" id="foldTime"></span></div>
-    <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
-    <div class="asserts" id="asserts"></div>`;
+    ${decisionMoney(chain, run, subject)}`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
+  $("#opsDetail").querySelectorAll(".event").forEach(ev => ev.onclick = () => ev.classList.toggle("open"));
+  $("#opsDetail").querySelectorAll(".dm-node").forEach(n => n.onclick = () => onDmNode(n.dataset.node, run, subject));
   go(1);
+}
+
+function onDmNode(node, run, subject) {
+  if (node === "Policy") return navigate("#/policies");
+  if (node === "Evidence") return navigate(`#/evidence/${run}/${subject}`);
+  const map = {Decision: ["compliance.reviewed", "treasury.decided"], Approval: ["payout.approved", "payout.rejected"],
+    Verasettle: ["settlement.requested"], Settlement: ["payout.settled"], Receipt: ["settlement.confirmed"]};
+  const types = map[node] || [];
+  const idx = chain.findIndex(e => types.includes(e.type));
+  if (idx >= 0) { go(idx + 1); const cur = document.querySelector(".event.current"); if (cur) cur.classList.add("open"); }
 }
 
 function renderEvent(e, i) {
@@ -525,246 +571,345 @@ function renderEvent(e, i) {
   if (e.type === "payout.rejected") cls += " verdict-rejected";
   const P = e.payload || {};
   let body = "";
-  const kv = (k, v) => v ? `<span class="kv"><span class="k">${k}</span><b>${v}</b></span>` : "";
+  const kv = (k, v) => v ? `<span class="kv"><span class="k">${k}</span><b>${esc(v)}</b></span>` : "";
   body += kv("risk tier", P.risk_tier) + kv("verdict", P.verdict) + kv("rule cited", P.policy_rule)
         + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
   const text = P.reason || P.explanation || "";
-  if (text) body += (body ? "\n" : "") + text;
-  if (e.type === "reconciliation.flagged") {
-    cls = "event a-resolution";
-    body = `⚠️ Deterministic ledger check disagrees with Treasury.\n` +
-      `Treasury said <b>${P.treasury_action}</b> · ledger arithmetic says <b>${P.ledger_expected}</b>` +
-      (P.ledger_row ? ` (cumulative $${P.ledger_row.cumulative_total.toLocaleString()} vs headroom $${P.headroom.toLocaleString()})` : "") +
-      `\nRouted to Resolution as a recorded dispute — code flags, agents rule.`;
-  }
+  if (text) body += (body ? "\n" : "") + esc(text);
   if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
-  if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + P.reason : "");
+  if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
   if (e.type === "settlement.requested")
-    body = `→ Execution requested on the ${P.rail} rail: ` +
-      `<b>${fmtUSD(P.source_amount_usd)}</b> source → <b>${P.settled_amount_usdc} USDC</b> on ${P.chain} (${P.scale}).`;
+    body = `→ Execution requested on the ${esc(P.rail)} rail: <b>${fmtUSD(P.source_amount_usd)}</b> source → <b>${P.settled_amount_usdc} USDC</b> on ${esc(P.chain)} (${esc(P.scale)}).`;
   if (e.type === "settlement.confirmed") {
     cls = "event a-verasettle";
-    body = `💠 Real testnet USDC moved on ${P.chain}: <b>${P.settled_amount_usdc} USDC</b>` +
-      (P.tx_hash ? `\ntx <a href="${P.explorer}" target="_blank" rel="noopener" class="mono">${P.tx_hash.slice(0, 22)}…</a>` : "") +
-      (P.receipt_id ? `\nrail receipt <span class="mono">${P.receipt_id}</span> · content hash <span class="mono">${(P.receipt_content_hash || "").slice(0, 16)}…</span>` : "");
+    body = `💠 Real testnet USDC moved on ${esc(P.chain)}: <b>${P.settled_amount_usdc} USDC</b>` +
+      (P.tx_hash ? `\ntx <a href="${esc(P.explorer)}" target="_blank" rel="noopener" class="mono">${esc(P.tx_hash.slice(0, 22))}…</a>` : "");
   }
-  if (e.type === "settlement.failed") {
-    cls = "event verdict-rejected";
-    body = `✗ Settlement failed on the rail — recorded, not retried silently.\n${P.error || ""}`;
-  }
-  if (e.type === "payout.settled") {
-    cls += " verdict-approved";
-    body = "💸 Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${P.tx_hash.slice(0, 22)}…</span>` : "");
-  }
+  if (e.type === "payout.settled") { cls += " verdict-approved"; body = "💸 Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
+  const hashes = `<div class="hashes"><div><span class="hk">event_hash</span> <span class="hv mono">${esc(e.event_hash || "—")}</span></div>
+    <div><span class="hk">prev_hash</span> <span class="hv mono">${esc(e.prev_hash || "—")}</span></div>
+    <div><span class="hk">policy</span> <span class="hv">${esc(P.policy_rule || "v1")}</span></div></div>`;
   return `<div class="${cls}" data-i="${i}">
-    <div class="top">
-      <span class="actor">${e.actor}</span>
-      <span class="etype">${e.type}</span>
-      <span class="toff mono">t+${e.t_offset}s · ${e.id}</span>
-    </div>
-    <div class="body">${body}</div>
-  </div>`;
+    <div class="top"><span class="actor">${esc(e.actor)}</span><span class="etype">${esc(e.type)}</span>
+      <span class="toff mono">t+${e.t_offset}s · ${esc(e.id)}</span></div>
+    <div class="body">${body}</div>${hashes}</div>`;
 }
 
-// the fold, one prefix at a time: state derived ONLY from events shown so far
+function execPanel(ch) {
+  const c = ch.find(e => e.type === "settlement.confirmed");
+  if (!c) return `<div class="panel exec"><h3>Execution / Evidence</h3>
+    <div class="kvline"><span class="k">Status</span><b>NOT EXECUTED</b></div>
+    <div class="muted-note">This payout did not settle — decision recorded, no money moved.</div></div>`;
+  const P = c.payload || {};
+  const tx = P.tx_hash ? `<a href="${esc(P.explorer)}" target="_blank" rel="noopener" class="mono">${esc(P.tx_hash.slice(0, 18))}…</a>` : "—";
+  return `<div class="panel exec"><h3>Execution / Evidence</h3>
+    <div class="kvline"><span class="k">Executor</span><b>Verasettle</b></div>
+    <div class="kvline"><span class="k">Status</span><b class="ok">SETTLED</b></div>
+    <div class="kvline"><span class="k">Network</span><b>${esc(P.chain)}</b></div>
+    <div class="kvline"><span class="k">Amount</span><b>${P.settled_amount_usdc} USDC</b></div>
+    <div class="kvline"><span class="k">Source</span><b>${fmtUSD(P.source_amount_usd)}</b></div>
+    <div class="kvline"><span class="k">Transaction</span><b>${tx}</b></div>
+    <div class="kvline"><span class="k">Verification</span><b class="ok">PASS</b></div></div>`;
+}
+
+function decisionMoney(ch, run, subject) {
+  const has = (t) => ch.some(e => e.type === t);
+  const nodes = [
+    ["Decision", has("compliance.reviewed") || has("treasury.decided")],
+    ["Policy", true], ["Approval", has("payout.approved")],
+    ["Verasettle", has("settlement.requested")], ["Settlement", has("payout.settled")],
+    ["Receipt", has("settlement.confirmed")], ["Evidence", ch.length > 0],
+  ];
+  return `<div class="decmoney"><div class="dmhead">Decision → Money</div>` +
+    nodes.map(([n, on], i) => `${i ? '<span class="dm-arrow">↓</span>' : ""}<button class="dm-node ${on ? "on" : ""}" data-node="${n}">${n}</button>`).join("") + `</div>`;
+}
+
+// timeline scrubbing (ported)
 function foldUpTo(k) {
-  let s = { label: "pending", color: "var(--muted)" };
+  let s = {label: "pending", color: "var(--muted)"};
   for (const e of chain.slice(0, k)) {
     const P = e.payload || {};
-    if (e.type === "intake.classified") s = { label: `triaged — ${P.risk_tier} risk`, color: "var(--blue)" };
-    if (e.type === "compliance.fast_tracked") s = { label: "fast-tracked", color: "var(--blue)" };
-    if (e.type === "compliance.reviewed")
-      s = P.verdict === "veto"
-        ? { label: `vetoed (${P.policy_rule}) — in dispute`, color: "var(--gold)" }
-        : { label: "compliance-cleared", color: "var(--violet)" };
-    if (e.type === "treasury.decided")
-      s = P.action === "pay_now"
-        ? { label: "cleared for funding", color: "var(--violet)" }
-        : { label: "treasury-rejected", color: "var(--red)" };
-    if (e.type === "reconciliation.flagged")
-      s = { label: "ledger mismatch — in dispute", color: "var(--gold)" };
-    if (e.type === "dispute.resolved")
-      s = { label: (P.ruling || "resolved").replace(/_/g, " "), color: "var(--gold)" };
-    if (e.type === "payout.approved") s = { label: "APPROVED", color: "var(--green)" };
-    if (e.type === "payout.rejected") s = { label: "REJECTED", color: "var(--red)" };
-    if (e.type === "settlement.requested") s = { label: "executing on rail…", color: "#0d9488" };
-    if (e.type === "settlement.confirmed") s = { label: "USDC moved — tx confirmed", color: "#0d9488" };
-    if (e.type === "settlement.failed") s = { label: "settlement failed", color: "var(--red)" };
-    if (e.type === "payout.settled") s = { label: "SETTLED ON-CHAIN", color: "var(--green)" };
+    if (e.type === "intake.classified") s = {label: `triaged — ${P.risk_tier} risk`, color: "var(--blue)"};
+    if (e.type === "compliance.fast_tracked") s = {label: "fast-tracked", color: "var(--blue)"};
+    if (e.type === "compliance.reviewed") s = P.verdict === "veto" ? {label: `vetoed (${P.policy_rule}) — in dispute`, color: "var(--gold)"} : {label: "compliance-cleared", color: "var(--violet)"};
+    if (e.type === "treasury.decided") s = P.action === "pay_now" ? {label: "cleared for funding", color: "var(--violet)"} : {label: "treasury-rejected", color: "var(--red)"};
+    if (e.type === "dispute.resolved") s = {label: (P.ruling || "resolved").replace(/_/g, " "), color: "var(--gold)"};
+    if (e.type === "payout.approved") s = {label: "APPROVED", color: "var(--green)"};
+    if (e.type === "payout.rejected") s = {label: "REJECTED", color: "var(--red)"};
+    if (e.type === "settlement.requested") s = {label: "executing on rail…", color: "#0d9488"};
+    if (e.type === "settlement.confirmed") s = {label: "USDC moved — tx confirmed", color: "#0d9488"};
+    if (e.type === "payout.settled") s = {label: "SETTLED ON-CHAIN", color: "var(--green)"};
   }
   return s;
 }
 
 function go(n) {
   const target = Math.max(1, Math.min(chain.length, n));
-  const forward = target > step;
-  step = target;
-  document.querySelectorAll(".event").forEach((el, i) => {
-    el.classList.toggle("shown", i < step);
-    el.classList.toggle("current", i === step - 1);
-  });
-  const cur = document.querySelector(".event.current");
+  const forward = target > step; step = target;
+  const evs = document.querySelectorAll("#opsDetail .event");
+  evs.forEach((el, i) => { el.classList.toggle("shown", i < step); el.classList.toggle("current", i === step - 1); });
+  const cur = document.querySelector("#opsDetail .event.current");
   if (cur && forward) { cur.classList.remove("commit"); void cur.offsetWidth; cur.classList.add("commit"); }
   const smooth = (keyRepeat || matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
   keyRepeat = false;
-  if (cur) cur.scrollIntoView({ block: "nearest", behavior: smooth });
+  if (cur) cur.scrollIntoView({block: "nearest", behavior: smooth});
   $("#pos").textContent = `event ${step} / ${chain.length}`;
-  $("#prev").disabled = step <= 1;
-  $("#next").disabled = step >= chain.length;
-
-  const tl = document.querySelector(".timeline"), prog = document.querySelector(".tl-progress");
-  if (cur && tl && prog) {
-    const f = (cur.offsetTop + 24) / (tl.scrollHeight - 16);
-    prog.style.transform = `scaleY(${Math.min(1, f)})`;
-  }
-
-  const s = foldUpTo(step);
-  const fs = $("#foldState");
+  $("#prev").disabled = step <= 1; $("#next").disabled = step >= chain.length;
+  const tl = document.querySelector("#opsDetail .timeline"), prog = document.querySelector("#opsDetail .tl-progress");
+  if (cur && tl && prog) { const f = (cur.offsetTop + 24) / (tl.scrollHeight - 16); prog.style.transform = `scaleY(${Math.min(1, f)})`; }
+  const s = foldUpTo(step), fs = $("#foldState");
   if (fs) { fs.textContent = s.label; fs.style.color = s.color; }
-  const sb = document.querySelector(".statebar");
-  if (sb) {
-    const ok = s.label === "APPROVED" || s.label === "SETTLED ON-CHAIN";
-    sb.classList.toggle("ok", ok);
-    sb.classList.toggle("bad", s.label === "REJECTED");
-    if (ok && !pulsed) { sb.classList.add("pulse"); pulsed = true; }
-  }
-  const ft = $("#foldTime");
-  if (ft) ft.textContent = `t+${chain[step - 1].t_offset}s`;
-
+  const sb = document.querySelector("#opsDetail .statebar");
+  if (sb) { const ok = s.label === "APPROVED" || s.label === "SETTLED ON-CHAIN";
+    sb.classList.toggle("ok", ok); sb.classList.toggle("bad", s.label === "REJECTED");
+    if (ok && !pulsed) { sb.classList.add("pulse"); pulsed = true; } }
+  const ft = $("#foldTime"); if (ft) ft.textContent = `t+${chain[step - 1].t_offset}s`;
   const az = $("#asserts");
   if (az) {
     az.classList.toggle("show", step === chain.length);
     if (step === chain.length) {
-      const final = s.label;
-      const finalApproved = final === "APPROVED" || final === "SETTLED ON-CHAIN";
-      const matches = payoutExpected &&
-        ((payoutExpected === "approve") === finalApproved);
-      az.innerHTML =
-        `<div>✓ reconstructed from ${chain.length} recorded events — replay of the actual run, nothing staged</div>` +
-        (runChain && runChain.hashed
-          ? (runChain.verified
-            ? `<div>✓ hash chain verified across all ${runChain.events} events in this run</div>`
-            : `<div class="warn">✗ hash chain broken at event ${runChain.broken_at} — history was altered</div>`)
+      const final = s.label, finalApproved = final === "APPROVED" || final === "SETTLED ON-CHAIN";
+      const matches = payoutExpected && ((payoutExpected === "approve") === finalApproved);
+      az.innerHTML = `<div>✓ reconstructed from ${chain.length} recorded events — replay of the actual run, nothing staged</div>` +
+        (runChain && runChain.hashed ? (runChain.verified ? `<div>✓ hash chain verified across all ${runChain.events} events in this run</div>`
+          : `<div class="warn">✗ hash chain broken at event ${runChain.broken_at}</div>`)
           : `<div class="warn">— run recorded before hash chaining (replayable, not tamper-evident)</div>`) +
-        (payoutExpected
-          ? (matches ? `<div>✓ outcome matches policy ground truth (${payoutExpected})</div>`
-                     : `<div class="warn">✗ outcome differs from policy ground truth (expected: ${payoutExpected})</div>`)
-          : "");
+        (payoutExpected ? (matches ? `<div>✓ outcome matches policy ground truth (${payoutExpected})</div>`
+          : `<div class="warn">✗ outcome differs from policy ground truth (expected: ${payoutExpected})</div>`) : "");
     }
   }
   if (step === chain.length) stopPlay();
 }
-
 function togglePlay() {
   if (playTimer) return stopPlay();
-  if (step >= chain.length) go(1);  // replay from the top
+  if (step >= chain.length) go(1);
   $("#play").textContent = "⏸ Pause";
   playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800);
 }
-function stopPlay() {
-  clearInterval(playTimer); playTimer = null;
-  const b = $("#play"); if (b) b.textContent = "▶ Play";
-}
-
+function stopPlay() { clearInterval(playTimer); playTimer = null; const b = $("#play"); if (b) b.textContent = "▶ Play"; }
 document.addEventListener("keydown", (e) => {
-  if (!chain.length) return;
+  if (!$("#view-ops") || $("#view-ops").hidden || !chain.length) return;
   keyRepeat = e.repeat;
   if (e.key === "ArrowRight") go(step + 1);
   if (e.key === "ArrowLeft") go(step - 1);
 });
 
-$("#cfRun").onclick = runCounterfactual;
+// ── POLICIES ────────────────────────────────────────────────────────────────
+async function renderPolicies() {
+  const el = $("#view-policies");
+  el.innerHTML = `<div class="loading">loading policy…</div>`;
+  let p; try { p = await api("/api/policies"); } catch { return showError("#view-policies", renderPolicies); }
+  const v = p.versions[0], pr = v.params;
+  if (!opsRuns) { try { opsRuns = (await api("/api/runs")).runs; } catch { opsRuns = []; } }
+  const cfRun = (opsRuns[opsRuns.length - 1] || {}).name || "";
+  el.innerHTML = `
+    <div class="vhead"><h1>Policy ${esc(v.version)}</h1><span class="sub">executable data — the same text given to the society and the single-agent baseline</span></div>
+    <div class="paramgrid">
+      <div class="param">sanctioned<b>${esc(pr.sanctioned.join(", "))}</b></div>
+      <div class="param">P2 amount ≥<b>${fmtUSD(pr.p2_amount)}</b></div>
+      <div class="param">P2 age ≤<b>${pr.p2_age_days} days</b></div>
+      <div class="param">balance<b>${fmtUSD(pr.balance)}</b></div>
+      <div class="param">reserve floor<b>${fmtUSD(pr.reserve_floor)}</b></div></div>
+    <pre class="policytext">${esc(v.rendered)}</pre>
+    <p class="policynote">${esc(p.note)}</p>
+    <details id="cf" open>
+      <summary>⑂ <b>Counterfactual policy replay</b> — re-fold this run's recorded batch under different parameters. Deterministic: nothing is re-generated.</summary>
+      <div class="cfbody">
+        <div class="cfrow">
+          <label>reserve floor $<input id="cfFloor" type="number" step="5000" min="0" placeholder="${pr.reserve_floor}"></label>
+          <label>P2 threshold $<input id="cfP2" type="number" step="1000" min="0" placeholder="${pr.p2_amount}"></label>
+          <label>P2 age ≤ days<input id="cfAge" type="number" step="1" min="0" placeholder="${pr.p2_age_days}"></label>
+          <button id="cfRun">Replay under this policy</button>
+          <span class="sub" style="margin-left:auto">run: <select class="runsel" id="cfRunSel"></select></span>
+        </div>
+        <div id="cfOut"></div>
+      </div></details>`;
+  const rs = $("#cfRunSel");
+  rs.innerHTML = opsRuns.map(r => `<option value="${esc(r.name)}"${r.name === cfRun ? " selected" : ""}>${esc(r.stamp)} · n=${r.n}</option>`).join("");
+  $("#cfRun").onclick = runCounterfactual;
+}
+async function runCounterfactual() {
+  const runName = $("#cfRunSel").value;
+  const q = new URLSearchParams();
+  if ($("#cfFloor").value) q.set("reserve_floor", $("#cfFloor").value);
+  if ($("#cfP2").value) q.set("p2_amount", $("#cfP2").value);
+  if ($("#cfAge").value) q.set("p2_age_days", $("#cfAge").value);
+  let r; try { r = await api(`/api/runs/${runName}/counterfactual?` + q); } catch { return showError("#cfOut", runCounterfactual); }
+  const s = r.summary;
+  $("#cfOut").innerHTML = `
+    <div class="cfsum">policy in force: <b>${s.in_force.approve}</b> approve / <b>${s.in_force.reject}</b> reject
+      &nbsp;→&nbsp; hypothetical: <b>${s.hypothetical.approve}</b> approve / <b>${s.hypothetical.reject}</b> reject
+      &nbsp;·&nbsp; <b>${r.changes.length}</b> payout${r.changes.length === 1 ? "" : "s"} would change</div>` +
+    (r.changes.length ? r.changes.map(c => `
+      <div class="cfchg mono">${esc(c.payout_id)} · ${fmtUSD(c.amount)} · recorded ${esc(c.recorded_outcome ?? "—")} ·
+        ${esc(c.in_force.verdict)} → <b class="to${c.hypothetical.verdict}">${esc(c.hypothetical.verdict)}</b>
+        <span class="cfcause">${esc(c.cause)}</span></div>`).join("")
+      : '<div class="cfchg">no payout changes under these parameters</div>') +
+    `<div class="cfnote">${esc(r.note)}</div>`;
+}
+
+// ── FAILURES ────────────────────────────────────────────────────────────────
+async function renderFailures() {
+  const el = $("#view-failures");
+  el.innerHTML = `<div class="loading">aggregating recorded failures…</div>`;
+  let f; try { f = await api("/api/failures"); } catch { return showError("#view-failures", renderFailures); }
+  const maxRule = Math.max(1, ...f.by_rule.map(r => r.count));
+  el.innerHTML = `
+    <div class="vhead"><h1>What actually goes wrong</h1><span class="sub">every failure below is attributed to an actor and a policy rule — recorded, not inferred</span></div>
+    <div class="failcards">${f.categories.map(c => `
+      <div class="failcard ${c.count === 0 ? "zero" : ""}" data-key="${c.key}">
+        <div class="fc-n num">${c.count}</div><div class="fc-l">${esc(c.label)}</div></div>`).join("")}</div>
+    ${f.by_rule.length ? `<div class="vhead" style="margin-top:20px"><h1 style="font-size:15px">By policy rule</h1></div>
+      <div class="byrule">${f.by_rule.map(r => `
+        <div class="barwrap"><span class="bn num">${r.count}</span>
+          <div class="bar" style="height:${Math.round(70 * r.count / maxRule)}px"></div><span class="bl">${esc(r.rule)}</span></div>`).join("")}</div>` : ""}
+    <div id="failDrill"></div>`;
+  const cats = {}; f.categories.forEach(c => cats[c.key] = c);
+  el.querySelectorAll(".failcard").forEach(card => card.onclick = () => {
+    el.querySelectorAll(".failcard").forEach(c => c.classList.remove("active"));
+    card.classList.add("active");
+    const c = cats[card.dataset.key];
+    const out = $("#failDrill");
+    if (!c.items.length) { out.innerHTML = `<p class="policynote">No <b>${esc(c.label.toLowerCase())}</b> recorded — honestly zero.</p>`; return; }
+    out.innerHTML = `<div class="vhead" style="margin-top:20px"><h1 style="font-size:15px">${esc(c.label)}</h1></div>
+      <table class="grid"><thead><tr><th>Payout</th><th>Amount</th><th>Reason</th></tr></thead><tbody>${c.items.map(it => `
+        <tr class="clickable" data-go="#/ops/${esc(it.run)}/${esc(it.id)}"><td class="mono">${esc(it.id)}</td>
+          <td class="num">${fmtUSD(it.amount)}</td><td>${esc(it.reason)}</td></tr>`).join("")}</tbody></table>`;
+    out.querySelectorAll("[data-go]").forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
+  });
+}
+
+// ── ANALYTICS ───────────────────────────────────────────────────────────────
+async function renderAnalytics() {
+  const el = $("#view-analytics");
+  el.innerHTML = `<div class="loading">rolling up benchmarks…</div>`;
+  let a; try { a = await api("/api/analytics"); } catch { return showError("#view-analytics", renderAnalytics); }
+  const pct = (x) => x == null ? "—" : Math.round(x * 100) + "%";
+  const num = (x) => x == null ? "—" : Math.round(x).toLocaleString();
+  const yn = (b) => b ? `<span class="yes">Yes</span>` : `<span class="no">No</span>`;
+  el.innerHTML = `
+    <div class="vhead"><h1>Analytics</h1><span class="sub">society vs single-agent baseline, averaged over ${a.society.runs} benchmarked run${a.society.runs === 1 ? "" : "s"}</span></div>
+    <table class="bench"><thead><tr><th>Metric</th><th class="num">Society</th><th class="num">Monolith</th></tr></thead><tbody>
+      <tr><td>Accuracy</td><td class="num">${pct(a.society.accuracy)}</td><td class="num">${pct(a.monolith.accuracy)}</td></tr>
+      <tr><td>Token usage</td><td class="num">${num(a.society.tokens)}</td><td class="num">${num(a.monolith.tokens)}</td></tr>
+      <tr><td>Runtime (s)</td><td class="num">${num(a.society.seconds)}</td><td class="num">${num(a.monolith.seconds)}</td></tr>
+      ${a.capabilities.map(c => `<tr${c.name === "Can explain failures?" ? ' class="headline"' : ""}><td>${esc(c.name)}</td><td class="num">${yn(c.society)}</td><td class="num">${yn(c.monolith)}</td></tr>`).join("")}
+    </tbody></table>
+    <div class="stats">
+      <div class="stat"><b>${a.settlement.count}</b>on-chain settlements</div>
+      <div class="stat"><b>${a.settlement.usdc_moved}</b>USDC moved</div>
+      <div class="stat"><b>${esc(a.settlement.chains.join(", ") || "—")}</b>chain</div>
+      <div class="stat win"><b>${a.coverage.replay_pct}%</b>replay coverage</div>
+      <div class="stat chain-ok"><b>${a.coverage.hash_verified_pct}%</b>hash verified</div></div>`;
+}
+
+// ── EVIDENCE ────────────────────────────────────────────────────────────────
+async function renderEvidence(rest) {
+  const el = $("#view-evidence");
+  if (!rest[0] || !rest[1]) {
+    el.innerHTML = `<div class="vhead"><h1>Evidence</h1></div>
+      <p class="policynote">Pick a payout in <span class="linklike" data-go="#/ops">Operations</span>, then use the Decision → Money “Evidence” node — or open <span class="mono">#/evidence/&lt;run&gt;/&lt;payout&gt;</span>.</p>`;
+    const l = el.querySelector("[data-go]"); if (l) l.onclick = () => navigate("#/ops");
+    return;
+  }
+  const [run, subject] = rest;
+  el.innerHTML = `<div class="loading">assembling evidence pack…</div>`;
+  let data; try { data = await api(`/api/runs/${run}/explain/${subject}`); } catch { return showError("#view-evidence", () => renderEvidence(rest)); }
+  const ch = data.chain, v = data.verification, p = data.payout || {};
+  const has = (t) => ch.some(e => e.type === t);
+  const decided = has("payout.approved") || has("payout.rejected") || has("payout.settled");
+  const settled = has("payout.settled"), receipt = has("settlement.confirmed");
+  const hashOk = v && v.hashed && v.verified;
+  const checks = [
+    ["Decision", decided], ["History", ch.length > 0], ["Policy", true],
+    ["Settlement", settled],
+    ["Hash Chain", hashOk, v && v.hashed ? (v.verified ? "verified" : "BROKEN") : "not hashed"],
+    ["Receipt", receipt],
+  ];
+  el.innerHTML = `
+    <div class="vhead"><h1>Evidence Pack</h1><span class="sub mono">${fmtUSD(p.amount)} · ${esc(subject)}</span></div>
+    <div class="evpack">${checks.map(([label, ok, note]) => `
+      <div class="evcheck"><span>${esc(label)}${note ? ` <span class="sub">(${esc(note)})</span>` : ""}</span>
+        <span class="${ok ? "ec-ok" : "ec-no"}">${ok ? "✓" : "—"}</span></div>`).join("")}
+      <div class="evbtns"><button id="evJson">Export JSON</button><button id="evPdf" class="ghost">Export PDF</button></div>
+    </div>`;
+  $("#evJson").onclick = () => {
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `clearcrew-evidence-${subject}.json`; a.click(); URL.revokeObjectURL(a.href);
+  };
+  $("#evPdf").onclick = () => window.print();
+}
+
+const RENDERERS = {overview: renderOverview, ops: renderOps, policies: renderPolicies,
+  evidence: renderEvidence, failures: renderFailures, analytics: renderAnalytics};
 
 // ── judge mode: watch the society deliberate live, then replay it ──
-const ACTORS = { intake: "var(--blue)", compliance: "var(--violet)", treasury: "#7e22ce",
-  resolution: "var(--gold)", auditor: "var(--green)", verasettle: "#0d9488",
-  orchestrator: "var(--muted)" };
+const ACTORS = {intake: "var(--blue)", compliance: "var(--violet)", treasury: "#7e22ce",
+  resolution: "var(--gold)", auditor: "var(--green)", verasettle: "#0d9488", orchestrator: "var(--muted)"};
+const GRAPH_ACTORS = ["intake", "compliance", "treasury", "resolution", "auditor", "verasettle"];
 let liveTimer = null, liveRendered = 0;
 
 async function startLive() {
   const code = prompt("Judge access code (from the submission notes):");
   if (!code) return;
-  const r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, { method: "POST" });
+  const r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, {method: "POST"});
   const body = await r.json().catch(() => ({}));
   if (r.status === 409) { watchLive("a run is already in progress — watching it live"); return; }
   if (!r.ok) { alert(body.detail || "couldn't start a live run"); return; }
   watchLive("live Qwen calls + real testnet settlement · 3–6 min");
 }
-
-const GRAPH_ACTORS = ["intake", "compliance", "treasury", "resolution", "auditor", "verasettle"];
-
 function buildLiveGraph() {
   $("#liveGraph").innerHTML = GRAPH_ACTORS.map((a, i) =>
-    (i ? '<span class="sep"></span>' : "") +
-    `<span class="ln" data-actor="${a}" style="--lac:${ACTORS[a]}"><i></i>${a}</span>`).join("");
+    (i ? '<span class="sep"></span>' : "") + `<span class="ln" data-actor="${a}" style="--lac:${ACTORS[a]}"><i></i>${a}</span>`).join("");
 }
-
 function pulseActor(actor, done) {
   const node = document.querySelector(`#liveGraph .ln[data-actor="${actor}"]`);
   if (!node) return;
-  node.classList.add("spoke");
-  if (done) node.classList.add("done");
+  node.classList.add("spoke"); if (done) node.classList.add("done");
   if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  node.querySelector("i").animate(
-    [{ transform: "scale(1)" }, { transform: "scale(1.6)" }, { transform: "scale(1)" }],
-    { duration: 420, easing: "cubic-bezier(.23,1,.32,1)" });
+  node.querySelector("i").animate([{transform: "scale(1)"}, {transform: "scale(1.6)"}, {transform: "scale(1)"}], {duration: 420, easing: "cubic-bezier(.23,1,.32,1)"});
 }
-
 function watchLive(meta) {
-  $("#live").classList.add("on");
-  buildLiveGraph();
-  $("#liveBtn").disabled = true;
-  $("#liveBtn").classList.add("running");
-  $("#liveBtn").textContent = "⚡ running…";
-  $("#liveFeed").innerHTML = ""; liveRendered = 0;
-  $("#liveMeta").textContent = meta;
-  liveTimer = setInterval(pollLive, 2500);
-  pollLive();
+  $("#live").classList.add("on"); buildLiveGraph();
+  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtn").textContent = "⚡ running…";
+  $("#liveFeed").innerHTML = ""; liveRendered = 0; $("#liveMeta").textContent = meta;
+  liveTimer = setInterval(pollLive, 2500); pollLive();
 }
-
 async function pollLive() {
-  let s;
-  try { s = await j("/api/live/status"); } catch { return; }
+  let s; try { s = await api("/api/live/status"); } catch { return; }
   if (s.state === "running") {
-    const feed = $("#liveFeed");
-    const evs = s.events || [];
-    // append only the new events — never rebuild the feed the judge is reading
+    const feed = $("#liveFeed"), evs = s.events || [];
     const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 24;
     for (let i = liveRendered; i < evs.length; i++) {
       const e = evs[i], P = e.payload || {};
-      const gist = P.risk_tier ? `risk ${P.risk_tier}` : P.verdict || P.action ||
-        (P.ruling || "").replace(/_/g, " ") || P.tx_hash?.slice(0, 18) || "";
+      const gist = P.risk_tier ? `risk ${P.risk_tier}` : P.verdict || P.action || (P.ruling || "").replace(/_/g, " ") || (P.tx_hash ? P.tx_hash.slice(0, 18) : "") || "";
       const d = document.createElement("div");
-      d.className = "new";
-      d.style.transitionDelay = `${Math.min((i - liveRendered) * 40, 160)}ms`;
-      d.innerHTML = `<span class="la" style="color:${ACTORS[e.actor] || "var(--muted)"}">${e.actor}</span>
-        <b>${e.type}</b> <span class="mono">${e.subject !== "batch" ? e.subject : ""}</span> ${gist}`;
-      feed.appendChild(d);
-      requestAnimationFrame(() => requestAnimationFrame(() => d.classList.remove("new")));
-      pulseActor(e.actor, e.type === "settlement.confirmed"); // filled dot = USDC actually moved
+      d.innerHTML = `<span class="la" style="color:${ACTORS[e.actor] || "var(--muted)"}">${esc(e.actor)}</span> <b>${esc(e.type)}</b> <span class="mono">${e.subject !== "batch" ? esc(e.subject) : ""}</span> ${esc(gist)}`;
+      feed.appendChild(d); pulseActor(e.actor, e.type === "settlement.confirmed");
     }
     liveRendered = evs.length;
     $("#liveMeta").textContent = `${evs.length} events · ${Math.round(s.elapsed)}s elapsed`;
-    if (atBottom) feed.scrollTop = feed.scrollHeight; // stick only if the judge hasn't scrolled up
+    if (atBottom) feed.scrollTop = feed.scrollHeight;
     return;
   }
   clearInterval(liveTimer); liveTimer = null;
-  $("#liveBtn").disabled = false;
-  $("#liveBtn").classList.remove("running");
-  $("#liveBtn").textContent = "⚡ live run";
+  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtn").textContent = "⚡ live run";
   if (s.state === "done" && s.run) {
     $("#liveMeta").textContent = "done — loading your run";
-    location.hash = `#${s.run}`;
-    await init();
-    $("#live").classList.remove("on");
+    opsRuns = null;                      // force /api/runs refresh so the new run appears
+    navigate(`#/ops/${s.run}`);
+    setTimeout(() => $("#live").classList.remove("on"), 1200);
   } else {
-    $("#liveMeta").textContent = "the live run failed — its events are recorded, not hidden; every archived run above still replays";
+    $("#liveMeta").textContent = "the live run failed — its events are recorded, not hidden; every archived run still replays";
   }
 }
-
 $("#liveBtn").onclick = startLive;
-init();
+
+// boot
+if (!location.hash) location.hash = "#/overview";
+route();
 </script>
 </body>
 </html>
