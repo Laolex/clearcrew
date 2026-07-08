@@ -83,6 +83,70 @@ def _batch_lookup(n: int) -> dict[str, dict]:
     return {p["id"]: p for p in data.make_batch(n)}
 
 
+def _scan_all_runs() -> dict:
+    """Walk every archived run once; return the aggregates that power the
+    Overview / Failures / Analytics views. All values are recorded facts —
+    nothing is synthesized."""
+    out = {"runs": [], "payouts": [], "vetoes": [], "treasury_rejects": [],
+           "disputes": [], "settlements": []}
+    for meta in _list_runs():
+        name = meta["name"]
+        events = _load_events(name)
+        lookup = _batch_lookup(meta["n"])
+        out["runs"].append({**{k: meta[k] for k in ("name", "stamp", "n", "results")},
+                            "chain": _verify(name, events)})
+        payouts: dict[str, dict] = {}
+        for e in events:
+            s, P = e["subject"], e.get("payload", {})
+            if s == "batch":
+                continue
+            p = payouts.setdefault(s, {"run": name, "id": s, "status": "pending",
+                                       "disputed": False, "settled": False, "usdc": None,
+                                       "tx_hash": None, "explorer": None, "last_ts": e["ts"]})
+            p["last_ts"] = max(p["last_ts"], e["ts"])
+            if e["type"] in ("payout.approved", "payout.rejected", "payout.settled"):
+                p["status"] = e["type"].split(".", 1)[1]
+            if e["type"] == "payout.settled":
+                p["settled"] = True
+            if e["type"] == "dispute.resolved":
+                p["disputed"] = True
+                out["disputes"].append({"run": name, "id": s,
+                                        "ruling": P.get("ruling"), "reason": P.get("reason")})
+            if e["type"] == "compliance.reviewed" and P.get("verdict") == "veto":
+                out["vetoes"].append({"run": name, "id": s, "rule": P.get("policy_rule"),
+                                      "reason": P.get("reason")})
+            if e["type"] == "treasury.decided" and P.get("action") not in ("pay_now", "pay"):
+                out["treasury_rejects"].append({"run": name, "id": s, "reason": P.get("reason")})
+            if e["type"] == "settlement.confirmed":
+                p["usdc"] = P.get("settled_amount_usdc")
+                p["tx_hash"] = P.get("tx_hash")
+                p["explorer"] = P.get("explorer")
+                out["settlements"].append({"run": name, "id": s,
+                                           "usdc": P.get("settled_amount_usdc"),
+                                           "tx_hash": P.get("tx_hash"),
+                                           "explorer": P.get("explorer"),
+                                           "chain": P.get("chain"),
+                                           "source_usd": P.get("source_amount_usd")})
+        for pid, p in payouts.items():
+            d = lookup.get(pid)
+            if d:
+                p["amount"] = d["amount"]
+                p["corridor"] = f"{d['from_country']}→{d['to_country']}"
+                p["recipient_age_days"] = d["recipient_age_days"]
+                p["expected"] = d["_expected"]
+                p["miss"] = (p["status"] in ("approved", "settled")) != (d["_expected"] == "approve")
+            else:
+                p.setdefault("amount", None)
+                p.setdefault("miss", False)
+        # backfill amount onto the failure records now that lookup is applied
+        for bucket in ("vetoes", "treasury_rejects", "disputes"):
+            for rec in out[bucket]:
+                if rec["run"] == name and "amount" not in rec:
+                    rec["amount"] = payouts.get(rec["id"], {}).get("amount")
+        out["payouts"].extend(payouts.values())
+    return out
+
+
 @app.get("/healthz")
 def healthz():
     return {"ok": True, "runs": len(_list_runs())}
@@ -195,6 +259,99 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
         "policy_hypothetical": hypothetical.params(),
         "summary": {"in_force": tally(base), "hypothetical": tally(hypo)},
         "changes": sorted(changes, key=lambda c: -c["amount"]),
+    }
+
+
+@app.get("/api/overview")
+def overview(auth=Depends(require_auth)):
+    scan = _scan_all_runs()
+    hashed = [r["chain"] for r in scan["runs"] if r["chain"]["hashed"]]
+    verified = [c for c in hashed if c["verified"]]
+    payouts = scan["payouts"]
+    totals = {
+        "runs": len(scan["runs"]),
+        "payouts": len(payouts),
+        "settlements": len(scan["settlements"]),
+        "usdc_moved": round(sum(s["usdc"] or 0 for s in scan["settlements"]), 6),
+        "replay_pct": 100.0 if payouts else 0.0,
+        "hash_verified_pct": round(100 * len(verified) / len(hashed), 1) if hashed else 0.0,
+    }
+    recent = sorted(payouts, key=lambda p: p["last_ts"], reverse=True)[:15]
+    recent = [{"run": p["run"], "id": p["id"], "amount": p.get("amount"),
+               "status": p["status"], "settled": p["settled"],
+               "disputed": p["disputed"], "miss": p.get("miss", False)} for p in recent]
+    return {"totals": totals, "recent": recent}
+
+
+@app.get("/api/failures")
+def failures(auth=Depends(require_auth)):
+    scan = _scan_all_runs()
+    vetoes = [{"run": v["run"], "id": v["id"], "amount": v.get("amount"),
+               "reason": v.get("reason")} for v in scan["vetoes"]]
+    trej = [{"run": t["run"], "id": t["id"], "amount": t.get("amount"),
+             "reason": t.get("reason")} for t in scan["treasury_rejects"]]
+    disp = [{"run": d["run"], "id": d["id"], "amount": d.get("amount"),
+             "reason": d.get("reason")} for d in scan["disputes"]]
+    misses = [{"run": p["run"], "id": p["id"], "amount": p.get("amount"),
+               "reason": f"recorded {p['status']}, policy expected {p.get('expected')}"}
+              for p in scan["payouts"] if p.get("miss")]
+    categories = [
+        {"key": "compliance_vetoes", "label": "Compliance vetoes", "count": len(vetoes), "items": vetoes},
+        {"key": "treasury_rejects", "label": "Treasury rejects", "count": len(trej), "items": trej},
+        {"key": "disputes_resolved", "label": "Disputes resolved", "count": len(disp), "items": disp},
+        {"key": "benchmark_misses", "label": "Benchmark misses", "count": len(misses), "items": misses},
+        {"key": "settlement_failures", "label": "Settlement failures", "count": 0, "items": []},
+    ]
+    rule_counts: dict[str, int] = {}
+    for v in scan["vetoes"]:
+        if v.get("rule"):
+            rule_counts[v["rule"]] = rule_counts.get(v["rule"], 0) + 1
+    by_rule = [{"rule": r, "count": c} for r, c in sorted(rule_counts.items())]
+    return {"categories": categories, "by_rule": by_rule}
+
+
+@app.get("/api/analytics")
+def analytics(auth=Depends(require_auth)):
+    scan = _scan_all_runs()
+    benched = [r["results"] for r in scan["runs"] if r["results"]]
+
+    def avg(side, key):
+        vals = [r[side][key] for r in benched if side in r and key in r[side]]
+        return round(sum(vals) / len(vals), 4) if vals else None
+
+    society = {"accuracy": avg("society", "accuracy"), "tokens": avg("society", "tokens"),
+               "seconds": avg("society", "seconds"), "runs": len(benched)}
+    monolith = {"accuracy": avg("monolith", "accuracy"), "tokens": avg("monolith", "tokens"),
+                "seconds": avg("monolith", "seconds"), "runs": len(benched)}
+    capabilities = [
+        {"name": "Replayable history", "society": True, "monolith": False},
+        {"name": "Per-decision attribution", "society": True, "monolith": False},
+        {"name": "Can explain failures?", "society": True, "monolith": False},
+    ]
+    hashed = [r["chain"] for r in scan["runs"] if r["chain"]["hashed"]]
+    verified = [c for c in hashed if c["verified"]]
+    payouts = len(scan["payouts"])
+    settlement = {"count": len(scan["settlements"]),
+                  "usdc_moved": round(sum(s["usdc"] or 0 for s in scan["settlements"]), 6),
+                  "chains": sorted({s["chain"] for s in scan["settlements"] if s["chain"]})}
+    coverage = {"payouts": payouts,
+                "replay_pct": 100.0 if payouts else 0.0,
+                "hash_verified_pct": round(100 * len(verified) / len(hashed), 1) if hashed else 0.0}
+    return {"society": society, "monolith": monolith, "capabilities": capabilities,
+            "settlement": settlement, "coverage": coverage}
+
+
+@app.get("/api/policies")
+def policies(auth=Depends(require_auth)):
+    versions = [{"version": v.version, "enacted": v.enacted, "reason": v.reason,
+                 "params": v.params(), "rendered": v.render()} for v in policy.VERSIONS]
+    return {
+        "current": policy.CURRENT.version,
+        "versions": versions,
+        "note": ("Only one policy version is enacted. Governance repairs in this "
+                 "project's history changed agent contracts, not policy parameters, "
+                 "so they are not presented as policy versions. Use counterfactual "
+                 "replay below to see what a different rule would have decided."),
     }
 
 

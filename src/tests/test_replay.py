@@ -72,7 +72,10 @@ def test_path_traversal_rejected(client):
 
 def test_index_serves_ui(client):
     r = client.get("/")
-    assert r.status_code == 200 and "Replay Time Machine" in r.text
+    # replay is now a property of an operation, not the product name — the shell
+    # is the Decisions/Execution/Evidence trust layer.
+    assert r.status_code == 200
+    assert "ClearCrew" in r.text and "Trust Layer for Autonomous Payouts" in r.text
 
 
 def test_live_disabled_without_judge_code(client, monkeypatch):
