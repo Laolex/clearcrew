@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 720" font-family="'SF Pro Display','Inter','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#0a0f1e"/>
+      <stop offset="100%" stop-color="#1a2332"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="green" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#10b981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="100%" stop-color="#e11d48"/>
+    </linearGradient>
+    <filter id="glow">
+      <feGaussianBlur stdDeviation="3" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.4"/>
+    </filter>
+    <style>
+      @keyframes fadeIn { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+      @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+      @keyframes countUp { 0% { opacity: 0; } 100% { opacity: 1; } }
+      .title { animation: fadeIn 0.8s ease-out; }
+      .subtitle { animation: fadeIn 0.8s ease-out 0.3s both; }
+      .stat { animation: countUp 0.6s ease-out 0.6s both; }
+      .stat2 { animation: countUp 0.6s ease-out 0.9s both; }
+      .stat3 { animation: countUp 0.6s ease-out 1.2s both; }
+      .badge-pulse { animation: pulse 2s ease-in-out infinite; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="720" fill="url(#bg)"/>
+
+  <!-- Subtle grid pattern -->
+  <g opacity="0.03">
+    <line x1="0" y1="100" x2="1280" y2="100" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="200" x2="1280" y2="200" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="300" x2="1280" y2="300" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="400" x2="1280" y2="400" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="500" x2="1280" y2="500" stroke="#fff" stroke-width="0.5"/>
+    <line x1="0" y1="600" x2="1280" y2="600" stroke="#fff" stroke-width="0.5"/>
+    <line x1="200" y1="0" x2="200" y2="720" stroke="#fff" stroke-width="0.5"/>
+    <line x1="400" y1="0" x2="400" y2="720" stroke="#fff" stroke-width="0.5"/>
+    <line x1="600" y1="0" x2="600" y2="720" stroke="#fff" stroke-width="0.5"/>
+    <line x1="800" y1="0" x2="800" y2="720" stroke="#fff" stroke-width="0.5"/>
+    <line x1="1000" y1="0" x2="1000" y2="720" stroke="#fff" stroke-width="0.5"/>
+    <line x1="1200" y1="0" x2="1200" y2="720" stroke="#fff" stroke-width="0.5"/>
+  </g>
+
+  <!-- Top accent bar -->
+  <rect x="0" y="0" width="1280" height="4" fill="url(#accent)"/>
+
+  <!-- Brand -->
+  <text x="60" y="48" fill="#6366f1" font-size="16" font-weight="700" letter-spacing="3">CLEARCREW</text>
+  <rect x="60" y="56" width="24" height="2" rx="1" fill="#6366f1"/>
+
+  <!-- Main title -->
+  <text class="title" x="60" y="180" fill="#fff" font-size="52" font-weight="800" letter-spacing="-1">When AI decides who gets paid,</text>
+  <text class="title" x="60" y="240" fill="#a5b4fc" font-size="52" font-weight="800" letter-spacing="-1">can you trust the answer?</text>
+
+  <!-- Subtitle -->
+  <text class="subtitle" x="60" y="300" fill="#94a3b8" font-size="20" font-weight="400">A society of 5 specialist agents. Every decision hash-chained.</text>
+  <text class="subtitle" x="60" y="328" fill="#64748b" font-size="18" font-weight="400">Disagreements mediated. Errors attributable. History replayable.</text>
+
+  <!-- Stat cards -->
+  <g filter="url(#shadow)">
+    <rect x="60" y="400" width="260" height="140" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="190" y="450" text-anchor="middle" fill="#10b981" font-size="48" font-weight="800" class="stat">100%</text>
+    <text x="190" y="478" text-anchor="middle" fill="#94a3b8" font-size="14">Society accuracy (n=36)</text>
+    <rect x="60" y="488" width="260" height="1" fill="#1e293b"/>
+    <text x="190" y="518" text-anchor="middle" fill="#475569" font-size="12">vs 89% monolithic baseline</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="350" y="400" width="260" height="140" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="480" y="450" text-anchor="middle" fill="#6366f1" font-size="48" font-weight="800" class="stat2">5</text>
+    <text x="480" y="478" text-anchor="middle" fill="#94a3b8" font-size="14">Specialist agents</text>
+    <rect x="350" y="488" width="260" height="1" fill="#1e293b"/>
+    <text x="480" y="518" text-anchor="middle" fill="#475569" font-size="12">Intake · Compliance · Treasury · Resolution · Auditor</text>
+  </g>
+
+  <g filter="url(#shadow)">
+    <rect x="640" y="400" width="260" height="140" rx="12" fill="#1e293b" stroke="#334155" stroke-width="1"/>
+    <text x="770" y="450" text-anchor="middle" fill="#f59e0b" font-size="48" font-weight="800" class="stat3">179</text>
+    <text x="770" y="478" text-anchor="middle" fill="#94a3b8" font-size="14">Hash-chained events</text>
+    <rect x="640" y="488" width="260" height="1" fill="#1e293b"/>
+    <text x="770" y="518" text-anchor="middle" fill="#475569" font-size="12">Tamper-evident · replayable · auditable</text>
+  </g>
+
+  <!-- Qwen Cloud badge -->
+  <g class="badge-pulse">
+    <rect x="980" y="400" width="240" height="50" rx="25" fill="none" stroke="#6366f1" stroke-width="1.5"/>
+    <text x="1100" y="431" text-anchor="middle" fill="#a5b4fc" font-size="13">Powered by Qwen Cloud</text>
+  </g>
+
+  <!-- Settlement proof -->
+  <g>
+    <rect x="980" y="470" width="240" height="70" rx="8" fill="#0f172a" stroke="#1e293b" stroke-width="1"/>
+    <text x="1100" y="497" text-anchor="middle" fill="#22d3ee" font-size="12" font-weight="600">REAL MONEY MOVEMENT</text>
+    <text x="1100" y="520" text-anchor="middle" fill="#475569" font-size="10">Testnet USDC on Base Sepolia</text>
+    <text x="1100" y="535" text-anchor="middle" fill="#475569" font-size="10">3 settled payouts · hash-chain verified</text>
+  </g>
+
+  <!-- Play button overlay -->
+  <g transform="translate(1108, 640)">
+    <circle cx="32" cy="32" r="32" fill="#6366f1" opacity="0.9"/>
+    <path d="M22 18 L22 46 L46 32 Z" fill="#fff"/>
+  </g>
+  <text x="1160" y="650" fill="#94a3b8" font-size="16">Watch the demo</text>
+
+  <!-- Bottom tagline -->
+  <text x="640" y="695" text-anchor="middle" fill="#334155" font-size="13">clearcrew.verasettle.com · MIT · Global AI Hackathon Series — Agent Society track</text>
+</svg>

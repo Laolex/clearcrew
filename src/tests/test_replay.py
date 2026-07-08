@@ -7,6 +7,14 @@ from fastapi.testclient import TestClient
 from clearcrew import replay
 
 
+@pytest.fixture(autouse=True)
+def _reset_token():
+    """Ensure auth is off so these tests don't get 401."""
+    import clearcrew.replay as r
+    r.API_TOKEN = ""
+    yield
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     run = tmp_path / "events-test-n12.jsonl"

@@ -16,6 +16,8 @@ Read this before crawling the tree; it saves you the exploration.
 | module | import surface | depends on |
 |---|---|---|
 | `clearcrew.events` | `emit`, `fold_state`, `explain`, `verify_chain`, `read_all` | stdlib only |
+| `clearcrew.schema` | `validate`, `EVENT_SCHEMA` | stdlib only |
+| `clearcrew.anchor` | `anchor_now`, `TsaAnchor`, `NoopAnchor` | stdlib only (urllib) |
 | `clearcrew.policy` | `PolicyVersion`, `evaluate`, `CURRENT`, `VERSIONS` | stdlib only |
 | `clearcrew.settlement` | `settle_payout`, `usdc_amount`, `SettlementError` | stdlib only (urllib) |
 | `clearcrew.mcp_server` | 6 read-only tools over the trail | `mcp`, `clearcrew.replay` |
@@ -32,7 +34,18 @@ Read this before crawling the tree; it saves you the exploration.
 4. **Nothing staged.** Every figure shown anywhere must come from a recorded
    run. If you add UI, render real events or nothing.
 5. **Secrets:** `.env` (gitignored) holds `DASHSCOPE_API_KEY` and optional
-   `VERASETTLE_*`. Never emit them into events, logs, or docs.
+   `VERASETTLE_*` and `CLEARCREW_API_TOKEN`. Never emit them into events,
+   logs, or docs.
+6. **Events carry `schema_version`.** Every emitted event is best-effort
+   validated against `schema.EVENT_SCHEMA`; malformed payloads pass through
+   with a warning, never silently mangled.
+7. **Chain heads are externally anchored.** After every completed batch,
+   `anchor.anchor_now()` records the head hash in a `chain.anchored` event.
+   With `CLEARCREW_ANCHOR=tsa` the hash is also sent to an RFC-3161 TSA
+   (freetsa.org) for independent timestamp proof.
+8. **Benchmark runs are process-isolated.** `bench.py` spawns society and
+   monolith in separate subprocesses so token counters, memory, and timing
+   never cross-contaminate.
 
 ## Common tasks
 

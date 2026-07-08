@@ -1,7 +1,7 @@
 """Society orchestrator: task decomposition, role routing, conflict resolution."""
 from concurrent.futures import ThreadPoolExecutor
 
-from . import agents, events, policy
+from . import agents, anchor, events, policy
 
 
 def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
@@ -82,4 +82,5 @@ def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floo
     explanations = {p["id"]: a for p, a in zip(payouts, audits)}
 
     events.emit("batch.completed", "batch", "orchestrator", {})
+    anchor.anchor_now()
     return {"state": events.fold_state(), "explanations": explanations}

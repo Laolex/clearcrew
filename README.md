@@ -15,6 +15,8 @@ divide a batch of payout requests through task decomposition and negotiated
 conflict resolution. Every decision is an event in an append-only log: state is a
 fold over events, and any outcome can be replayed and explained.
 
+![ClearCrew architecture — five specialist agents, a hash-chained event log, Verasettle settlement rail, and the Replay Time Machine](docs/architecture.svg)
+
 This is not a diagram — it's four events from a recorded run
 (`runs/events-20260703-165045-settled-n6.jsonl`, payout `1818e811`, trimmed
 for width; the chain is global, so events from other payouts sit between
@@ -69,7 +71,7 @@ batch → Intake (triage, qwen-turbo)
       → Auditor (plain-English explanation of every payout's event chain)
 ```
 
-## Why specialization + provenance beats an opaque monolith
+## Why the society wins
 
 The claim is not that five agents are smarter than one big one. It's that when
 the monolith errs, you cannot locate responsibility — there is no *why* to
@@ -119,6 +121,30 @@ governance, not prompt-tweaking:
 The monolith wobbles run-to-run (89–92%) and there is nothing to read, nobody
 to fix. That's the actual claim: the trail is not just explanation — it's
 *repair*. See `docs/demo-notes.md` for the full event chains behind each row.
+
+### Why five agents
+
+The five roles map to real-world payout-operations teams, each with a strict
+separation of duties that prevents any single agent from both proposing and
+approving a payout:
+
+| Agent | Model | Authority | Cannot do |
+|---|---|---|---|
+| **Intake** | qwen3.7-plus | Triage risk tier, record flags | Veto or approve |
+| **Compliance** | qwen3.7-max | Veto on P1/P2 sanctions policy | Override a veto or decide funding |
+| **Treasury** | qwen3.7-max | Apply P3 funding waterfall | Re-evaluate compliance (P1/P2) |
+| **Resolution** | qwen3.7-max | Mediate disputes, reconcile arithmetic | Initiate payouts independently |
+| **Auditor** | qwen3.7-plus | Explain decisions post-hoc | Influence any live decision |
+
+Each agent sees only its slice of the task. Treasury receives a deterministic
+ledger computed in code (*agents judge, ledgers add*) and is explicitly barred
+from re-evaluating compliance rules. When Compliance vetoes a payout, Treasury
+cannot override it — only Resolution can, based on policy, not preference.
+
+The fifth agent — Auditor — is deliberately *post-hoc*: it has no influence on
+decisions and appears only after final verdicts are emitted. Its purpose is to
+make every error attributable and explainable, which is what turns a black-box
+failure into a fixed governance gap (see the repair ladder above).
 
 ## Replay Time Machine
 

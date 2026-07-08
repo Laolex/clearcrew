@@ -8,6 +8,7 @@ Judge mode (/api/live/*) only works where the secrets live: it spawns a real
 settle_demo run (live Qwen calls + real testnet settlement) on the host, so it
 is enabled only when CLEARCREW_JUDGE_CODE is set — never on the FC deployment.
 """
+import functools
 import json
 import os
 import re
@@ -17,10 +18,12 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse
 
 from . import data, events as event_log, policy
+
+API_TOKEN = os.environ.get("CLEARCREW_API_TOKEN", "")
 
 RUNS_DIR = Path(os.environ.get("CLEARCREW_RUNS_DIR", Path(__file__).parent.parent / "runs"))
 STATIC_DIR = Path(__file__).parent / "static"
@@ -28,6 +31,13 @@ STATIC_DIR = Path(__file__).parent / "static"
 app = FastAPI(title="ClearCrew Replay Time Machine")
 
 _RUN_RE = re.compile(r"^events-(?P<stamp>[\w-]+?)-n(?P<n>\d+)\.jsonl$")
+
+
+def require_auth(authorization: str | None = Header(None)) -> None:
+    if not API_TOKEN:
+        return
+    if authorization != f"Bearer {API_TOKEN}":
+        raise HTTPException(status_code=401, detail="missing or invalid API token")
 
 
 def _list_runs() -> list[dict]:
@@ -79,12 +89,12 @@ def healthz():
 
 
 @app.get("/api/runs")
-def list_runs():
+def list_runs(auth=Depends(require_auth)):
     return {"runs": _list_runs()}
 
 
 @app.get("/api/runs/{run_name}")
-def run_detail(run_name: str):
+def run_detail(run_name: str, auth=Depends(require_auth)):
     events = _load_events(run_name)
     m = _RUN_RE.match(run_name)
     lookup = _batch_lookup(int(m["n"]))
@@ -121,7 +131,7 @@ def run_detail(run_name: str):
 
 
 @app.get("/api/runs/{run_name}/explain/{subject}")
-def explain(run_name: str, subject: str):
+def explain(run_name: str, subject: str, auth=Depends(require_auth)):
     events = _load_events(run_name)
     t0 = events[0]["ts"] if events else 0.0
     chain = [e for e in events if e["subject"] == subject]
@@ -139,7 +149,8 @@ def explain(run_name: str, subject: str):
 
 @app.get("/api/runs/{run_name}/counterfactual")
 def counterfactual(run_name: str, reserve_floor: float | None = None,
-                   p2_amount: float | None = None, p2_age_days: int | None = None):
+                   p2_amount: float | None = None, p2_age_days: int | None = None,
+                   auth=Depends(require_auth)):
     """Deterministic counterfactual replay: fold the SAME recorded batch through
     a hypothetical policy version. Only the mechanical layer (P1/P2/P3 over
     known amounts) is re-evaluated — recorded agent judgments are replayed
@@ -217,7 +228,7 @@ def _read_live_events() -> list[dict]:
 
 
 @app.post("/api/live/start")
-def live_start(code: str = ""):
+def live_start(code: str = "", auth=Depends(require_auth)):
     if not _judge_code():
         raise HTTPException(503, "judge mode is not enabled on this deployment")
     if code != _judge_code():
@@ -240,7 +251,7 @@ def live_start(code: str = ""):
 
 
 @app.get("/api/live/status")
-def live_status():
+def live_status(auth=Depends(require_auth)):
     proc = _live["proc"]
     if proc is None:
         return {"state": "idle"}

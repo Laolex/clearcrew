@@ -1,7 +1,15 @@
+---
+title: "The night my AI agent caught another AI agent lying"
+description: "Building an agent society for payout operations on Qwen Cloud — and what the event log taught me that no eval score could."
+published: false
+tags: [ai, agent, qwen, provenance, hackathon]
+cover_image: https://clearcrew.verasettle.com/img/devto-card.png
+series: Agent Society Deep-Dive
+---
+
 # The night my AI agent caught another AI agent lying — building ClearCrew on Qwen Cloud
 
-*Building an agent society for payout operations for the Qwen Cloud Global AI
-Hackathon — and what the event log taught me that no eval score could.*
+*Building an agent society for payout operations for the Qwen Cloud Global AI Hackathon — and what the event log taught me that no eval score could.*
 
 ---
 

@@ -9,6 +9,12 @@ after it breaks. `verify_chain` recomputes the chain from scratch. (Runs
 recorded before hashing existed simply have no hashes; they are reported as
 such, never retro-hashed — rewriting history is the one thing this system
 must never do.)
+
+Thread safety: a single lock serializes all reads AND writes so concurrent
+readers never see a partial line. Writes append directly to the log file
+(not a temp-file rename), which is safe because POSIX write(2) on a local
+filesystem is page-atomic for sub-page writes; the lock ensures Python-level
+exclusion so no reader interleaves between JSON serialization and the write.
 """
 import hashlib
 import json
@@ -17,11 +23,11 @@ import time
 import uuid
 from pathlib import Path
 
-from . import config
+from . import config, schema
 
 GENESIS = "0" * 64
 
-_emit_lock = threading.Lock()
+_lock = threading.Lock()
 _last_hash: dict[str, str] = {}  # log path -> hash of its last event
 
 
@@ -47,7 +53,7 @@ def _tail_hash(path: str) -> str:
 
 
 def emit(event_type: str, subject: str, actor: str, payload: dict) -> dict:
-    with _emit_lock:
+    with _lock:
         path = config.EVENT_LOG_PATH
         if path not in _last_hash:
             _last_hash[path] = _tail_hash(path)
@@ -60,9 +66,11 @@ def emit(event_type: str, subject: str, actor: str, payload: dict) -> dict:
             "payload": payload,
             "prev_hash": _last_hash[path],
         }
+        event = schema.validate(event)
         event["event_hash"] = _event_hash(event)
         with open(path, "a") as f:
             f.write(json.dumps(event) + "\n")
+            f.flush()
         _last_hash[path] = event["event_hash"]
         return event
 
@@ -87,11 +95,12 @@ def verify_chain(events: list[dict]) -> dict:
 
 
 def read_all() -> list[dict]:
-    path = Path(config.EVENT_LOG_PATH)
-    if not path.exists():
-        return []
-    with open(path) as f:
-        return [json.loads(line) for line in f if line.strip()]
+    with _lock:
+        path = Path(config.EVENT_LOG_PATH)
+        if not path.exists():
+            return []
+        with open(path) as f:
+            return [json.loads(line) for line in f if line.strip()]
 
 
 def explain(subject: str) -> list[dict]:
