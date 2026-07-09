@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClearCrew — Trust Layer for Autonomous Payouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Verasettle console skin — light-only, per brand. All text tones ≥4.5:1. */
@@ -30,10 +33,10 @@
   ::-webkit-scrollbar-track { background: transparent; }
   body {
     background: var(--bg); color: var(--ink); min-height: 100vh;
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15px/1.55 "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     display: grid; grid-template-columns: 232px 1fr;
   }
-  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   .amt, .pos, .toff, .stat b, .statebar .t, .cfchg, .num { font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
   a { color: var(--blue); text-decoration: none; }
@@ -44,10 +47,10 @@
   /* ---- sidebar ---- */
   .side { border-right: 1px solid var(--line); padding: 18px 14px; position: sticky;
     top: 0; height: 100vh; overflow-y: auto; }
-  .side .wm { font-size: 14px; font-weight: 650; letter-spacing: -.01em; margin-bottom: 4px; line-height: 1.3; }
+  .side .wm { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 3px; line-height: 1.25; }
   .side .wm b { color: var(--teal); }
-  .side .wmsub { color: var(--dim); font-size: 11.5px; margin-bottom: 18px; }
-  .navlink { display: block; padding: 8px 12px; border-radius: 9px; color: var(--muted);
+  .side .wmsub { color: var(--dim); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 20px; }
+  .navlink { display: block; padding: 8px 12px; border-radius: 6px; color: var(--muted);
     text-decoration: none; font-size: 13.5px; margin-bottom: 2px;
     transition: background var(--t-fast), color var(--t-fast); }
   .navlink[aria-current="page"] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
@@ -55,7 +58,7 @@
   .side .navgap { height: 14px; }
   #liveBtn {
     width: 100%; text-align: left; background: var(--card); color: var(--gold);
-    border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px;
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px;
     font: inherit; font-size: 13px; cursor: pointer; margin-top: 4px;
     transition: border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
   }
@@ -86,31 +89,38 @@
     letter-spacing: .04em; padding: 7px 24px; display: flex; gap: 18px; flex-wrap: wrap; }
   .trustbar b { color: var(--green); font-weight: 700; }
   .stage { padding: 22px 28px 64px; overflow-y: auto; }
+  /* the summary pages (everything but Operations, which needs its full width
+     for the 3-panel hero) are short — capping their measure keeps them
+     reading as a designed page instead of content stranded in a corner. */
+  #view-overview, #view-policies, #view-evidence, #view-failures, #view-analytics { max-width: 1040px; }
   .vhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-  .vhead h1 { font-size: 20px; letter-spacing: -.01em; }
+  .vhead h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
   .vhead .sub { color: var(--muted); font-size: 13px; }
   .loading { color: var(--dim); padding: 40px 4px; font-size: 13px; }
-  .err { margin: 14px 0; padding: 12px 16px; border-radius: 10px; font-size: 13px;
+  .err { margin: 14px 0; padding: 12px 16px; border-radius: 8px; font-size: 13px;
     background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
   .err button { margin-left: 10px; background: transparent; color: var(--red);
-    border: 1px solid var(--red); border-radius: 7px; padding: 3px 10px;
+    border: 1px solid var(--red); border-radius: 6px; padding: 3px 10px;
     font: inherit; font-size: 12px; cursor: pointer; }
   select.runsel {
     background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px;
+    border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 13px;
   }
 
   /* ---- stat tiles ---- */
   .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
-  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 16px; font-size: 12.5px; color: var(--muted); }
-  .stat b { display: block; color: var(--ink); font-size: 22px; margin-bottom: 2px; letter-spacing: -.01em; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 18px; font-size: 11.5px; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  .stat b { display: block; color: var(--ink); font-size: 34px; font-weight: 700;
+    margin-bottom: 4px; letter-spacing: -.02em; text-transform: none; }
+  .stat b.text { font-size: 15px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
   .stat.win b { color: var(--green); }
   .stat.chain-ok b { color: var(--green); }
 
   /* ---- chips ---- */
   .chip { font-size: 10.5px; font-weight: 650; letter-spacing: .04em; padding: 2.5px 8px;
-    border-radius: 99px; text-transform: uppercase; display: inline-block; }
+    border-radius: 5px; text-transform: uppercase; display: inline-block; }
   .chip.approved { background: var(--green-soft); color: var(--green); }
   .chip.rejected { background: var(--red-soft); color: var(--red); }
   .chip.disputed, .chip.escalated { background: var(--gold-soft); color: var(--gold); }
@@ -131,7 +141,7 @@
   .rowlink { cursor: pointer; }
 
   /* ---- panels / detail ---- */
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
   .panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 10px; }
   .panel.exec b.ok { color: var(--green); }
   .muted-note { color: var(--dim); font-size: 12px; margin-top: 8px; }
@@ -152,8 +162,8 @@
     .detail3 { grid-template-columns: 240px minmax(0, 1fr) 280px; }
   }
 
-  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-  .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
+  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .payout-head h2 { font-size: 38px; font-weight: 700; letter-spacing: -.03em; }
 
   /* ---- ops list ---- */
   .opsgrid { display: grid; grid-template-columns: 360px 1fr; gap: 0; }
@@ -161,7 +171,7 @@
   #opsList { border-right: 1px solid var(--line); padding: 8px 12px 40px; max-height: calc(100vh - 200px); overflow-y: auto; }
   #opsList h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
   .payout { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
-    padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 4px;
+    padding: 10px 12px; border-radius: 7px; border: 1px solid transparent; margin-bottom: 4px;
     transition: background var(--t-fast), border-color var(--t-fast); }
   @media (hover: hover) and (pointer: fine) { .payout:hover { background: var(--panel); } }
   .payout.active { background: var(--panel); border-color: var(--teal); box-shadow: 0 1px 3px rgba(23,33,28,.06); }
@@ -176,7 +186,7 @@
   /* ---- replay controls / timeline (ported) ---- */
   .controls { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
   .controls button { background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
+    border-radius: 6px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
     transition: border-color var(--t-fast), opacity var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1); }
   @media (hover: hover) and (pointer: fine) { .controls button:hover:not(:disabled) { border-color: var(--teal); } }
   .controls button:active:not(:disabled) { transform: scale(.97); }
@@ -187,7 +197,7 @@
   .controls .hint { color: var(--dim); font-size: 11.5px; margin-left: auto; }
 
   .statebar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13.5px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; font-size: 13.5px;
     box-shadow: 0 2px 8px rgba(23,33,28,.05); transition: background 200ms ease, border-color 200ms ease; }
   .statebar.ok { background: #e6f4f0; border-color: var(--green); }
   .statebar.ok.pulse { animation: settled-pulse 700ms cubic-bezier(.23,1,.32,1) 1; }
@@ -201,7 +211,7 @@
   .statebar.ok .v, .statebar.bad .v { transform: scale(1.12); letter-spacing: .02em; }
   .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
 
-  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: var(--green-soft);
+  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 8px; background: var(--green-soft);
     border: 1px solid var(--green); font-size: 13.5px; color: var(--green);
     visibility: hidden; opacity: 0; transform: translateY(4px);
     transition: opacity var(--t-fast), transform var(--t-fast), visibility var(--t-fast); }
@@ -215,7 +225,7 @@
   .tl-progress { position: absolute; left: 7px; top: 8px; width: 2px; height: calc(100% - 16px);
     background: var(--teal); transform-origin: top; transform: scaleY(0); transition: transform var(--t-med); }
   .event { position: relative; margin-bottom: 14px; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 12px; padding: 13px 16px; opacity: .32; filter: saturate(.25);
+    border-radius: 8px; padding: 13px 16px; opacity: .32; filter: saturate(.25);
     transition: opacity var(--t-med), filter var(--t-med), border-color var(--t-med); cursor: pointer; }
   .event.shown { opacity: 1; filter: none; }
   .event.current { border-color: var(--ac, var(--teal)); box-shadow: 0 0 0 1px var(--ac, var(--teal)); }
@@ -226,7 +236,7 @@
   @keyframes commit { from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); } to { box-shadow: 0 0 0 10px rgba(13,148,136,0); } }
   .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .actor { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    padding: 2.5px 9px; border-radius: 99px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
+    padding: 2.5px 9px; border-radius: 5px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
   .etype { font-size: 13px; color: var(--ink); font-weight: 600; }
   .toff { margin-left: auto; color: var(--dim); font-size: 11.5px; }
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
@@ -253,13 +263,13 @@
   .decmoney { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 24px; }
   .decmoney .dmhead { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
   .dm-node { background: var(--panel); border: 1px solid var(--line); color: var(--dim);
-    border-radius: 10px; padding: 8px 16px; font: inherit; font-size: 13px; cursor: pointer;
+    border-radius: 6px; padding: 8px 16px; font: inherit; font-size: 13px; cursor: pointer;
     transition: border-color var(--t-fast), color var(--t-fast); }
   .dm-node.on { color: var(--ink); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
   .dm-arrow { color: var(--dim); margin-left: 14px; }
 
   /* ---- counterfactual ---- */
-  #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   #cf summary { cursor: pointer; padding: 11px 16px; font-size: 13px; color: var(--muted); list-style: none; }
   #cf summary::-webkit-details-marker { display: none; }
   #cf summary b { color: var(--teal); }
@@ -267,32 +277,32 @@
   #cf .cfrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   #cf label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
   #cf input { width: 110px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; }
+    border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px; }
   #cf button { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal);
-    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+    border-radius: 6px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
   .cfsum { font-size: 13px; margin: 6px 0; } .cfsum b { color: var(--ink); }
   .cfchg { font-size: 12px; color: var(--muted); padding: 3px 0; border-top: 1px solid var(--line); }
   .cfchg b.toreject { color: var(--red); } .cfchg b.toapprove { color: var(--green); }
   .cfcause { color: var(--dim); margin-left: 8px; } .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
 
   /* ---- policies ---- */
-  .policytext { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  .policytext { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
     padding: 16px 18px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px;
     white-space: pre-wrap; color: var(--ink); line-height: 1.6; }
   .paramgrid { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
-  .param { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-size: 12.5px; }
+  .param { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 12.5px; }
   .param b { display: block; color: var(--ink); }
   .policynote { color: var(--muted); font-size: 12.5px; margin: 10px 0 4px; max-width: 70ch; }
 
   /* ---- failures ---- */
   .failcards { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 4px; }
-  .failcard { background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  .failcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
     padding: 12px 16px; cursor: pointer; min-width: 150px;
     transition: border-color var(--t-fast); }
   .failcard.active { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal); }
   @media (hover:hover){ .failcard:hover { border-color: var(--dim); } }
-  .failcard .fc-n { font-size: 24px; font-weight: 650; letter-spacing: -.01em; }
-  .failcard .fc-l { color: var(--muted); font-size: 12px; }
+  .failcard .fc-n { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+  .failcard .fc-l { color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
   .failcard.zero .fc-n { color: var(--dim); }
   .byrule { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0; min-height: 70px; }
   .barwrap { display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; }
@@ -310,16 +320,16 @@
   /* ---- evidence pack ---- */
   .evpack { max-width: 560px; }
   .evcheck { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px;
-    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
   .evcheck .ec-ok { color: var(--green); font-weight: 700; }
   .evcheck .ec-no { color: var(--dim); font-weight: 700; }
   .evbtns { display: flex; gap: 10px; margin-top: 16px; }
   .evbtns button { background: var(--teal-strong); border: 1px solid var(--teal-strong); color: #fff; font-weight: 600;
-    border-radius: 9px; padding: 9px 18px; font: inherit; font-size: 13px; cursor: pointer; }
+    border-radius: 6px; padding: 9px 18px; font: inherit; font-size: 13px; cursor: pointer; }
   .evbtns button.ghost { background: var(--card); color: var(--ink); border-color: var(--line); font-weight: 500; }
 
   /* ---- live panel ---- */
-  #live { display: none; margin: 16px 0 0; border: 1px solid var(--gold); border-radius: 10px; background: var(--gold-soft); padding: 12px 16px; }
+  #live { display: none; margin: 16px 0 0; border: 1px solid var(--gold); border-radius: 8px; background: var(--gold-soft); padding: 12px 16px; }
   #live.on { display: block; }
   #live .lhead { color: var(--gold); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
   #live .lhead .mono { font-weight: 400; color: var(--muted); margin-left: 10px; }
@@ -359,7 +369,7 @@
   <a class="navlink" href="#/failures">Failures</a>
   <a class="navlink" href="#/analytics">Analytics</a>
   <div class="navgap"></div>
-  <button id="liveBtn" title="Judge mode: run the society live (access code required)">⚡ live run</button>
+  <button id="liveBtn" title="Judge mode: run the society live (access code required)">live run</button>
 </nav>
 
 <div class="col">
@@ -376,7 +386,7 @@
     <section id="view-failures" data-view hidden><div class="loading">loading…</div></section>
     <section id="view-analytics" data-view hidden><div class="loading">loading…</div></section>
     <div id="live" role="status">
-      <div class="lhead">⚡ live run in progress <span class="mono" id="liveMeta"></span></div>
+      <div class="lhead">live run in progress <span class="mono" id="liveMeta"></span></div>
       <div id="liveGraph" aria-hidden="true"></div>
       <div id="liveFeed"></div>
     </div>
@@ -519,7 +529,7 @@ async function loadOpsList(name) {
   let d; try { d = await api(`/api/runs/${name}`); } catch { return showError("#opsList", () => loadOpsList(name)); }
   runChain = d.chain;
   list.innerHTML = `<h2>${d.payouts.length} payouts · ${d.total_events} events` +
-    (runChain && runChain.hashed ? (runChain.verified ? ` · ⛓ chain verified` : ` · ⛓ CHAIN BROKEN`) : ``) + `</h2>` +
+    (runChain && runChain.hashed ? (runChain.verified ? ` · chain verified` : ` · CHAIN BROKEN`) : ``) + `</h2>` +
     d.payouts.map(p => `
       <div class="payout" data-id="${esc(p.id)}" role="button" tabindex="0">
         <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
@@ -629,16 +639,16 @@ function renderEvent(e, i) {
         + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
   const text = P.reason || P.explanation || "";
   if (text) body += (body ? "\n" : "") + esc(text);
-  if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
-  if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
+  if (e.type === "payout.approved") body = "Final: payout approved for settlement.";
+  if (e.type === "payout.rejected") body = "Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
   if (e.type === "settlement.requested")
     body = `→ Execution requested on the ${esc(P.rail)} rail: <b>${fmtUSD(P.source_amount_usd)}</b> source → <b>${P.settled_amount_usdc} USDC</b> on ${esc(P.chain)} (${esc(P.scale)}).`;
   if (e.type === "settlement.confirmed") {
     cls = "event a-verasettle";
-    body = `💠 Real testnet USDC moved on ${esc(P.chain)}: <b>${P.settled_amount_usdc} USDC</b>` +
+    body = `Real testnet USDC moved on ${esc(P.chain)}: <b>${P.settled_amount_usdc} USDC</b>` +
       (P.tx_hash ? `\ntx <a href="${esc(P.explorer)}" target="_blank" rel="noopener" class="mono">${esc(P.tx_hash.slice(0, 22))}…</a>` : "");
   }
-  if (e.type === "payout.settled") { cls += " verdict-approved"; body = "💸 Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
+  if (e.type === "payout.settled") { cls += " verdict-approved"; body = "Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
   const hashes = `<div class="hashes"><div><span class="hk">event_hash</span> <span class="hv mono">${esc(e.event_hash || "—")}</span></div>
     <div><span class="hk">prev_hash</span> <span class="hv mono">${esc(e.prev_hash || "—")}</span></div>
@@ -858,7 +868,7 @@ async function renderAnalytics() {
     <div class="stats">
       <div class="stat"><b>${a.settlement.count}</b>on-chain settlements</div>
       <div class="stat"><b>${a.settlement.usdc_moved}</b>USDC moved</div>
-      <div class="stat"><b>${esc(a.settlement.chains.join(", ") || "—")}</b>chain</div>
+      <div class="stat"><b class="text">${esc(a.settlement.chains.join(", ") || "—")}</b>chain</div>
       <div class="stat win"><b>${a.coverage.replay_pct}%</b>replay coverage</div>
       <div class="stat chain-ok"><b>${a.coverage.hash_verified_pct}%</b>hash verified</div></div>`;
 }
@@ -931,7 +941,7 @@ function pulseActor(actor, done) {
 }
 function watchLive(meta) {
   $("#live").classList.add("on"); buildLiveGraph();
-  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtn").textContent = "⚡ running…";
+  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtn").textContent = "running…";
   $("#liveFeed").innerHTML = ""; liveRendered = 0; $("#liveMeta").textContent = meta;
   liveTimer = setInterval(pollLive, 2500); pollLive();
 }
@@ -953,7 +963,7 @@ async function pollLive() {
     return;
   }
   clearInterval(liveTimer); liveTimer = null;
-  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtn").textContent = "⚡ live run";
+  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtn").textContent = "live run";
   if (s.state === "done" && s.run) {
     $("#liveMeta").textContent = "done — loading your run";
     opsRuns = null;                      // force /api/runs refresh so the new run appears
