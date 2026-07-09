@@ -50,18 +50,22 @@
   .side .wm { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 3px; line-height: 1.25; }
   .side .wm b { color: var(--teal); }
   .side .wmsub { color: var(--dim); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 20px; }
-  .navlink { display: block; padding: 8px 12px; border-radius: 6px; color: var(--muted);
+  .navlink { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 6px; color: var(--muted);
     text-decoration: none; font-size: 13.5px; margin-bottom: 2px;
     transition: background var(--t-fast), color var(--t-fast); }
-  .navlink[aria-current="page"] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
-  @media (hover:hover){ .navlink:hover { color: var(--ink); } }
+  .navlink svg { flex: none; opacity: .75; transition: opacity var(--t-fast); }
+  .navlink[aria-current="page"] { background: var(--panel); color: var(--teal); border: 1px solid var(--line); font-weight: 600; }
+  .navlink[aria-current="page"] svg { opacity: 1; }
+  @media (hover:hover){ .navlink:hover { color: var(--ink); } .navlink:hover svg { opacity: 1; } }
   .side .navgap { height: 14px; }
   #liveBtn {
-    width: 100%; text-align: left; background: var(--card); color: var(--gold);
+    width: 100%; display: flex; align-items: center; gap: 9px; text-align: left;
+    background: var(--card); color: var(--gold);
     border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px;
     font: inherit; font-size: 13px; cursor: pointer; margin-top: 4px;
     transition: border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
   }
+  #liveBtn svg { flex: none; }
   #liveBtn:active:not(:disabled) { transform: scale(.98); }
   #liveBtn:disabled { opacity: .55; cursor: default; }
   @media (hover: hover) and (pointer: fine) { #liveBtn:hover:not(:disabled) { border-color: var(--gold); } }
@@ -157,13 +161,19 @@
   .truststrip .tc.ok { color: var(--green); font-weight: 700; }
   .truststrip .tc.no { color: var(--dim); font-weight: 700; }
 
-  /* detail panels respond to the DETAIL container's width (the list eats ~360px),
-     so use a container query, not viewport — 3-up only when there's real room,
-     stacked otherwise so the Execution "money moment" is never clipped. */
-  .detail3 { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
-  @container opsdetail (min-width: 900px) {
-    .detail3 { grid-template-columns: 240px minmax(0, 1fr) 280px; }
-  }
+  /* Decision / Replay / Execution used to sit side by side as a 3-column
+     grid that only reached 3-up past ~1550px of window width — everyone on
+     a normal laptop got a stacked pile of three full panels instead. Tabs
+     show one at a time, so the layout is identical (and considered) at
+     every width instead of degrading to a jammed stack below a container
+     query threshold nobody hit in practice. */
+  .tabbar { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin: 0 0 18px; }
+  .tabbtn { background: transparent; border: none; border-bottom: 2px solid transparent;
+    padding: 9px 1px 10px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--dim);
+    cursor: pointer; transition: color var(--t-fast), border-color var(--t-fast); }
+  .tabbtn[aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
+  @media (hover: hover) { .tabbtn:hover:not([aria-selected="true"]) { color: var(--ink); } }
+  .tabpanel[hidden] { display: none; }
 
   .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
   .payout-head h2 { font-size: 38px; font-weight: 700; letter-spacing: -.03em; }
@@ -182,8 +192,7 @@
   .payout .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .payout .meta.mono { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
   .chips { display: flex; gap: 5px; align-items: center; justify-content: flex-end; grid-row: span 2; align-self: center; flex-wrap: wrap; }
-  #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px);
-    container-type: inline-size; container-name: opsdetail; }
+  #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px); }
   #opsDetail .placeholder { color: var(--muted); padding: 56px 0; font-size: 14px; max-width: 52ch; }
 
   /* ---- replay controls / timeline (ported) ---- */
@@ -251,12 +260,15 @@
   .event .hashes .hv { color: var(--muted); word-break: break-all; }
   .kv { display: inline-block; margin-right: 14px; }
   .kv .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-right: 5px; }
-  .event.a-intake { --ac: var(--blue); --acs: var(--blue-soft); }
-  .event.a-compliance { --ac: var(--violet); --acs: var(--violet-soft); }
-  .event.a-treasury { --ac: var(--purple); --acs: var(--purple-soft); }
+  /* Only the roles that carry real signal get a hue: resolution (a dispute
+     was argued and ruled on) and verasettle (money actually moved). Every
+     other actor is told apart by its text label, not a seventh arbitrary
+     color — seven simultaneous hues in one timeline read as noise, not
+     information, and crowded out teal as a legible brand accent. */
+  .event.a-intake, .event.a-compliance, .event.a-treasury, .event.a-orchestrator {
+    --ac: var(--muted); --acs: var(--card); }
   .event.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
   .event.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
-  .event.a-orchestrator { --ac: var(--muted); --acs: rgba(77,85,96,.08); }
   .event.a-verasettle { --ac: var(--teal); --acs: var(--teal-soft); }
   .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
   .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
@@ -371,14 +383,14 @@
 <nav class="side">
   <div class="wm">ClearCrew</div>
   <div class="wmsub">Trust Layer for Autonomous Payouts</div>
-  <a class="navlink" href="#/overview">Overview</a>
-  <a class="navlink" href="#/ops">Operations</a>
-  <a class="navlink" href="#/policies">Policies</a>
-  <a class="navlink" href="#/evidence">Evidence</a>
-  <a class="navlink" href="#/failures">Failures</a>
-  <a class="navlink" href="#/analytics">Analytics</a>
+  <a class="navlink" href="#/overview"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.3"/></svg>Overview</a>
+  <a class="navlink" href="#/ops"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3" cy="8" r="1.6"/><circle cx="13" cy="3.3" r="1.6"/><circle cx="13" cy="12.7" r="1.6"/><path d="M4.5 7.3 11.5 4M4.5 8.7l7 4"/></svg>Operations</a>
+  <a class="navlink" href="#/policies"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.25" y="2" width="9.5" height="12" rx="1.25"/><path d="M5.75 5.5h4.5M5.75 8h4.5M5.75 10.5h2.75"/></svg>Policies</a>
+  <a class="navlink" href="#/evidence"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.75c2.1.9 4.25 1.15 4.25 1.15v4.4c0 3.35-2.1 5.4-4.25 6.2-2.15-.8-4.25-2.85-4.25-6.2V2.9S5.9 2.65 8 1.75Z"/><path d="M5.85 8.1 7.3 9.55 10.25 6.4"/></svg>Evidence</a>
+  <a class="navlink" href="#/failures"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.25 14.25 13H1.75L8 2.25Z"/><path d="M8 6.75v3M8 11.5v.05"/></svg>Failures</a>
+  <a class="navlink" href="#/analytics"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 13.5v-4M7 13.5v-8M11.5 13.5v-6M14 2.5 9.9 6.6 7.3 4l-4.6 4.6"/></svg>Analytics</a>
   <div class="navgap"></div>
-  <button id="liveBtn" title="Judge mode: run the society live (access code required)">live run</button>
+  <button id="liveBtn" title="Judge mode: run the society live (access code required)"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8.6 1 3 9h3.6l-.9 6L13 7H9.2l.9-6Z"/></svg><span id="liveBtnLabel">live run</span></button>
 </nav>
 
 <div class="col">
@@ -599,33 +611,55 @@ function renderPayoutDetail(run, subject, data) {
     trustStrip(chain, data.verification) +
     `<div class="payout-head"><h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${esc(subject)}</span></h2></div>
     ${decisionMoney(chain, run, subject)}
-    <div class="detail3">
-      <div class="panel"><h3>Summary</h3>
-        <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
-        <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
-        <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
-        <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
-        <div class="kvline kvbreak"><span class="k">Decision</span><b>${decision}</b></div>
-        <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
-        <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
-      </div>
-      <div>
-        <div class="controls">
-          <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
-          <button id="play">▶ Play</button><span class="pos" id="pos"></span>
-          <span class="hint">arrow keys work too · click an event for its hashes</span></div>
-        <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
-        <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
-        <div class="asserts" id="asserts"></div>
-      </div>
-      ${execPanel(chain)}
-    </div>`;
+    <div class="tabbar" role="tablist">
+      <button class="tabbtn" role="tab" id="tabbtn-decision" aria-controls="tab-decision" data-tab="decision">Decision</button>
+      <button class="tabbtn" role="tab" id="tabbtn-replay" aria-controls="tab-replay" data-tab="replay">Replay</button>
+      <button class="tabbtn" role="tab" id="tabbtn-execution" aria-controls="tab-execution" data-tab="execution">Execution</button>
+    </div>
+    <div class="tabpanel panel" role="tabpanel" id="tab-decision" aria-labelledby="tabbtn-decision"><h3>Summary</h3>
+      <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
+      <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
+      <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
+      <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
+      <div class="kvline kvbreak"><span class="k">Decision</span><b>${decision}</b></div>
+      <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
+      <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="tab-replay" aria-labelledby="tabbtn-replay" hidden>
+      <div class="controls">
+        <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
+        <button id="play">▶ Play</button><span class="pos" id="pos"></span>
+        <span class="hint">arrow keys work too · click an event for its hashes</span></div>
+      <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
+      <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
+      <div class="asserts" id="asserts"></div>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="tab-execution" aria-labelledby="tabbtn-execution" hidden>${execPanel(chain)}</div>`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
   wireExpandable($("#opsDetail").querySelectorAll(".event"));
   $("#opsDetail").querySelectorAll(".dm-node").forEach(n => n.onclick = () => onDmNode(n.dataset.node, run, subject));
+  $("#opsDetail").querySelectorAll(".tabbtn").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  switchTab("decision");
   go(1);
+}
+
+function switchTab(name) {
+  // plain Tab-through-all-three + native Enter/Space activation (every tab
+  // button stays reachable) rather than the roving-tabindex + arrow-key
+  // pattern real ARIA tablists use — that pattern needs its own keydown
+  // handler, and this page's ArrowLeft/ArrowRight are already claimed by
+  // the timeline scrubber. Trading one extra Tab press for not shipping a
+  // half-built roving-tabindex implementation.
+  $("#opsDetail").querySelectorAll(".tabbtn").forEach(b => {
+    b.setAttribute("aria-selected", String(b.dataset.tab === name));
+  });
+  $("#opsDetail").querySelectorAll(".tabpanel").forEach(p => { p.hidden = p.id !== `tab-${name}`; });
+  // the timeline's progress-bar fill and scroll position are computed from
+  // the container's real layout box, which is 0 while its tabpanel is
+  // `hidden` — recompute now that "replay" just became visible.
+  if (name === "replay") go(step);
 }
 
 function onDmNode(node, run, subject) {
@@ -635,7 +669,12 @@ function onDmNode(node, run, subject) {
     Verasettle: ["settlement.requested"], Settlement: ["payout.settled"], Receipt: ["settlement.confirmed"]};
   const types = map[node] || [];
   const idx = chain.findIndex(e => types.includes(e.type));
-  if (idx >= 0) { go(idx + 1); const cur = document.querySelector(".event.current"); if (cur) cur.classList.add("open"); }
+  if (idx >= 0) {
+    switchTab("replay");
+    go(idx + 1);
+    const cur = document.querySelector(".event.current");
+    if (cur) cur.classList.add("open");
+  }
 }
 
 function renderEvent(e, i) {
@@ -961,7 +1000,7 @@ function pulseActor(actor, done) {
 }
 function watchLive(meta) {
   $("#live").classList.add("on"); buildLiveGraph();
-  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtn").textContent = "running…";
+  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtnLabel").textContent = "running…";
   $("#liveFeed").innerHTML = ""; liveRendered = 0; $("#liveMeta").textContent = meta;
   liveTimer = setInterval(pollLive, 2500); pollLive();
 }
@@ -983,7 +1022,7 @@ async function pollLive() {
     return;
   }
   clearInterval(liveTimer); liveTimer = null;
-  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtn").textContent = "live run";
+  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtnLabel").textContent = "live run";
   if (s.state === "done" && s.run) {
     $("#liveMeta").textContent = "done — loading your run";
     opsRuns = null;                      // force /api/runs refresh so the new run appears
