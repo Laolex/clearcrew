@@ -244,8 +244,15 @@
   .event::before { content: ""; position: absolute; left: -25px; top: 18px; width: 12px; height: 12px;
     border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color var(--t-med); }
   .event.shown::before { border-color: var(--ac, var(--teal)); }
-  .event.commit::before { animation: commit 450ms cubic-bezier(.23,1,.32,1) 1; }
-  @keyframes commit { from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); } to { box-shadow: 0 0 0 10px rgba(13,148,136,0); } }
+  /* the pulse ring means something: a full teal ring is this event's hash
+     genuinely chaining to the last (event_hash/prev_hash present on the
+     record); a dim, shorter ring is an honest "this run predates hash
+     chaining" — replayable, not tamper-evident. Verification is visible,
+     not asserted, even in the motion. */
+  .event.commit.verified::before { animation: commit-verified 480ms cubic-bezier(.16,1,.3,1) 1; }
+  .event.commit:not(.verified)::before { animation: commit-plain 320ms cubic-bezier(.16,1,.3,1) 1; }
+  @keyframes commit-verified { from { box-shadow: 0 0 0 0 rgba(13,148,136,.5); } to { box-shadow: 0 0 0 11px rgba(13,148,136,0); } }
+  @keyframes commit-plain { from { box-shadow: 0 0 0 0 rgba(102,112,128,.35); } to { box-shadow: 0 0 0 6px rgba(102,112,128,0); } }
   .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .actor { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
     padding: 2.5px 9px; border-radius: 5px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
@@ -254,7 +261,7 @@
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
   .event .body b { color: var(--ink); }
   .event .hashes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
-    font-size: 11px; color: var(--dim); display: none; }
+    font-size: 11px; color: var(--dim); display: none; overflow: hidden; }
   .event.open .hashes { display: block; }
   .event .hashes .hk { color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; }
   .event .hashes .hv { color: var(--muted); word-break: break-all; }
@@ -462,7 +469,23 @@ function wireExpandable(nodes) {
     el.setAttribute("tabindex", "0");
     el.setAttribute("role", "button");
     el.setAttribute("aria-expanded", "false");
-    const toggle = () => { const open = el.classList.toggle("open"); el.setAttribute("aria-expanded", String(open)); };
+    const hashes = el.querySelector(".hashes");
+    const toggle = () => {
+      const open = el.classList.toggle("open");
+      el.setAttribute("aria-expanded", String(open));
+      if (!hashes || matchMedia("(prefers-reduced-motion: reduce)").matches) return; // CSS display:block/none above still applies instantly
+      hashes.getAnimations().forEach(a => a.cancel());
+      if (open) {
+        hashes.style.display = "block";
+        const h = hashes.scrollHeight;
+        hashes.animate([{ height: "0px", opacity: 0 }, { height: h + "px", opacity: 1 }],
+          { duration: 240, easing: "cubic-bezier(.16,1,.3,1)" }).onfinish = () => { hashes.style.height = ""; };
+      } else {
+        const h = hashes.scrollHeight;
+        hashes.animate([{ height: h + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+          { duration: 180, easing: "cubic-bezier(.4,0,1,1)" }).onfinish = () => { hashes.style.display = ""; hashes.style.height = ""; };
+      }
+    };
     el.onclick = toggle;
     el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
   });
@@ -763,8 +786,24 @@ function go(n) {
   const evs = document.querySelectorAll("#opsDetail .event");
   evs.forEach((el, i) => { el.classList.toggle("shown", i < step); el.classList.toggle("current", i === step - 1); });
   const cur = document.querySelector("#opsDetail .event.current");
-  if (cur && forward) { cur.classList.remove("commit"); void cur.offsetWidth; cur.classList.add("commit"); }
-  const smooth = (keyRepeat || matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (cur && forward) {
+    // run-level signal (not per-event field presence) — a genesis event
+    // legitimately has no prev_hash even in a fully hash-chained run, so
+    // "hashed" is a property of the run, matching the assertions panel below.
+    cur.classList.remove("commit", "verified"); void cur.offsetWidth;
+    cur.classList.toggle("verified", !!(runChain && runChain.hashed));
+    cur.classList.add("commit");
+    // the pulse ring (CSS, above) carries the hash-verification signal; this
+    // adds a physical settle-into-place on the card itself — the moment a
+    // step in the audit trail commits should feel like something actually
+    // happened, not just a class toggle.
+    if (!reducedMotion) {
+      cur.animate([{ transform: "translateY(7px)" }, { transform: "translateY(0)" }],
+        { duration: 360, easing: "cubic-bezier(.16,1,.3,1)" });
+    }
+  }
+  const smooth = (keyRepeat || reducedMotion) ? "auto" : "smooth";
   keyRepeat = false;
   if (cur) cur.scrollIntoView({block: "nearest", behavior: smooth});
   $("#pos").textContent = `event ${step} / ${chain.length}`;
