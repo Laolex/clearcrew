@@ -2,6 +2,9 @@
 deterministic counterfactual replay, so the two can never drift."""
 from dataclasses import replace
 
+import pytest
+from fastapi import HTTPException
+
 from clearcrew import data, policy, replay
 
 HEADLINE = "events-20260702-210640-n36.jsonl"
@@ -31,6 +34,22 @@ def test_evaluate_attributes_rules():
 def test_counterfactual_identity():
     # same parameters -> zero diffs, by construction
     assert replay.counterfactual(HEADLINE)["changes"] == []
+
+
+@pytest.mark.parametrize("kwargs", [
+    {"reserve_floor": -1.0},
+    {"p2_amount": -500.0},
+    {"p2_age_days": -1},
+    {"p2_age_days": 366},
+])
+def test_counterfactual_rejects_out_of_range_params(kwargs):
+    # the frontend's `min`/`max` are UX hints only (a button-triggered
+    # fetch(), not a <form> submit, so HTML5 constraint validation never
+    # runs) — this is the actual enforcement, so it must reject regardless
+    # of what the client sent.
+    with pytest.raises(HTTPException) as exc:
+        replay.counterfactual(HEADLINE, **kwargs)
+    assert exc.value.status_code == 422
 
 
 def test_counterfactual_reserve_floor_is_deterministic_and_attributed():

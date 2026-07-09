@@ -219,6 +219,14 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     a hypothetical policy version. Only the mechanical layer (P1/P2/P3 over
     known amounts) is re-evaluated — recorded agent judgments are replayed
     as-is, never re-generated. Executable history, not prediction."""
+    # the frontend's `min`/`max` on the number inputs are UX hints only — this
+    # button fires a manual fetch(), not a <form> submit, so HTML5 constraint
+    # validation never runs. This is the actual, only enforcement.
+    for name, val in (("reserve_floor", reserve_floor), ("p2_amount", p2_amount), ("p2_age_days", p2_age_days)):
+        if val is not None and val < 0:
+            raise HTTPException(422, f"{name} must be zero or positive")
+    if p2_age_days is not None and p2_age_days > 365:
+        raise HTTPException(422, "p2_age_days must be 365 or fewer")
     events = _load_events(run_name)
     m = _RUN_RE.match(run_name)
     batch = data.make_batch(int(m["n"]))
