@@ -61,6 +61,20 @@
   #liveBtn.running:disabled { opacity: 1; animation: livePulse 1.6s ease-in-out infinite; }
   @keyframes livePulse { 50% { opacity: .55; } }
 
+  /* structural collapse, not fluid shrink: below ~880px the 232px rail eats too
+     much width (and the trustbar orphan-wraps), so the sidebar becomes a
+     horizontally-scrolling top bar and the wordmark subtitle drops. */
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .side { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 4px 6px; flex-wrap: nowrap; overflow-x: auto;
+      padding: 10px 14px; }
+    .side .wm { margin: 0 10px 0 0; white-space: nowrap; }
+    .side .wmsub, .side .navgap { display: none; }
+    .navlink { margin-bottom: 0; white-space: nowrap; flex: none; }
+    #liveBtn { width: auto; white-space: nowrap; margin-top: 0; flex: none; margin-left: 4px; }
+  }
+
   /* ---- main column ---- */
   .col { min-width: 0; display: flex; flex-direction: column; }
   .trustbar { position: sticky; top: 0; z-index: 3; background: var(--panel);
@@ -149,6 +163,7 @@
   .payout.active { background: var(--panel); border-color: var(--teal); box-shadow: 0 1px 3px rgba(23,33,28,.06); }
   .payout .amt { font-weight: 650; font-size: 14.5px; white-space: nowrap; }
   .payout .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .payout .meta.mono { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
   .chips { display: flex; gap: 5px; align-items: center; justify-content: flex-end; grid-row: span 2; align-self: center; flex-wrap: wrap; }
   #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px);
     container-type: inline-size; container-name: opsdetail; }
@@ -371,6 +386,14 @@ const api = async (p) => { const r = await fetch(p); if (!r.ok) throw new Error(
 const fmtUSD = (a) => a == null ? "—" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const navigate = (h) => { location.hash = h; };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtRunStamp(runName) {
+  // "events-20260704-200058-settled-n6.jsonl" -> "Jul 4, 20:00"
+  const m = /events-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(runName);
+  if (!m) return runName;
+  const [, , mo, d, h, mi] = m;
+  return `${MONTHS[+mo - 1]} ${+d}, ${h}:${mi}`;
+}
 
 function statusChip(status, {disputed, miss, settled} = {}) {
   const cls = settled ? "settled" : status;
@@ -418,10 +441,11 @@ async function renderOverview() {
       <div class="stat chain-ok"><b>${t.hash_verified_pct}%</b>hash verified</div>
     </div>
     <div class="vhead" style="margin-top:22px"><h1 style="font-size:15px">Recent activity</h1></div>
-    <table class="grid"><thead><tr><th>Payout</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <table class="grid"><thead><tr><th>Payout</th><th>Run</th><th>Amount</th><th>Status</th><th></th></tr></thead>
     <tbody>${o.recent.map(p => `
       <tr class="clickable" data-go="#/ops/${esc(p.run)}/${esc(p.id)}">
         <td class="mono">${esc(p.id)}</td>
+        <td class="meta">${esc(fmtRunStamp(p.run))}</td>
         <td class="num">${fmtUSD(p.amount)}</td>
         <td>${statusChip(p.status, {disputed: p.disputed, miss: p.miss, settled: p.settled})}</td>
         <td class="linklike">${p.settled ? "Receipt" : "Replay"} →</td>
