@@ -263,13 +263,19 @@
   .event .body a { color: var(--blue); border-bottom: 1px solid var(--blue); }
 
   /* ---- decision → money ---- */
-  .decmoney { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 24px; }
-  .decmoney .dmhead { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
-  .dm-node { background: var(--panel); border: 1px solid var(--line); color: var(--dim);
+  /* moved above the 3-panel detail grid: this is the "whole journey at a
+     glance" primer, so it reads as one horizontal strip before the reader
+     drills into Summary/Timeline/Execution below — not a recap stranded
+     at the bottom of the page after everything it summarizes. */
+  .decmoney { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 18px; margin: 16px 0 22px; }
+  .decmoney .dmhead { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 10px; }
+  .dmrow { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .dm-node { background: var(--card); border: 1px solid var(--line); color: var(--dim);
     border-radius: 6px; padding: 8px 16px; font: inherit; font-size: 13px; cursor: pointer;
-    transition: border-color var(--t-fast), color var(--t-fast); }
-  .dm-node.on { color: var(--ink); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
-  .dm-arrow { color: var(--dim); margin-left: 14px; }
+    white-space: nowrap; transition: border-color var(--t-fast), color var(--t-fast); }
+  .dm-node.on { color: var(--ink); background: var(--panel); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+  .dm-arrow { color: var(--dim); flex: none; }
 
   /* ---- counterfactual ---- */
   #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
@@ -589,6 +595,7 @@ function renderPayoutDetail(run, subject, data) {
   $("#opsDetail").innerHTML =
     trustStrip(chain, data.verification) +
     `<div class="payout-head"><h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${esc(subject)}</span></h2></div>
+    ${decisionMoney(chain, run, subject)}
     <div class="detail3">
       <div class="panel"><h3>Summary</h3>
         <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
@@ -609,8 +616,7 @@ function renderPayoutDetail(run, subject, data) {
         <div class="asserts" id="asserts"></div>
       </div>
       ${execPanel(chain)}
-    </div>
-    ${decisionMoney(chain, run, subject)}`;
+    </div>`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
@@ -686,8 +692,8 @@ function decisionMoney(ch, run, subject) {
     ["Verasettle", has("settlement.requested")], ["Settlement", has("payout.settled")],
     ["Receipt", has("settlement.confirmed")], ["Evidence", ch.length > 0],
   ];
-  return `<div class="decmoney"><div class="dmhead">Decision → Money</div>` +
-    nodes.map(([n, on], i) => `${i ? '<span class="dm-arrow">↓</span>' : ""}<button class="dm-node ${on ? "on" : ""}" data-node="${n}">${n}</button>`).join("") + `</div>`;
+  return `<div class="decmoney"><div class="dmhead">Decision → Money</div><div class="dmrow">` +
+    nodes.map(([n, on], i) => `${i ? '<span class="dm-arrow">→</span>' : ""}<button class="dm-node ${on ? "on" : ""}" data-node="${n}">${n}</button>`).join("") + `</div></div>`;
 }
 
 // timeline scrubbing (ported)
