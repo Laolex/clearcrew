@@ -25,6 +25,12 @@ TSA's certificate chain, and leaving it to a third party means nobody has to
 trust our code for the part that matters:
 
     openssl ts -verify -in token.tsr -digest <head_hash> -CAfile tsa-ca.pem
+
+Why hand-roll the DER at all? `rfc3161ng` on PyPI does all of this properly and
+also verifies the CMS signature in-process. We carry the ~90 lines below to keep
+the event-log core stdlib-only and liftable as a single file — that is the only
+reason, and it is a preference, not a gap in the ecosystem. If you want in-process
+signature verification, use rfc3161ng; we deliberately leave that check to openssl.
 """
 import os
 import urllib.error
