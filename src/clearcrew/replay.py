@@ -169,12 +169,17 @@ def run_detail(run_name: str, auth=Depends(require_auth)):
         s = e["subject"]
         if s == "batch":
             continue
-        p = payouts.setdefault(s, {"id": s, "status": "pending", "events": 0, "disputed": False})
+        p = payouts.setdefault(s, {"id": s, "status": "pending", "events": 0, "disputed": False,
+                                   "proposed": None, "blocked_rule": None})
         p["events"] += 1
         if e["type"] in ("payout.approved", "payout.rejected", "payout.settled"):
             p["status"] = e["type"].split(".", 1)[1]
         if e["type"] == "dispute.resolved":
             p["disputed"] = True
+        if e["type"] == "payout.proposed":
+            p["proposed"] = (e.get("payload") or {}).get("verdict")
+        if e["type"] == "policy.blocked":
+            p["blocked_rule"] = (e.get("payload") or {}).get("rule")
 
     for pid, p in payouts.items():
         detail = lookup.get(pid)
@@ -187,7 +192,13 @@ def run_detail(run_name: str, auth=Depends(require_auth)):
                 memo=detail["memo"],
                 expected=detail["_expected"],
             )
-            p["miss"] = (p["status"] in ("approved", "settled")) != (detail["_expected"] == "approve")
+            # Grade the SOCIETY, which means grading its proposal. After the
+            # policy gate, terminal outcomes agree with policy by construction,
+            # so scoring them would show every run as flawless and hide the
+            # agent that was actually wrong. Pre-gate runs have no proposal, so
+            # the terminal decision is all there is to grade.
+            judged = p["proposed"] or ("approve" if p["status"] in ("approved", "settled") else "reject")
+            p["miss"] = (judged == "approve") != (detail["_expected"] == "approve")
 
     ordered = sorted(payouts.values(), key=lambda p: (-p["disputed"], -(p.get("amount") or 0)))
     return {"run": run_name, "t0": t0, "total_events": len(events),

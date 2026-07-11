@@ -158,6 +158,8 @@
   .chip.settled { background: var(--green-soft); color: var(--green); outline: 1px solid var(--green); }
   .chip.pending { background: var(--card); color: var(--dim); }
   .chip.miss { background: var(--red-soft); color: var(--red); outline: 1px solid var(--red); }
+  /* the policy gate refused an approval the society proposed */
+  .chip.blocked { background: var(--gold-soft); color: var(--gold); outline: 1px solid var(--gold); }
 
   /* ---- generic table ---- */
   table.grid { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
@@ -759,6 +761,7 @@ async function loadOpsList(name) {
         <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
         <div class="chips">
           ${p.disputed ? '<span class="chip escalated">escalated</span>' : ""}
+          ${p.blocked_rule ? `<span class="chip blocked" title="the society proposed to approve this; policy ${esc(p.blocked_rule)} refused">blocked ${esc(p.blocked_rule)}</span>` : ""}
           ${p.miss ? '<span class="chip miss">miss</span>' : ""}
           <span class="chip ${p.status === "settled" ? "settled" : p.status}">${p.status}</span></div>
         <span class="meta mono">${esc(p.id)} · recipient ${p.recipient_age_days ?? "?"}d · ${p.events} events</span>
@@ -918,11 +921,24 @@ function disputeTranscript(ch, subject) {
   </div>`;
 }
 
+// What the society wanted vs what the gate allowed — folded from the chain,
+// so pre-gate runs (no payout.proposed) simply report nothing rather than
+// pretending the gate was there.
+function foldGate(ch) {
+  const prop = ch.find(e => e.type === "payout.proposed");
+  const blk = ch.find(e => e.type === "policy.blocked");
+  return {
+    proposed: prop ? (prop.payload || {}).verdict : null,
+    blocked: blk ? (blk.payload || {}).rule : null,
+  };
+}
+
 function renderPayoutDetail(run, subject, data) {
   chain = data.chain; step = 0; pulsed = false;
   payoutExpected = (data.payout || {})._expected || null;
   const p = data.payout || {};
   const fin = foldFinal(chain);
+  const gate = foldGate(chain);
   const decision = fin.disputed && !fin.settled ? "ESCALATED" : (fin.label === "SETTLED" ? "APPROVED" : fin.label);
   // CI-style orientation strip: what triggered this, how long, how it ended —
   // answered before the judge starts scrubbing.
@@ -941,7 +957,11 @@ function renderPayoutDetail(run, subject, data) {
       <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
       <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
       <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
-      <div class="kvline kvbreak"><span class="k">Decision</span><b>${decision}</b></div>
+      ${gate.proposed ? `<div class="kvline kvbreak"><span class="k">Society proposed</span><b>${esc(gate.proposed)}</b></div>` : ""}
+      ${gate.proposed ? `<div class="kvline"><span class="k">Policy gate</span><b>${gate.blocked
+          ? `<span style="color:var(--gold)">REFUSED — ${esc(gate.blocked)}</span>`
+          : `<span style="color:var(--green)">promoted</span>`}</b></div>` : ""}
+      <div class="kvline${gate.proposed ? "" : " kvbreak"}"><span class="k">Decision</span><b>${decision}</b></div>
       <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
       <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
       ${disputeTranscript(chain, subject)}
