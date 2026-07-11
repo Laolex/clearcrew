@@ -15,7 +15,30 @@ divide a batch of payout requests through task decomposition and negotiated
 conflict resolution. Every decision is an event in an append-only log: state is a
 fold over events, and any outcome can be replayed and explained.
 
-![ClearCrew architecture — five specialist agents, a hash-chained event log, Verasettle settlement rail, and the Replay Time Machine](docs/architecture.svg)
+![ClearCrew v1 architecture — user → decision → history → execution → evidence: five specialist agents writing to a hash-chained append-only event log, a replay/explain/counterfactual engine folding over it, Verasettle executing only approved payouts on Base Sepolia, and an exportable evidence pack](docs/diagrams/architecture.svg)
+
+The whole system is one loop — decide, record, replay, execute, prove:
+
+```python
+# events.py — every judgment commits to the hash of the one before it
+event = {"id": …, "ts": …, "type": "treasury.decided", "subject": payout_id,
+         "actor": "treasury", "payload": {"action": "pay_now", "reason": …},
+         "prev_hash": _last_hash[path]}          # ← the chain
+event["event_hash"] = sha256(canonical_json(event))
+append(path, event)                              # append-only. the only write.
+
+# replay.py — state is never stored, only folded back out of the log
+state = fold(read_all(run))                      # replay ≠ recompute:
+                                                 # no model is ever re-run
+# settlement.py — and only an approved verdict is allowed to move money
+if state[payout_id] == "approved":
+    receipt = verasettle.settle(payout)          # one idempotent single-item batch
+    emit("settlement.confirmed", payload={"tx_hash": receipt.tx_hash, …})
+```
+
+Tamper with any earlier event — a reason, an amount, a verdict — and
+`events.verify_chain` breaks at that exact index. The tx hash is checkable on
+any Base Sepolia RPC.
 
 This is not a diagram — it's four events from a recorded run
 (`runs/events-20260703-165045-settled-n6.jsonl`, payout `1818e811`, trimmed
@@ -63,6 +86,20 @@ verdict, and money movement in one tamper-evident history.**
 | `src/clearcrew/settlement.py` | thin honest settlement-rail client — per-payout idempotent batches, receipt→event, fails loudly |
 | `src/clearcrew/mcp_server.py` | your event log as MCP tools, ~90 lines |
 | `deploy/fc_handler.py` | Alibaba FC HTTP-event → ASGI adapter (FC's URL does **not** speak WSGI, whatever the docs say) |
+
+**System documentation** — written to the standard the record is held to.
+Each doc leads with a rendered diagram (`docs/diagrams/*.svg`, with 2x PNGs
+for Devpost/deck):
+
+| doc | one-line pitch |
+|---|---|
+| [Architecture](docs/ARCHITECTURE.md) | one page, no "AI cloud" in the middle: user → decision → history → execution → evidence |
+| [Sequence](docs/SEQUENCE.md) | one payout end-to-end with real recorded timestamps — clean path and argued-veto path |
+| [Trust model](docs/TRUST_MODEL.md) | decision → recorded → replayable → verifiable → executable → exportable, trust boundaries, decision state machine |
+| [Data model](docs/DATA_MODEL.md) | 7 entities, the event-type inventory as recorded, and why "the event is the only write" matters |
+| [Guarantees](docs/GUARANTEES.md) | 8 invariants **checked against all 10 recorded runs** (script included), plus honest scope |
+| [Threat model](docs/THREAT_MODEL.md) | threat → mitigation → mechanism, including what v1 explicitly does *not* mitigate |
+| [Evidence pack example](docs/evidence-pack-example.json) | a real export: decision, 8-event chain, receipt, verification — untouched API output |
 
 ```
 batch → Intake (triage, qwen-turbo)

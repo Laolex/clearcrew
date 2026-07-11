@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>ClearCrew — Trust Layer for Autonomous Payouts</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
     /* Verasettle console skin — light-only, per brand. All text tones ≥4.5:1. */
@@ -11,7 +14,11 @@
     --bg: #f7f6f2; --panel: #ffffff; --card: #efede6; --line: #e0ded4;
     --ink: #17211c; --muted: #4d5560; --dim: #667080;
     --teal: #0d9488; --teal-soft: rgba(13,148,136,.10);
+    /* white text on --teal measures 3.74:1 (fails AA); filled buttons use this
+       darker shade instead so their labels clear 4.5:1. */
+    --teal-strong: #0b766b;
     --violet: #6d28d9; --violet-soft: rgba(109,40,217,.09);
+    --purple: #7e22ce; --purple-soft: rgba(126,34,206,.09);
     --green: #047857; --green-soft: rgba(5,150,105,.10);
     --red: #b91c1c; --red-soft: rgba(185,28,28,.08);
     --gold: #92400e; --gold-soft: rgba(180,83,9,.10);
@@ -26,10 +33,10 @@
   ::-webkit-scrollbar-track { background: transparent; }
   body {
     background: var(--bg); color: var(--ink); min-height: 100vh;
-    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    font: 15px/1.55 "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     display: grid; grid-template-columns: 232px 1fr;
   }
-  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
+  code, .mono { font-family: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace; }
   .amt, .pos, .toff, .stat b, .statebar .t, .cfchg, .num { font-variant-numeric: tabular-nums; }
   :focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; border-radius: 4px; }
   a { color: var(--blue); text-decoration: none; }
@@ -40,59 +47,111 @@
   /* ---- sidebar ---- */
   .side { border-right: 1px solid var(--line); padding: 18px 14px; position: sticky;
     top: 0; height: 100vh; overflow-y: auto; }
-  .side .wm { font-size: 14px; font-weight: 650; letter-spacing: -.01em; margin-bottom: 4px; line-height: 1.3; }
+  .side .wm { font-size: 18px; font-weight: 700; letter-spacing: -.02em; margin-bottom: 3px; line-height: 1.25; }
   .side .wm b { color: var(--teal); }
-  .side .wmsub { color: var(--dim); font-size: 11.5px; margin-bottom: 18px; }
-  .navlink { display: block; padding: 8px 12px; border-radius: 9px; color: var(--muted);
+  .side .wmsub { color: var(--dim); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .05em; margin-bottom: 20px; }
+  .navlink { display: flex; align-items: center; gap: 9px; padding: 8px 12px; border-radius: 6px; color: var(--muted);
     text-decoration: none; font-size: 13.5px; margin-bottom: 2px;
     transition: background var(--t-fast), color var(--t-fast); }
-  .navlink[aria-current="page"] { background: var(--panel); color: var(--ink); border: 1px solid var(--line); }
-  @media (hover:hover){ .navlink:hover { color: var(--ink); } }
+  .navlink svg { flex: none; opacity: .75; transition: opacity var(--t-fast); }
+  .navlink[aria-current="page"] { background: var(--panel); color: var(--teal); border: 1px solid var(--line); font-weight: 600; }
+  .navlink[aria-current="page"] svg { opacity: 1; }
+  @media (hover:hover){ .navlink:hover { color: var(--ink); } .navlink:hover svg { opacity: 1; } }
   .side .navgap { height: 14px; }
   #liveBtn {
-    width: 100%; text-align: left; background: var(--card); color: var(--gold);
-    border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px;
+    width: 100%; display: flex; align-items: center; gap: 9px; text-align: left;
+    background: var(--card); color: var(--gold);
+    border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px;
     font: inherit; font-size: 13px; cursor: pointer; margin-top: 4px;
     transition: border-color var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1);
   }
+  #liveBtn svg { flex: none; }
   #liveBtn:active:not(:disabled) { transform: scale(.98); }
   #liveBtn:disabled { opacity: .55; cursor: default; }
   @media (hover: hover) and (pointer: fine) { #liveBtn:hover:not(:disabled) { border-color: var(--gold); } }
   #liveBtn.running:disabled { opacity: 1; animation: livePulse 1.6s ease-in-out infinite; }
   @keyframes livePulse { 50% { opacity: .55; } }
+  .livewrap { position: relative; margin-top: 4px; }
+  .livehint { color: var(--dim); font-size: 10.5px; line-height: 1.4; padding: 5px 12px 0; }
+
+  /* inline judge-code form replaces a native prompt() so a failed/incorrect
+     code reads as part of the instrument's own chrome, not a browser alert.
+     Absolutely positioned (rather than pushing layout) so it works identically
+     in the sidebar rail and the collapsed mobile top bar. */
+  #liveCodeForm { position: absolute; top: 100%; left: 0; z-index: 4; margin-top: 6px;
+    width: 272px; padding: 10px 10px 9px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(23,33,28,.1); }
+  #liveCodeForm[hidden] { display: none; }
+  #liveCodeForm label { display: block; font-size: 10.5px; color: var(--dim); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: 5px; }
+  #liveCodeForm .row { display: flex; gap: 6px; }
+  #liveCodeInput { flex: 1; min-width: 0; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 5px; padding: 6px 8px; font: inherit; font-size: 12.5px; }
+  #liveCodeForm button { flex: none; font: inherit; font-size: 12px; border-radius: 5px; padding: 6px 11px; cursor: pointer; }
+  #liveCodeGo { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); font-weight: 600; }
+  #liveCodeCancel { background: transparent; color: var(--dim); border: 1px solid var(--line); }
+  #liveCodeErr { color: var(--red); font-size: 11.5px; margin-top: 6px; }
+  #liveCodeErr:empty { display: none; }
+
+  /* structural collapse, not fluid shrink: below ~880px the 232px rail eats too
+     much width (and the trustbar orphan-wraps), so the sidebar becomes a
+     horizontally-scrolling top bar and the wordmark subtitle drops. */
+  @media (max-width: 880px) {
+    body { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+    .side { position: static; height: auto; border-right: none; border-bottom: 1px solid var(--line);
+      display: flex; align-items: center; gap: 4px 6px; flex-wrap: nowrap; overflow-x: auto;
+      padding: 10px 14px; }
+    .side .wm { margin: 0 10px 0 0; white-space: nowrap; }
+    .side .wmsub, .side .navgap { display: none; }
+    .navlink { margin-bottom: 0; white-space: nowrap; flex: none; }
+    .livewrap { margin-top: 0; margin-left: 4px; flex: none; }
+    #liveBtn { width: auto; white-space: nowrap; margin-top: 0; }
+    .livehint { display: none; }
+    #liveCodeForm { right: 0; left: auto; width: 220px; }
+  }
 
   /* ---- main column ---- */
   .col { min-width: 0; display: flex; flex-direction: column; }
+  /* brand teal, but the AA-passing shade: #0d9488 measures 3.7:1 on white,
+     too weak for 11.5px text — --teal-strong clears 4.5:1. */
   .trustbar { position: sticky; top: 0; z-index: 3; background: var(--panel);
-    border-bottom: 1px solid var(--line); color: var(--dim); font-size: 11.5px;
+    border-bottom: 1px solid var(--line); color: var(--teal-strong); font-size: 11.5px;
     letter-spacing: .04em; padding: 7px 24px; display: flex; gap: 18px; flex-wrap: wrap; }
-  .trustbar b { color: var(--green); font-weight: 700; }
+  .trustbar b { color: var(--teal-strong); font-weight: 700; }
   .stage { padding: 22px 28px 64px; overflow-y: auto; }
+  /* the summary pages (everything but Operations, which needs its full width
+     for the 3-panel hero) are short — capping their measure keeps them
+     reading as a designed page instead of content stranded in a corner. */
+  #view-overview, #view-policies, #view-evidence, #view-failures, #view-analytics { max-width: 1040px; }
   .vhead { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 4px; }
-  .vhead h1 { font-size: 20px; letter-spacing: -.01em; }
+  .vhead h1 { font-size: 24px; font-weight: 700; letter-spacing: -.02em; }
   .vhead .sub { color: var(--muted); font-size: 13px; }
   .loading { color: var(--dim); padding: 40px 4px; font-size: 13px; }
-  .err { margin: 14px 0; padding: 12px 16px; border-radius: 10px; font-size: 13px;
+  .err { margin: 14px 0; padding: 12px 16px; border-radius: 8px; font-size: 13px;
     background: var(--red-soft); border: 1px solid var(--red); color: var(--red); }
   .err button { margin-left: 10px; background: transparent; color: var(--red);
-    border: 1px solid var(--red); border-radius: 7px; padding: 3px 10px;
+    border: 1px solid var(--red); border-radius: 6px; padding: 3px 10px;
     font: inherit; font-size: 12px; cursor: pointer; }
   select.runsel {
     background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 10px; font: inherit; font-size: 13px;
+    border-radius: 6px; padding: 7px 10px; font: inherit; font-size: 13px;
   }
 
   /* ---- stat tiles ---- */
-  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 14px 0 4px; }
-  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 16px; font-size: 12.5px; color: var(--muted); }
-  .stat b { display: block; color: var(--ink); font-size: 22px; margin-bottom: 2px; letter-spacing: -.01em; }
+  .stats { display: flex; gap: 10px; flex-wrap: wrap; margin: 28px 0 8px; }
+  .stat { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 14px 18px; font-size: 11.5px; font-weight: 500; color: var(--muted);
+    text-transform: uppercase; letter-spacing: .04em; }
+  .stat b { display: block; color: var(--ink); font-size: 34px; font-weight: 700;
+    margin-bottom: 4px; letter-spacing: -.02em; text-transform: none; }
+  .stat b.text { font-size: 15px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
   .stat.win b { color: var(--green); }
   .stat.chain-ok b { color: var(--green); }
+  .stat .spark { display: block; margin: 2px 0 4px; opacity: .85; }
 
   /* ---- chips ---- */
-  .chip { font-size: 10.5px; font-weight: 650; letter-spacing: .04em; padding: 2.5px 8px;
-    border-radius: 99px; text-transform: uppercase; display: inline-block; }
+  .chip { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; padding: 2.5px 8px;
+    border-radius: 5px; text-transform: uppercase; display: inline-block; }
   .chip.approved { background: var(--green-soft); color: var(--green); }
   .chip.rejected { background: var(--red-soft); color: var(--red); }
   .chip.disputed, .chip.escalated { background: var(--gold-soft); color: var(--gold); }
@@ -103,7 +162,7 @@
   /* ---- generic table ---- */
   table.grid { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 6px; }
   table.grid th { text-align: left; color: var(--dim); font-size: 10.5px; text-transform: uppercase;
-    letter-spacing: .08em; font-weight: 650; padding: 6px 10px; border-bottom: 1px solid var(--line); }
+    letter-spacing: .08em; font-weight: 600; padding: 6px 10px; border-bottom: 1px solid var(--line); }
   table.grid td { padding: 8px 10px; border-bottom: 1px solid var(--line); }
   table.grid tr.clickable { cursor: pointer; }
   @media (hover:hover){ table.grid tr.clickable:hover td { background: var(--panel); } }
@@ -113,62 +172,78 @@
   .rowlink { cursor: pointer; }
 
   /* ---- panels / detail ---- */
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px 16px; }
   .panel h3 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 10px; }
   .panel.exec b.ok { color: var(--green); }
   .muted-note { color: var(--dim); font-size: 12px; margin-top: 8px; }
   .kvline { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 13px;
     border-top: 1px solid var(--line); }
   .kvline:first-of-type { border-top: none; } .kvline .k { color: var(--dim); }
+  /* separates "what was submitted" from "what happened to it" — two different
+     questions the panel answers, so they read as two groups, not one list. */
+  .kvline.kvbreak { margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--ink); border-top-color: color-mix(in srgb, var(--ink) 12%, transparent); }
 
-  .truststrip { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 13px; color: var(--muted); }
-  .truststrip span { white-space: nowrap; }
-  .truststrip .tc.ok { color: var(--green); font-weight: 700; }
-  .truststrip .tc.no { color: var(--dim); font-weight: 700; }
+  /* Decision / Replay / Execution used to sit side by side as a 3-column
+     grid that only reached 3-up past ~1550px of window width — everyone on
+     a normal laptop got a stacked pile of three full panels instead. Tabs
+     show one at a time, so the layout is identical (and considered) at
+     every width instead of degrading to a jammed stack below a container
+     query threshold nobody hit in practice. */
+  .tabbar { display: flex; gap: 22px; border-bottom: 1px solid var(--line); margin: 0 0 18px; }
+  .tabbtn { background: transparent; border: none; border-bottom: 2px solid transparent;
+    padding: 9px 1px 10px; font: inherit; font-size: 13.5px; font-weight: 600; color: var(--dim);
+    cursor: pointer; transition: color var(--t-fast), border-color var(--t-fast); }
+  .tabbtn[aria-selected="true"] { color: var(--teal); border-bottom-color: var(--teal); }
+  @media (hover: hover) { .tabbtn:hover:not([aria-selected="true"]) { color: var(--ink); } }
+  .tabpanel[hidden] { display: none; }
 
-  /* detail panels respond to the DETAIL container's width (the list eats ~360px),
-     so use a container query, not viewport — 3-up only when there's real room,
-     stacked otherwise so the Execution "money moment" is never clipped. */
-  .detail3 { display: grid; grid-template-columns: 1fr; gap: 18px; align-items: start; }
-  @container opsdetail (min-width: 900px) {
-    .detail3 { grid-template-columns: 240px minmax(0, 1fr) 280px; }
-  }
-
-  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-  .payout-head h2 { font-size: 22px; letter-spacing: -.01em; }
+  .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
+  .payout-head h2 { font-size: 38px; font-weight: 700; letter-spacing: -.03em; }
+  .runsum { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
+  .runsum b { color: var(--ink); }
 
   /* ---- ops list ---- */
   .opsgrid { display: grid; grid-template-columns: 360px 1fr; gap: 0; }
-  @media (max-width: 1000px){ .opsgrid { grid-template-columns: 1fr; } }
+  .opsback { display: none; }
+  /* below 1000px #opsList and #opsDetail stack in one scroll region (a
+     detail panel can run long: trust strip, tabs, full timeline) — this
+     sticky control is the only way back to the list without scrolling past
+     all of it by hand. */
+  @media (max-width: 1000px){
+    .opsgrid { grid-template-columns: 1fr; }
+    .opsback { display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 2;
+      width: 100%; background: var(--panel); border: none; border-bottom: 1px solid var(--line);
+      color: var(--teal); font: inherit; font-size: 12.5px; font-weight: 600; padding: 10px 12px; cursor: pointer; }
+  }
   #opsList { border-right: 1px solid var(--line); padding: 8px 12px 40px; max-height: calc(100vh - 200px); overflow-y: auto; }
   #opsList h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
   .payout { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
-    padding: 10px 12px; border-radius: 10px; border: 1px solid transparent; margin-bottom: 4px;
+    padding: 10px 12px; border-radius: 7px; border: 1px solid transparent; margin-bottom: 4px;
     transition: background var(--t-fast), border-color var(--t-fast); }
   @media (hover: hover) and (pointer: fine) { .payout:hover { background: var(--panel); } }
   .payout.active { background: var(--panel); border-color: var(--teal); box-shadow: 0 1px 3px rgba(23,33,28,.06); }
-  .payout .amt { font-weight: 650; font-size: 14.5px; white-space: nowrap; }
+  .payout .amt { font-weight: 600; font-size: 14.5px; white-space: nowrap; }
   .payout .meta { color: var(--muted); font-size: 11.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .payout .meta.mono { white-space: normal; overflow: visible; text-overflow: clip; line-height: 1.4; }
   .chips { display: flex; gap: 5px; align-items: center; justify-content: flex-end; grid-row: span 2; align-self: center; flex-wrap: wrap; }
-  #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px);
-    container-type: inline-size; container-name: opsdetail; }
+  #opsDetail { padding: 14px 22px 60px; overflow-y: auto; max-height: calc(100vh - 200px); }
   #opsDetail .placeholder { color: var(--muted); padding: 56px 0; font-size: 14px; max-width: 52ch; }
 
   /* ---- replay controls / timeline (ported) ---- */
   .controls { display: flex; gap: 8px; align-items: center; margin: 12px 0 18px; flex-wrap: wrap; }
   .controls button { background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
+    border-radius: 6px; padding: 7px 16px; font: inherit; font-size: 13px; cursor: pointer;
     transition: border-color var(--t-fast), opacity var(--t-fast), transform 160ms cubic-bezier(.23,1,.32,1); }
   @media (hover: hover) and (pointer: fine) { .controls button:hover:not(:disabled) { border-color: var(--teal); } }
   .controls button:active:not(:disabled) { transform: scale(.97); }
   .controls button:disabled { opacity: .45; cursor: default; }
-  .controls button.primary { background: var(--teal); border-color: var(--teal); color: #fff; font-weight: 600; }
+  .controls button.primary { background: var(--teal-strong); border-color: var(--teal-strong); color: #fff; font-weight: 600; }
   .controls #play { min-width: 86px; }
   .controls .pos { color: var(--dim); font-size: 12.5px; margin-left: 6px; }
   .controls .hint { color: var(--dim); font-size: 11.5px; margin-left: auto; }
 
   .statebar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 10px; margin: 0 0 18px;
-    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px 16px; font-size: 13.5px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 10px 16px; font-size: 13.5px;
     box-shadow: 0 2px 8px rgba(23,33,28,.05); transition: background 200ms ease, border-color 200ms ease; }
   .statebar.ok { background: #e6f4f0; border-color: var(--green); }
   .statebar.ok.pulse { animation: settled-pulse 700ms cubic-bezier(.23,1,.32,1) 1; }
@@ -178,11 +253,11 @@
     to   { box-shadow: 0 2px 8px rgba(23,33,28,.05), 0 0 0 16px rgba(5,150,105,0); }
   }
   .statebar .k { color: var(--dim); font-size: 10.5px; text-transform: uppercase; letter-spacing: .1em; }
-  .statebar .v { font-weight: 650; transform-origin: left center; transition: color 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
+  .statebar .v { font-weight: 600; transform-origin: left center; transition: color 200ms ease, transform 200ms cubic-bezier(.23,1,.32,1); }
   .statebar.ok .v, .statebar.bad .v { transform: scale(1.12); letter-spacing: .02em; }
   .statebar .t { margin-left: auto; color: var(--dim); font-size: 12px; }
 
-  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 12px; background: var(--green-soft);
+  .asserts { margin-top: 18px; padding: 14px 18px; border-radius: 8px; background: var(--green-soft);
     border: 1px solid var(--green); font-size: 13.5px; color: var(--green);
     visibility: hidden; opacity: 0; transform: translateY(4px);
     transition: opacity var(--t-fast), transform var(--t-fast), visibility var(--t-fast); }
@@ -196,51 +271,97 @@
   .tl-progress { position: absolute; left: 7px; top: 8px; width: 2px; height: calc(100% - 16px);
     background: var(--teal); transform-origin: top; transform: scaleY(0); transition: transform var(--t-med); }
   .event { position: relative; margin-bottom: 14px; background: var(--panel); border: 1px solid var(--line);
-    border-radius: 12px; padding: 13px 16px; opacity: .32; filter: saturate(.25);
+    border-radius: 8px; padding: 13px 16px; opacity: .32; filter: saturate(.25);
     transition: opacity var(--t-med), filter var(--t-med), border-color var(--t-med); cursor: pointer; }
   .event.shown { opacity: 1; filter: none; }
   .event.current { border-color: var(--ac, var(--teal)); box-shadow: 0 0 0 1px var(--ac, var(--teal)); }
   .event::before { content: ""; position: absolute; left: -25px; top: 18px; width: 12px; height: 12px;
     border-radius: 50%; background: var(--bg); border: 3px solid var(--line); transition: border-color var(--t-med); }
   .event.shown::before { border-color: var(--ac, var(--teal)); }
-  .event.commit::before { animation: commit 450ms cubic-bezier(.23,1,.32,1) 1; }
-  @keyframes commit { from { box-shadow: 0 0 0 0 rgba(13,148,136,.45); } to { box-shadow: 0 0 0 10px rgba(13,148,136,0); } }
+  /* the pulse ring means something: a full teal ring is this event's hash
+     genuinely chaining to the last (event_hash/prev_hash present on the
+     record); a dim, shorter ring is an honest "this run predates hash
+     chaining" — replayable, not tamper-evident. Verification is visible,
+     not asserted, even in the motion. */
+  .event.commit.verified::before { animation: commit-verified 480ms cubic-bezier(.16,1,.3,1) 1; }
+  .event.commit:not(.verified)::before { animation: commit-plain 320ms cubic-bezier(.16,1,.3,1) 1; }
+  @keyframes commit-verified { from { box-shadow: 0 0 0 0 rgba(13,148,136,.5); } to { box-shadow: 0 0 0 11px rgba(13,148,136,0); } }
+  @keyframes commit-plain { from { box-shadow: 0 0 0 0 rgba(102,112,128,.35); } to { box-shadow: 0 0 0 6px rgba(102,112,128,0); } }
   .event .top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; flex-wrap: wrap; }
   .actor { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
-    padding: 2.5px 9px; border-radius: 99px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
+    padding: 2.5px 9px; border-radius: 5px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
   .etype { font-size: 13px; color: var(--ink); font-weight: 600; }
   .toff { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .ehash { background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: 10.5px; color: var(--muted); margin-right: 4px; }
+  .glyph { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .glyph.ok { color: var(--green); background: var(--green-soft); }
+  .glyph.miss { color: var(--red); background: var(--red-soft); outline: 1px solid var(--red); }
+  .glyph.flag { color: var(--gold); background: var(--gold-soft); }
+  .runacc { color: var(--muted); font-size: 11.5px; padding: 0 10px 10px; }
+  .runacc b { color: var(--ink); }
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
   .event .body b { color: var(--ink); }
   .event .hashes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
-    font-size: 11px; color: var(--dim); display: none; }
+    font-size: 11px; color: var(--dim); display: none; overflow: hidden; }
   .event.open .hashes { display: block; }
   .event .hashes .hk { color: var(--dim); text-transform: uppercase; letter-spacing: .06em; font-size: 9.5px; }
   .event .hashes .hv { color: var(--muted); word-break: break-all; }
   .kv { display: inline-block; margin-right: 14px; }
   .kv .k { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .06em; margin-right: 5px; }
-  .event.a-intake { --ac: var(--blue); --acs: var(--blue-soft); }
-  .event.a-compliance { --ac: var(--violet); --acs: var(--violet-soft); }
-  .event.a-treasury { --ac: #7e22ce; --acs: rgba(126,34,206,.09); }
-  .event.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
-  .event.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
-  .event.a-orchestrator { --ac: var(--muted); --acs: rgba(77,85,96,.08); }
-  .event.a-verasettle { --ac: #0d9488; --acs: rgba(13,148,136,.10); }
-  .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
-  .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+  /* Only the roles that carry real signal get a hue: resolution (a dispute
+     was argued and ruled on) and verasettle (money actually moved). Every
+     other actor is told apart by its text label, not a seventh arbitrary
+     color — seven simultaneous hues in one timeline read as noise, not
+     information, and crowded out teal as a legible brand accent. */
+  .event.a-intake, .event.a-compliance, .event.a-treasury, .event.a-orchestrator,
+  .sdot.a-intake, .sdot.a-compliance, .sdot.a-treasury, .sdot.a-orchestrator {
+    --ac: var(--muted); --acs: var(--card); }
+  .event.a-resolution, .sdot.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
+  .event.a-auditor, .sdot.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
+  .event.a-verasettle, .sdot.a-verasettle { --ac: var(--teal); --acs: var(--teal-soft); }
+  .event.verdict-approved, .sdot.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
+  .event.verdict-rejected, .sdot.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+
+  /* the whole-run map: one dot per event, actor-colored, click to jump.
+     The vertical timeline stays the narrator; this is the "you are here". */
+  .scrub { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+  .scrub .sdot { width: 14px; height: 14px; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 2px solid var(--line); background: var(--bg);
+    transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast); }
+  .scrub .sdot.on { border-color: var(--ac, var(--teal)); background: var(--acs, var(--teal-soft)); }
+  .scrub .sdot.cur { background: var(--ac, var(--teal)); border-color: var(--ac, var(--teal));
+    box-shadow: 0 0 0 3px var(--acs, var(--teal-soft)); }
+  @media (hover:hover){ .scrub .sdot:hover { border-color: var(--ac, var(--teal)); } }
+  .scrub .slabel { color: var(--dim); font-size: 11px; margin-left: 6px; }
   .event .body a { color: var(--blue); border-bottom: 1px solid var(--blue); }
 
-  /* ---- decision → money ---- */
-  .decmoney { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 24px; }
-  .decmoney .dmhead { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 8px; }
-  .dm-node { background: var(--panel); border: 1px solid var(--line); color: var(--dim);
-    border-radius: 10px; padding: 8px 16px; font: inherit; font-size: 13px; cursor: pointer;
-    transition: border-color var(--t-fast), color var(--t-fast); }
-  .dm-node.on { color: var(--ink); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
-  .dm-arrow { color: var(--dim); margin-left: 14px; }
+  /* (arrow connector shared with the Evidence artifact graph) */
+  .dm-arrow { color: var(--dim); flex: none; font-size: 11px; }
+
+  /* ---- dispute transcript ---- */
+  /* deposition typography, zero skeuomorphism: hanging speaker labels,
+     verbatim recorded reasons, ruling as a quiet stamped line. The drama is
+     the argument itself — the chrome stays flat or it reads as staged. */
+  .transcript { margin-top: 14px; }
+  .transcript .tr-head { font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--dim); padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .tr-line { display: grid; grid-template-columns: 110px 1fr auto; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .tr-sp { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    text-align: right; padding-top: 2px; color: var(--tc, var(--muted)); }
+  .tr-q { color: var(--ink); }
+  .tr-q .qm { color: var(--dim); }
+  .tr-t { color: var(--dim); font-size: 11.5px; padding-top: 2px; }
+  .tr-ruling { display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
+    margin-top: 12px; padding: 10px 14px; border: 1px solid var(--gold); border-radius: 6px;
+    background: var(--gold-soft); }
+  .tr-ruling b { font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+  .tr-ruling .why { color: var(--muted); font-size: 12.5px; }
+  @media (max-width: 700px) { .tr-line { grid-template-columns: 1fr; gap: 2px; } .tr-sp { text-align: left; } }
 
   /* ---- counterfactual ---- */
-  #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 10px; background: var(--panel); }
+  #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
   #cf summary { cursor: pointer; padding: 11px 16px; font-size: 13px; color: var(--muted); list-style: none; }
   #cf summary::-webkit-details-marker { display: none; }
   #cf summary b { color: var(--teal); }
@@ -248,34 +369,34 @@
   #cf .cfrow { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   #cf label { font-size: 12px; color: var(--muted); display: flex; gap: 6px; align-items: center; }
   #cf input { width: 110px; background: var(--card); color: var(--ink); border: 1px solid var(--line);
-    border-radius: 8px; padding: 5px 8px; font: inherit; font-size: 13px; }
+    border-radius: 6px; padding: 5px 8px; font: inherit; font-size: 13px; }
   #cf button { background: var(--teal-soft); color: var(--teal); border: 1px solid var(--teal);
-    border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
+    border-radius: 6px; padding: 5px 12px; font: inherit; font-size: 12.5px; cursor: pointer; }
   .cfsum { font-size: 13px; margin: 6px 0; } .cfsum b { color: var(--ink); }
   .cfchg { font-size: 12px; color: var(--muted); padding: 3px 0; border-top: 1px solid var(--line); }
   .cfchg b.toreject { color: var(--red); } .cfchg b.toapprove { color: var(--green); }
   .cfcause { color: var(--dim); margin-left: 8px; } .cfnote { color: var(--dim); font-size: 11.5px; margin-top: 8px; font-style: italic; }
 
   /* ---- policies ---- */
-  .policytext { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  .policytext { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
     padding: 16px 18px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px;
     white-space: pre-wrap; color: var(--ink); line-height: 1.6; }
   .paramgrid { display: flex; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
-  .param { background: var(--card); border: 1px solid var(--line); border-radius: 9px; padding: 8px 12px; font-size: 12.5px; }
+  .param { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; font-size: 12.5px; }
   .param b { display: block; color: var(--ink); }
   .policynote { color: var(--muted); font-size: 12.5px; margin: 10px 0 4px; max-width: 70ch; }
 
   /* ---- failures ---- */
   .failcards { display: flex; gap: 10px; flex-wrap: wrap; margin: 6px 0 4px; }
-  .failcard { background: var(--panel); border: 1px solid var(--line); border-radius: 11px;
+  .failcard { background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
     padding: 12px 16px; cursor: pointer; min-width: 150px;
     transition: border-color var(--t-fast); }
   .failcard.active { border-color: var(--teal); box-shadow: 0 0 0 1px var(--teal); }
   @media (hover:hover){ .failcard:hover { border-color: var(--dim); } }
-  .failcard .fc-n { font-size: 24px; font-weight: 650; letter-spacing: -.01em; }
-  .failcard .fc-l { color: var(--muted); font-size: 12px; }
+  .failcard .fc-n { font-size: 32px; font-weight: 700; letter-spacing: -.02em; }
+  .failcard .fc-l { color: var(--muted); font-size: 11px; font-weight: 500; text-transform: uppercase; letter-spacing: .04em; }
   .failcard.zero .fc-n { color: var(--dim); }
-  .byrule { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0; height: 90px; }
+  .byrule { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; margin: 12px 0; min-height: 70px; }
   .barwrap { display: flex; flex-direction: column; align-items: center; gap: 6px; justify-content: flex-end; }
   .bar { width: 44px; background: var(--teal); border-radius: 6px 6px 0 0; min-height: 4px; }
   .barwrap .bl { font-size: 11px; color: var(--muted); } .barwrap .bn { font-size: 11px; color: var(--dim); }
@@ -286,35 +407,58 @@
   table.bench th { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; }
   table.bench td.num { text-align: right; font-variant-numeric: tabular-nums; }
   table.bench .yes { color: var(--green); font-weight: 700; } table.bench .no { color: var(--red); font-weight: 700; }
-  table.bench tr.headline td { font-size: 15px; font-weight: 650; background: var(--green-soft); }
+  table.bench tr.headline td { font-size: 15px; font-weight: 600; background: var(--green-soft); }
 
   /* ---- evidence pack ---- */
+  .evgraph { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; margin: 14px 0 4px; }
+  .evgraph .dm-arrow { align-self: center; }
+  .evnode { display: flex; flex-direction: column; gap: 2px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; cursor: pointer;
+    text-decoration: none; color: var(--dim); min-width: 118px;
+    transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .evnode.on { color: var(--ink); border-color: var(--green); }
+  @media (hover:hover){ .evnode.on:hover { box-shadow: 0 0 0 1px var(--green); } }
+  .evnode .evn-l { font-size: 12.5px; font-weight: 600; display: flex; gap: 6px; justify-content: space-between; }
+  .evnode .evn-a { font-size: 10.5px; color: var(--muted); }
   .evpack { max-width: 560px; }
   .evcheck { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px;
-    border: 1px solid var(--line); border-radius: 10px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
   .evcheck .ec-ok { color: var(--green); font-weight: 700; }
   .evcheck .ec-no { color: var(--dim); font-weight: 700; }
   .evbtns { display: flex; gap: 10px; margin-top: 16px; }
-  .evbtns button { background: var(--teal); border: 1px solid var(--teal); color: #fff; font-weight: 600;
-    border-radius: 9px; padding: 9px 18px; font: inherit; font-size: 13px; cursor: pointer; }
+  .evbtns button { background: var(--teal-strong); border: 1px solid var(--teal-strong); color: #fff; font-weight: 600;
+    border-radius: 6px; padding: 9px 18px; font: inherit; font-size: 13px; cursor: pointer; }
   .evbtns button.ghost { background: var(--card); color: var(--ink); border-color: var(--line); font-weight: 500; }
 
   /* ---- live panel ---- */
-  #live { display: none; margin: 16px 0 0; border: 1px solid var(--gold); border-radius: 10px; background: var(--gold-soft); padding: 12px 16px; }
+  #live { display: none; margin: 16px 0 0; border: 1px solid var(--gold); border-radius: 8px; background: var(--gold-soft); padding: 12px 16px; }
   #live.on { display: block; }
-  #live .lhead { color: var(--gold); font-size: 13px; font-weight: 650; margin-bottom: 8px; }
+  #live .lhead { color: var(--gold); font-size: 13px; font-weight: 600; margin-bottom: 8px; }
   #live .lhead .mono { font-weight: 400; color: var(--muted); margin-left: 10px; }
   #liveGraph { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 0 0 10px; }
   #liveGraph .ln { display: flex; align-items: center; gap: 6px; color: var(--dim);
-    font-size: 10px; font-weight: 650; text-transform: uppercase; letter-spacing: .06em; transition: color 200ms ease; }
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; transition: color 200ms ease; }
   #liveGraph .ln i { width: 10px; height: 10px; border-radius: 50%; flex: none;
     background: var(--panel); border: 2px solid var(--line); transition: border-color 200ms ease, background 200ms ease; }
   #liveGraph .ln.spoke { color: var(--lac); } #liveGraph .ln.spoke i { border-color: var(--lac); }
   #liveGraph .ln.done i { background: var(--lac); }
   #liveGraph .sep { flex: none; width: 14px; height: 1px; background: var(--line); }
+  /* control-room swimlanes: one lane per actor, dot at t_offset — the whole
+     society deliberating on one time axis (the org-level choreography the
+     flat feed can't show). */
+  #liveLanes { margin: 0 0 10px; }
+  #liveLanes .lane { display: flex; align-items: center; gap: 8px; }
+  #liveLanes .ln-l { width: 84px; flex: none; font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--lac, var(--dim)); text-align: right; }
+  #liveLanes .ln-track { position: relative; flex: 1; height: 15px; border-bottom: 1px dashed var(--line); }
+  #liveLanes .ln-track i { position: absolute; top: 3px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--lac, var(--dim)); transform: translateX(-50%); }
   #liveFeed { max-height: 220px; overflow-y: auto; font-size: 12px; }
-  #liveFeed div { padding: 2px 0; color: var(--muted); }
-  #liveFeed .la { display: inline-block; min-width: 92px; font-weight: 650; text-transform: uppercase; font-size: 10px; letter-spacing: .05em; }
+  #liveFeed div { padding: 3px 0; color: var(--muted); }
+  /* same chip vocabulary as the replay timeline cards — live and replayed
+     events are the same data type, so they wear the same clothes. */
+  #liveFeed .actor { --acs: color-mix(in srgb, var(--ac, currentColor) 12%, transparent);
+    min-width: 92px; text-align: center; margin-right: 6px; }
   #liveFeed b { color: var(--ink); font-weight: 600; }
 
   footer { text-align: center; padding: 10px; font-size: 11.5px; color: var(--dim); }
@@ -333,14 +477,26 @@
 <nav class="side">
   <div class="wm">ClearCrew</div>
   <div class="wmsub">Trust Layer for Autonomous Payouts</div>
-  <a class="navlink" href="#/overview">Overview</a>
-  <a class="navlink" href="#/ops">Operations</a>
-  <a class="navlink" href="#/policies">Policies</a>
-  <a class="navlink" href="#/evidence">Evidence</a>
-  <a class="navlink" href="#/failures">Failures</a>
-  <a class="navlink" href="#/analytics">Analytics</a>
+  <a class="navlink" href="#/overview"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="8" r="6.25"/><path d="M8 4.75V8l2.25 1.3"/></svg>Overview</a>
+  <a class="navlink" href="#/ops"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="3" cy="8" r="1.6"/><circle cx="13" cy="3.3" r="1.6"/><circle cx="13" cy="12.7" r="1.6"/><path d="M4.5 7.3 11.5 4M4.5 8.7l7 4"/></svg>Operations</a>
+  <a class="navlink" href="#/policies"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3.25" y="2" width="9.5" height="12" rx="1.25"/><path d="M5.75 5.5h4.5M5.75 8h4.5M5.75 10.5h2.75"/></svg>Policies</a>
+  <a class="navlink" href="#/evidence"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 1.75c2.1.9 4.25 1.15 4.25 1.15v4.4c0 3.35-2.1 5.4-4.25 6.2-2.15-.8-4.25-2.85-4.25-6.2V2.9S5.9 2.65 8 1.75Z"/><path d="M5.85 8.1 7.3 9.55 10.25 6.4"/></svg>Evidence</a>
+  <a class="navlink" href="#/failures"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.25 14.25 13H1.75L8 2.25Z"/><path d="M8 6.75v3M8 11.5v.05"/></svg>Failures</a>
+  <a class="navlink" href="#/analytics"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 13.5v-4M7 13.5v-8M11.5 13.5v-6M14 2.5 9.9 6.6 7.3 4l-4.6 4.6"/></svg>Analytics</a>
   <div class="navgap"></div>
-  <button id="liveBtn" title="Judge mode: run the society live (access code required)">⚡ live run</button>
+  <div class="livewrap">
+    <button id="liveBtn" aria-expanded="false" aria-controls="liveCodeForm" title="Judge mode: run the society live (access code required)"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8.6 1 3 9h3.6l-.9 6L13 7H9.2l.9-6Z"/></svg><span id="liveBtnLabel">live run</span></button>
+    <div class="livehint">Judges only — needs the access code from the submission notes.</div>
+    <form id="liveCodeForm" hidden>
+      <label for="liveCodeInput">Judge access code</label>
+      <div class="row">
+        <input id="liveCodeInput" type="password" autocomplete="off" placeholder="code">
+        <button type="submit" id="liveCodeGo">Go</button>
+        <button type="button" id="liveCodeCancel">✕</button>
+      </div>
+      <div id="liveCodeErr" role="alert"></div>
+    </form>
+  </div>
 </nav>
 
 <div class="col">
@@ -357,8 +513,9 @@
     <section id="view-failures" data-view hidden><div class="loading">loading…</div></section>
     <section id="view-analytics" data-view hidden><div class="loading">loading…</div></section>
     <div id="live" role="status">
-      <div class="lhead">⚡ live run in progress <span class="mono" id="liveMeta"></span></div>
+      <div class="lhead">live run in progress <span class="mono" id="liveMeta"></span></div>
       <div id="liveGraph" aria-hidden="true"></div>
+      <div id="liveLanes" aria-hidden="true"></div>
       <div id="liveFeed"></div>
     </div>
   </div>
@@ -371,6 +528,16 @@ const api = async (p) => { const r = await fetch(p); if (!r.ok) throw new Error(
 const fmtUSD = (a) => a == null ? "—" : "$" + a.toLocaleString(undefined, {minimumFractionDigits: 0});
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const navigate = (h) => { location.hash = h; };
+const RULE_LABELS = { P1: "sanctioned destination", P2: "high-value + new account",
+  P3: "reserve-floor waterfall", P4: "flagged, not grounds for rejection" };
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function fmtRunStamp(runName) {
+  // "events-20260704-200058-settled-n6.jsonl" -> "Jul 4, 20:00"
+  const m = /events-(\d{4})(\d{2})(\d{2})-(\d{2})(\d{2})(\d{2})/.exec(runName);
+  if (!m) return runName;
+  const [, , mo, d, h, mi] = m;
+  return `${MONTHS[+mo - 1]} ${+d}, ${h}:${mi}`;
+}
 
 function statusChip(status, {disputed, miss, settled} = {}) {
   const cls = settled ? "settled" : status;
@@ -385,12 +552,54 @@ function showError(sel, retry) {
   el.querySelector("button").onclick = retry;
 }
 
+// Every `[data-go]` element (table rows, link-like spans) navigates on click
+// AND keyboard — role/tabindex are added here rather than per-markup so the
+// pattern can't drift the way it did between the ops list and other tables.
+function wireGo(root) {
+  root.querySelectorAll("[data-go]").forEach(el => {
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "button");
+    el.onclick = () => navigate(el.dataset.go);
+    el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(el.dataset.go); } };
+  });
+}
+// Same idea for click-to-expand elements (timeline hash detail).
+function wireExpandable(nodes) {
+  nodes.forEach(el => {
+    el.setAttribute("tabindex", "0");
+    el.setAttribute("role", "button");
+    el.setAttribute("aria-expanded", "false");
+    const hashes = el.querySelector(".hashes");
+    const toggle = () => {
+      const open = el.classList.toggle("open");
+      el.setAttribute("aria-expanded", String(open));
+      if (!hashes || matchMedia("(prefers-reduced-motion: reduce)").matches) return; // CSS display:block/none above still applies instantly
+      hashes.getAnimations().forEach(a => a.cancel());
+      if (open) {
+        hashes.style.display = "block";
+        const h = hashes.scrollHeight;
+        hashes.animate([{ height: "0px", opacity: 0 }, { height: h + "px", opacity: 1 }],
+          { duration: 240, easing: "cubic-bezier(.16,1,.3,1)" }).onfinish = () => { hashes.style.height = ""; };
+      } else {
+        const h = hashes.scrollHeight;
+        hashes.animate([{ height: h + "px", opacity: 1 }, { height: "0px", opacity: 0 }],
+          { duration: 180, easing: "cubic-bezier(.4,0,1,1)" }).onfinish = () => { hashes.style.display = ""; hashes.style.height = ""; };
+      }
+    };
+    el.onclick = toggle;
+    el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } };
+  });
+}
+
 // ── router ──────────────────────────────────────────────────────────────────
 const VIEWS = ["overview", "ops", "policies", "evidence", "failures", "analytics"];
 function route() {
   const parts = (location.hash || "#/overview").slice(1).split("/").filter(Boolean);
   const name = VIEWS.includes(parts[0]) ? parts[0] : "overview";
   const rest = parts.slice(1);
+  // leaving Operations mid-playback used to leave the 1.8s autoplay timer
+  // running against a now-hidden view indefinitely — stop it on any navigation away.
+  if (name !== "ops" && playTimer) stopPlay();
   document.querySelectorAll("[data-view]").forEach(s => s.hidden = s.id !== `view-${name}`);
   document.querySelectorAll(".navlink").forEach(a => {
     const on = a.getAttribute("href") === `#/${name}`;
@@ -401,37 +610,54 @@ function route() {
 window.addEventListener("hashchange", route);
 
 // ── OVERVIEW ────────────────────────────────────────────────────────────────
+// tiny trend line under a stat — series must be real per-run data (folded
+// from the same event logs as the number above it), never decorative.
+function spark(vals, color) {
+  if (vals.length < 2) return "";
+  const w = 84, h = 16, min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * w).toFixed(1)},${(h - 2 - (v - min) / rng * (h - 4)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
 async function renderOverview() {
   const el = $("#view-overview");
   el.innerHTML = `<div class="loading">reading recorded history…</div>`;
   let o; try { o = await api("/api/overview"); } catch { return showError("#view-overview", renderOverview); }
+  if (!opsRuns) { try { opsRuns = (await api("/api/runs")).runs; } catch { /* sparklines just won't render */ } }
   const t = o.totals;
+  const perRun = (opsRuns || []).map(r => r.n);
+  const accRuns = (opsRuns || []).filter(r => r.results);
+  const accSeries = accRuns.map(r => r.results.society.accuracy * 100);
   el.innerHTML = `
     <div class="vhead"><h1>Recorded History</h1>
       <span class="sub">every number below is folded from append-only event logs — nothing staged</span></div>
     <div class="stats">
       <div class="stat"><b>${t.runs}</b>runs</div>
-      <div class="stat"><b>${t.payouts}</b>payouts</div>
+      <div class="stat" title="payouts per run, oldest → newest"><b>${t.payouts}</b>payouts
+        ${spark(perRun, "var(--teal)")}</div>
       <div class="stat"><b>${t.settlements}</b>on-chain settlements</div>
       <div class="stat"><b>${t.usdc_moved}</b>USDC moved (testnet)</div>
       <div class="stat win"><b>${t.replay_pct}%</b>replay coverage</div>
       <div class="stat chain-ok"><b>${t.hash_verified_pct}%</b>hash verified</div>
+      ${accSeries.length >= 2 ? `<div class="stat win" title="society decision accuracy per benchmarked run, oldest → newest">
+        <b>${Math.round(accSeries[accSeries.length - 1])}%</b>society accuracy (latest)
+        ${spark(accSeries, "var(--green)")}</div>` : ""}
     </div>
     <div class="vhead" style="margin-top:22px"><h1 style="font-size:15px">Recent activity</h1></div>
-    <table class="grid"><thead><tr><th>Payout</th><th>Amount</th><th>Status</th><th></th></tr></thead>
+    <table class="grid"><thead><tr><th>Payout</th><th>Run</th><th>Amount</th><th>Status</th><th></th></tr></thead>
     <tbody>${o.recent.map(p => `
       <tr class="clickable" data-go="#/ops/${esc(p.run)}/${esc(p.id)}">
         <td class="mono">${esc(p.id)}</td>
+        <td class="meta">${esc(fmtRunStamp(p.run))}</td>
         <td class="num">${fmtUSD(p.amount)}</td>
         <td>${statusChip(p.status, {disputed: p.disputed, miss: p.miss, settled: p.settled})}</td>
         <td class="linklike">${p.settled ? "Receipt" : "Replay"} →</td>
       </tr>`).join("")}</tbody></table>`;
-  el.querySelectorAll("[data-go]").forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
+  wireGo(el);
 }
 
 // ── OPERATIONS + payout detail ──────────────────────────────────────────────
 let opsRuns = null;      // cached /api/runs
-let chain = [], step = 0, playTimer = null, runChain = null, payoutExpected = null, pulsed = false, keyRepeat = false;
+let chain = [], step = 0, playTimer = null, playSpeed = 1, runChain = null, payoutExpected = null, pulsed = false, keyRepeat = false;
 
 async function renderOps(rest) {
   const el = $("#view-ops");
@@ -444,12 +670,14 @@ async function renderOps(rest) {
       <div class="vhead"><h1>Operations</h1><span class="sub">pick a payout to replay its recorded decision → execution → evidence</span>
         <select class="runsel" id="runSel" aria-label="Select run" style="margin-left:auto"></select></div>
       <div class="opsgrid"><div id="opsList"><div class="loading">reading…</div></div>
+      <div class="opsDetailCol"><button type="button" class="opsback" id="opsBack">← Back to payouts</button>
       <div id="opsDetail"><div class="placeholder">Pick a payout on the left to replay its recorded event chain.<br><br>
-        <span class="chip disputed">escalated</span> payouts show a veto argued and ruled on the record.</div></div></div>`;
+        <span class="chip disputed">escalated</span> payouts show a veto argued and ruled on the record.</div></div></div></div>`;
     el.dataset.built = "1";
     const sel = $("#runSel");
     sel.innerHTML = opsRuns.map(r => `<option value="${esc(r.name)}">${esc(r.stamp)} · n=${r.n}${r.results ? " · benchmarked" : ""}</option>`).join("");
     sel.onchange = () => navigate(`#/ops/${sel.value}`);
+    $("#opsBack").onclick = () => $("#opsList").scrollIntoView({block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
   }
   $("#runSel").value = def.name;
   await loadOpsList(def.name);
@@ -465,8 +693,19 @@ async function loadOpsList(name) {
   list.innerHTML = `<div class="loading">reading event log…</div>`;
   let d; try { d = await api(`/api/runs/${name}`); } catch { return showError("#opsList", () => loadOpsList(name)); }
   runChain = d.chain;
+  // run report card, chess-review style: graded strictly from recorded
+  // ground truth (expected/miss per payout); benchmark accuracy only shown
+  // when the run was actually benchmarked.
+  const graded = d.payouts.filter(p => p.expected != null);
+  const hits = graded.filter(p => !p.miss).length;
+  const runMeta = (opsRuns || []).find(r => r.name === name);
+  const bench = runMeta && runMeta.results
+    ? ` · society ${Math.round(runMeta.results.society.accuracy * 100)}% vs monolith ${Math.round(runMeta.results.monolith.accuracy * 100)}%` : "";
+  const accLine = graded.length
+    ? `<div class="runacc">policy accuracy <b>${hits}/${graded.length}</b>${bench}</div>` : "";
   list.innerHTML = `<h2>${d.payouts.length} payouts · ${d.total_events} events` +
-    (runChain && runChain.hashed ? (runChain.verified ? ` · ⛓ chain verified` : ` · ⛓ CHAIN BROKEN`) : ``) + `</h2>` +
+    (runChain && runChain.hashed ? (runChain.verified ? ` · chain verified` : ` · CHAIN BROKEN`) : ``) + `</h2>` +
+    accLine +
     d.payouts.map(p => `
       <div class="payout" data-id="${esc(p.id)}" role="button" tabindex="0">
         <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
@@ -503,15 +742,32 @@ function foldFinal(ch) {
   return {label, disputed, settled};
 }
 
-function trustStrip(ch, verification) {
-  const has = (t) => ch.some(e => e.type === t);
-  const decided = has("payout.approved") || has("payout.rejected") || has("payout.settled");
-  const settled = has("payout.settled");
-  const evidence = verification && verification.hashed;
-  const mark = (ok) => ok ? '<span class="tc ok">✓</span>' : '<span class="tc no">—</span>';
-  return `<div class="truststrip">
-    <span>Decision ${mark(decided)}</span><span>Replay ${mark(ch.length > 0)}</span>
-    <span>Settlement ${mark(settled)}</span><span>Evidence ${mark(evidence)}</span></div>`;
+// escalated payouts: the veto → ruling exchange, verbatim from the record.
+// Every quoted line is a recorded payload.reason/explanation — no paraphrase.
+function disputeTranscript(ch, subject) {
+  const ruling = ch.find(e => e.type === "dispute.resolved");
+  if (!ruling) return "";
+  const argued = ch.filter(e =>
+    (e.type === "compliance.reviewed" && (e.payload || {}).verdict === "veto") ||
+    e.type === "treasury.decided" || e.type === "dispute.raised");
+  if (!argued.length) return "";
+  const RP = ruling.payload || {};
+  const line = (e) => {
+    const P = e.payload || {};
+    const text = P.reason || P.explanation || "";
+    if (!text) return "";
+    return `<div class="tr-line">
+      <span class="tr-sp" style="--tc:${ACTORS[e.actor.toLowerCase()] || "var(--muted)"}">${esc(e.actor)}</span>
+      <span class="tr-q"><span class="qm">“</span>${esc(text)}<span class="qm">”</span></span>
+      <span class="tr-t mono">t+${e.t_offset}s</span></div>`;
+  };
+  return `<div class="transcript">
+    <div class="tr-head">on the record — dispute, payout ${esc(subject)}</div>
+    ${argued.map(line).join("")}
+    <div class="tr-ruling"><span><b>ruling — ${esc((RP.ruling || "resolved").replace(/_/g, " "))}</b>
+      ${RP.explanation || RP.reason ? `<span class="why"> ${esc(RP.explanation || RP.reason)}</span>` : ""}</span>
+      <span class="tr-t mono">t+${ruling.t_offset}s</span></div>
+  </div>`;
 }
 
 function renderPayoutDetail(run, subject, data) {
@@ -520,48 +776,71 @@ function renderPayoutDetail(run, subject, data) {
   const p = data.payout || {};
   const fin = foldFinal(chain);
   const decision = fin.disputed && !fin.settled ? "ESCALATED" : (fin.label === "SETTLED" ? "APPROVED" : fin.label);
+  // CI-style orientation strip: what triggered this, how long, how it ended —
+  // answered before the judge starts scrubbing.
+  const first = chain[0], last = chain[chain.length - 1];
+  const runSummary = chain.length ? `<div class="runsum mono">triggered by ${esc(first.actor)} · t+${first.t_offset}s → t+${last.t_offset}s · ${chain.length} events · <b>${fin.label === "pending" ? decision : fin.label}</b> · <a href="#/evidence/${esc(run)}/${esc(subject)}">evidence pack →</a></div>` : "";
   $("#opsDetail").innerHTML =
-    trustStrip(chain, data.verification) +
     `<div class="payout-head"><h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${esc(subject)}</span></h2></div>
-    <div class="detail3">
-      <div class="panel"><h3>Summary</h3>
-        <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
-        <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
-        <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
-        <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
-        <div class="kvline"><span class="k">Decision</span><b>${decision}</b></div>
-        <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
-        <div class="kvline"><span class="k">Policy</span><b>v1</b></div>
-        <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
-      </div>
-      <div>
-        <div class="controls">
-          <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
-          <button id="play">▶ Play</button><span class="pos" id="pos"></span>
-          <span class="hint">arrow keys work too · click an event for its hashes</span></div>
-        <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
-        <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
-        <div class="asserts" id="asserts"></div>
-      </div>
-      ${execPanel(chain)}
+    ${runSummary}
+    <div class="tabbar" role="tablist">
+      <button class="tabbtn" role="tab" id="tabbtn-decision" aria-controls="tab-decision" data-tab="decision">Decision</button>
+      <button class="tabbtn" role="tab" id="tabbtn-replay" aria-controls="tab-replay" data-tab="replay">Replay</button>
+      <button class="tabbtn" role="tab" id="tabbtn-execution" aria-controls="tab-execution" data-tab="execution">Execution</button>
     </div>
-    ${decisionMoney(chain, run, subject)}`;
+    <div class="tabpanel panel" role="tabpanel" id="tab-decision" aria-labelledby="tabbtn-decision"><h3>Summary</h3>
+      <div class="kvline"><span class="k">Amount</span><b>${fmtUSD(p.amount)}</b></div>
+      <div class="kvline"><span class="k">Corridor</span><b>${esc((p.from_country ?? "?") + " → " + (p.to_country ?? "?"))}</b></div>
+      <div class="kvline"><span class="k">Recipient age</span><b>${p.recipient_age_days ?? "?"}d</b></div>
+      <div class="kvline"><span class="k">Memo</span><b>${esc(p.memo || "—")}</b></div>
+      <div class="kvline kvbreak"><span class="k">Decision</span><b>${decision}</b></div>
+      <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
+      <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
+      ${disputeTranscript(chain, subject)}
+    </div>
+    <div class="tabpanel" role="tabpanel" id="tab-replay" aria-labelledby="tabbtn-replay" hidden>
+      <div class="scrub" role="group" aria-label="Jump to event">${chain.map((e, i) => {
+        const a = e.actor.toLowerCase();
+        let c = `sdot a-${a}`;
+        if (e.type === "payout.approved" || e.type === "payout.settled") c += " verdict-approved";
+        if (e.type === "payout.rejected") c += " verdict-rejected";
+        return `<button class="${c}" data-i="${i}" title="${esc(e.type)} · t+${e.t_offset}s" aria-label="Jump to event ${i + 1}: ${esc(e.type)}"></button>`;
+      }).join("")}<span class="slabel">whole run at a glance — click to jump</span></div>
+      <div class="controls">
+        <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
+        <button id="play">▶ Play</button><button id="speed" title="Autoplay speed">${playSpeed}×</button><span class="pos" id="pos"></span>
+        <span class="hint">arrow keys work too · click an event for its hashes</span></div>
+      <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
+      <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
+      <div class="asserts" id="asserts"></div>
+    </div>
+    <div class="tabpanel" role="tabpanel" id="tab-execution" aria-labelledby="tabbtn-execution" hidden>${execPanel(chain)}</div>`;
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
-  $("#opsDetail").querySelectorAll(".event").forEach(ev => ev.onclick = () => ev.classList.toggle("open"));
-  $("#opsDetail").querySelectorAll(".dm-node").forEach(n => n.onclick = () => onDmNode(n.dataset.node, run, subject));
+  $("#speed").onclick = cycleSpeed;
+  $("#opsDetail").querySelectorAll(".scrub .sdot").forEach(d => d.onclick = () => go(+d.dataset.i + 1));
+  wireExpandable($("#opsDetail").querySelectorAll(".event"));
+  $("#opsDetail").querySelectorAll(".tabbtn").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  switchTab("decision");
   go(1);
 }
 
-function onDmNode(node, run, subject) {
-  if (node === "Policy") return navigate("#/policies");
-  if (node === "Evidence") return navigate(`#/evidence/${run}/${subject}`);
-  const map = {Decision: ["compliance.reviewed", "treasury.decided"], Approval: ["payout.approved", "payout.rejected"],
-    Verasettle: ["settlement.requested"], Settlement: ["payout.settled"], Receipt: ["settlement.confirmed"]};
-  const types = map[node] || [];
-  const idx = chain.findIndex(e => types.includes(e.type));
-  if (idx >= 0) { go(idx + 1); const cur = document.querySelector(".event.current"); if (cur) cur.classList.add("open"); }
+function switchTab(name) {
+  // plain Tab-through-all-three + native Enter/Space activation (every tab
+  // button stays reachable) rather than the roving-tabindex + arrow-key
+  // pattern real ARIA tablists use — that pattern needs its own keydown
+  // handler, and this page's ArrowLeft/ArrowRight are already claimed by
+  // the timeline scrubber. Trading one extra Tab press for not shipping a
+  // half-built roving-tabindex implementation.
+  $("#opsDetail").querySelectorAll(".tabbtn").forEach(b => {
+    b.setAttribute("aria-selected", String(b.dataset.tab === name));
+  });
+  $("#opsDetail").querySelectorAll(".tabpanel").forEach(p => { p.hidden = p.id !== `tab-${name}`; });
+  // the timeline's progress-bar fill and scroll position are computed from
+  // the container's real layout box, which is 0 while its tabpanel is
+  // `hidden` — recompute now that "replay" just became visible.
+  if (name === "replay") go(step);
 }
 
 function renderEvent(e, i) {
@@ -576,23 +855,41 @@ function renderEvent(e, i) {
         + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
   const text = P.reason || P.explanation || "";
   if (text) body += (body ? "\n" : "") + esc(text);
-  if (e.type === "payout.approved") body = "✅ Final: payout approved for settlement.";
-  if (e.type === "payout.rejected") body = "⛔ Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
+  // chess-review grammar: decisions are graded against recorded policy ground
+  // truth (payout._expected), not just displayed. ✓ = matches policy,
+  // ?? = blunder (miss), ?! = flagged but legal (P4). Glyphs always carry a
+  // text label — color is never the sole signal.
+  let glyph = "";
+  const finalOutcome = e.type === "payout.approved" || e.type === "payout.settled" ? "approve"
+    : e.type === "payout.rejected" ? "reject" : null;
+  if (finalOutcome && payoutExpected) {
+    glyph = finalOutcome === payoutExpected
+      ? `<span class="glyph ok">✓ per policy</span>`
+      : `<span class="glyph miss">?? miss — expected ${esc(payoutExpected)}</span>`;
+  } else if (P.policy_rule === "P4") {
+    glyph = `<span class="glyph flag">?! flagged, not rejectable</span>`;
+  }
+  if (e.type === "payout.approved") body = "Final: payout approved for settlement.";
+  if (e.type === "payout.rejected") body = "Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
   if (e.type === "settlement.requested")
     body = `→ Execution requested on the ${esc(P.rail)} rail: <b>${fmtUSD(P.source_amount_usd)}</b> source → <b>${P.settled_amount_usdc} USDC</b> on ${esc(P.chain)} (${esc(P.scale)}).`;
   if (e.type === "settlement.confirmed") {
     cls = "event a-verasettle";
-    body = `💠 Real testnet USDC moved on ${esc(P.chain)}: <b>${P.settled_amount_usdc} USDC</b>` +
+    body = `Real testnet USDC moved on ${esc(P.chain)}: <b>${P.settled_amount_usdc} USDC</b>` +
       (P.tx_hash ? `\ntx <a href="${esc(P.explorer)}" target="_blank" rel="noopener" class="mono">${esc(P.tx_hash.slice(0, 22))}…</a>` : "");
   }
-  if (e.type === "payout.settled") { cls += " verdict-approved"; body = "💸 Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
+  if (e.type === "payout.settled") { cls += " verdict-approved"; body = "Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
   const hashes = `<div class="hashes"><div><span class="hk">event_hash</span> <span class="hv mono">${esc(e.event_hash || "—")}</span></div>
     <div><span class="hk">prev_hash</span> <span class="hv mono">${esc(e.prev_hash || "—")}</span></div>
     <div><span class="hk">policy</span> <span class="hv">${esc(P.policy_rule || "v1")}</span></div></div>`;
+  // git-log grammar: the short-hash chip is the always-visible face of the
+  // chain (full hashes stay one click away). Borrowed credibility — devs
+  // already read "7 hex chars = tamper-evident pointer".
+  const shortHash = e.event_hash ? `<span class="ehash mono" title="event_hash ${esc(e.event_hash)}">${esc(e.event_hash.slice(0, 7))}</span>` : "";
   return `<div class="${cls}" data-i="${i}">
-    <div class="top"><span class="actor">${esc(e.actor)}</span><span class="etype">${esc(e.type)}</span>
-      <span class="toff mono">t+${e.t_offset}s · ${esc(e.id)}</span></div>
+    <div class="top"><span class="actor">${esc(e.actor)}</span><span class="etype">${esc(e.type)}</span>${glyph}
+      <span class="toff mono">${shortHash} t+${e.t_offset}s</span></div>
     <div class="body">${body}</div>${hashes}</div>`;
 }
 
@@ -611,18 +908,6 @@ function execPanel(ch) {
     <div class="kvline"><span class="k">Source</span><b>${fmtUSD(P.source_amount_usd)}</b></div>
     <div class="kvline"><span class="k">Transaction</span><b>${tx}</b></div>
     <div class="kvline"><span class="k">Verification</span><b class="ok">PASS</b></div></div>`;
-}
-
-function decisionMoney(ch, run, subject) {
-  const has = (t) => ch.some(e => e.type === t);
-  const nodes = [
-    ["Decision", has("compliance.reviewed") || has("treasury.decided")],
-    ["Policy", true], ["Approval", has("payout.approved")],
-    ["Verasettle", has("settlement.requested")], ["Settlement", has("payout.settled")],
-    ["Receipt", has("settlement.confirmed")], ["Evidence", ch.length > 0],
-  ];
-  return `<div class="decmoney"><div class="dmhead">Decision → Money</div>` +
-    nodes.map(([n, on], i) => `${i ? '<span class="dm-arrow">↓</span>' : ""}<button class="dm-node ${on ? "on" : ""}" data-node="${n}">${n}</button>`).join("") + `</div>`;
 }
 
 // timeline scrubbing (ported)
@@ -649,9 +934,28 @@ function go(n) {
   const forward = target > step; step = target;
   const evs = document.querySelectorAll("#opsDetail .event");
   evs.forEach((el, i) => { el.classList.toggle("shown", i < step); el.classList.toggle("current", i === step - 1); });
+  document.querySelectorAll("#opsDetail .scrub .sdot").forEach((d, i) => {
+    d.classList.toggle("on", i < step); d.classList.toggle("cur", i === step - 1);
+  });
   const cur = document.querySelector("#opsDetail .event.current");
-  if (cur && forward) { cur.classList.remove("commit"); void cur.offsetWidth; cur.classList.add("commit"); }
-  const smooth = (keyRepeat || matchMedia("(prefers-reduced-motion: reduce)").matches) ? "auto" : "smooth";
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if (cur && forward) {
+    // run-level signal (not per-event field presence) — a genesis event
+    // legitimately has no prev_hash even in a fully hash-chained run, so
+    // "hashed" is a property of the run, matching the assertions panel below.
+    cur.classList.remove("commit", "verified"); void cur.offsetWidth;
+    cur.classList.toggle("verified", !!(runChain && runChain.hashed));
+    cur.classList.add("commit");
+    // the pulse ring (CSS, above) carries the hash-verification signal; this
+    // adds a physical settle-into-place on the card itself — the moment a
+    // step in the audit trail commits should feel like something actually
+    // happened, not just a class toggle.
+    if (!reducedMotion) {
+      cur.animate([{ transform: "translateY(7px)" }, { transform: "translateY(0)" }],
+        { duration: 360, easing: "cubic-bezier(.16,1,.3,1)" });
+    }
+  }
+  const smooth = (keyRepeat || reducedMotion) ? "auto" : "smooth";
   keyRepeat = false;
   if (cur) cur.scrollIntoView({block: "nearest", behavior: smooth});
   $("#pos").textContent = `event ${step} / ${chain.length}`;
@@ -685,7 +989,18 @@ function togglePlay() {
   if (playTimer) return stopPlay();
   if (step >= chain.length) go(1);
   $("#play").textContent = "⏸ Pause";
-  playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800);
+  playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800 / playSpeed);
+}
+// speed is sticky across payout selections on purpose: a judge re-scrubbing
+// several chains sets it once. 1× (1.8s) stays the default — first playback
+// should be legible in a screen recording, not fast.
+function cycleSpeed() {
+  playSpeed = playSpeed === 1 ? 2 : playSpeed === 2 ? 4 : 1;
+  $("#speed").textContent = `${playSpeed}×`;
+  if (playTimer) {            // re-arm the running timer at the new cadence
+    clearInterval(playTimer);
+    playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800 / playSpeed);
+  }
 }
 function stopPlay() { clearInterval(playTimer); playTimer = null; const b = $("#play"); if (b) b.textContent = "▶ Play"; }
 document.addEventListener("keydown", (e) => {
@@ -731,11 +1046,26 @@ async function renderPolicies() {
 }
 async function runCounterfactual() {
   const runName = $("#cfRunSel").value;
+  // the API rejects these server-side too (never trust the input-level `min`
+  // alone — that only shapes the spinner, it doesn't block typed values or
+  // this button's manual fetch) — checked here first for an accurate message
+  // instead of a generic "couldn't reach the event log" on the round trip.
+  const floor = $("#cfFloor").value, p2amt = $("#cfP2").value, p2age = $("#cfAge").value;
+  if ([floor, p2amt, p2age].some(v => v !== "" && Number(v) < 0) || (p2age !== "" && Number(p2age) > 365)) {
+    $("#cfOut").innerHTML = `<div class="err">policy parameters must be zero or positive, and P2 age ≤ 365 days</div>`;
+    return;
+  }
   const q = new URLSearchParams();
-  if ($("#cfFloor").value) q.set("reserve_floor", $("#cfFloor").value);
-  if ($("#cfP2").value) q.set("p2_amount", $("#cfP2").value);
-  if ($("#cfAge").value) q.set("p2_age_days", $("#cfAge").value);
-  let r; try { r = await api(`/api/runs/${runName}/counterfactual?` + q); } catch { return showError("#cfOut", runCounterfactual); }
+  if (floor) q.set("reserve_floor", floor);
+  if (p2amt) q.set("p2_amount", p2amt);
+  if (p2age) q.set("p2_age_days", p2age);
+  const btn = $("#cfRun");
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "Replaying…";
+  $("#cfOut").innerHTML = `<div class="loading" style="padding:16px 0">re-folding recorded batch…</div>`;
+  let r;
+  try { r = await api(`/api/runs/${runName}/counterfactual?` + q); }
+  catch { btn.disabled = false; btn.textContent = label; return showError("#cfOut", runCounterfactual); }
+  btn.disabled = false; btn.textContent = label;
   const s = r.summary;
   $("#cfOut").innerHTML = `
     <div class="cfsum">policy in force: <b>${s.in_force.approve}</b> approve / <b>${s.in_force.reject}</b> reject
@@ -758,15 +1088,17 @@ async function renderFailures() {
   el.innerHTML = `
     <div class="vhead"><h1>What actually goes wrong</h1><span class="sub">every failure below is attributed to an actor and a policy rule — recorded, not inferred</span></div>
     <div class="failcards">${f.categories.map(c => `
-      <div class="failcard ${c.count === 0 ? "zero" : ""}" data-key="${c.key}">
+      <div class="failcard ${c.count === 0 ? "zero" : ""}" data-key="${c.key}" role="button" tabindex="0">
         <div class="fc-n num">${c.count}</div><div class="fc-l">${esc(c.label)}</div></div>`).join("")}</div>
     ${f.by_rule.length ? `<div class="vhead" style="margin-top:20px"><h1 style="font-size:15px">By policy rule</h1></div>
       <div class="byrule">${f.by_rule.map(r => `
         <div class="barwrap"><span class="bn num">${r.count}</span>
-          <div class="bar" style="height:${Math.round(70 * r.count / maxRule)}px"></div><span class="bl">${esc(r.rule)}</span></div>`).join("")}</div>` : ""}
+          <div class="bar" style="height:${Math.round(70 * r.count / maxRule)}px" title="${esc(RULE_LABELS[r.rule] || r.rule)}"></div>
+          <span class="bl" title="${esc(RULE_LABELS[r.rule] || r.rule)}">${esc(r.rule)}</span></div>`).join("")}</div>
+      <p class="policynote">${f.by_rule.map(r => `<b class="mono">${esc(r.rule)}</b> ${esc(RULE_LABELS[r.rule] || "")}`).join(" · ")}</p>` : ""}
     <div id="failDrill"></div>`;
   const cats = {}; f.categories.forEach(c => cats[c.key] = c);
-  el.querySelectorAll(".failcard").forEach(card => card.onclick = () => {
+  const selectCard = (card) => {
     el.querySelectorAll(".failcard").forEach(c => c.classList.remove("active"));
     card.classList.add("active");
     const c = cats[card.dataset.key];
@@ -776,7 +1108,11 @@ async function renderFailures() {
       <table class="grid"><thead><tr><th>Payout</th><th>Amount</th><th>Reason</th></tr></thead><tbody>${c.items.map(it => `
         <tr class="clickable" data-go="#/ops/${esc(it.run)}/${esc(it.id)}"><td class="mono">${esc(it.id)}</td>
           <td class="num">${fmtUSD(it.amount)}</td><td>${esc(it.reason)}</td></tr>`).join("")}</tbody></table>`;
-    out.querySelectorAll("[data-go]").forEach(tr => tr.onclick = () => navigate(tr.dataset.go));
+    wireGo(out);
+  };
+  el.querySelectorAll(".failcard").forEach(card => {
+    card.onclick = () => selectCard(card);
+    card.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectCard(card); } };
   });
 }
 
@@ -799,7 +1135,7 @@ async function renderAnalytics() {
     <div class="stats">
       <div class="stat"><b>${a.settlement.count}</b>on-chain settlements</div>
       <div class="stat"><b>${a.settlement.usdc_moved}</b>USDC moved</div>
-      <div class="stat"><b>${esc(a.settlement.chains.join(", ") || "—")}</b>chain</div>
+      <div class="stat"><b class="text">${esc(a.settlement.chains.join(", ") || "—")}</b>chain</div>
       <div class="stat win"><b>${a.coverage.replay_pct}%</b>replay coverage</div>
       <div class="stat chain-ok"><b>${a.coverage.hash_verified_pct}%</b>hash verified</div></div>`;
 }
@@ -809,8 +1145,7 @@ async function renderEvidence(rest) {
   const el = $("#view-evidence");
   if (!rest[0] || !rest[1]) {
     el.innerHTML = `<div class="vhead"><h1>Evidence</h1></div>
-      <p class="policynote">Pick a payout in <span class="linklike" data-go="#/ops">Operations</span>, then use the Decision → Money “Evidence” node — or open <span class="mono">#/evidence/&lt;run&gt;/&lt;payout&gt;</span>.</p>`;
-    const l = el.querySelector("[data-go]"); if (l) l.onclick = () => navigate("#/ops");
+      <p class="policynote">Pick a payout in <a href="#/ops">Operations</a>, then follow its “evidence pack →” link — or open <span class="mono">#/evidence/&lt;run&gt;/&lt;payout&gt;</span>.</p>`;
     return;
   }
   const [run, subject] = rest;
@@ -827,13 +1162,33 @@ async function renderEvidence(rest) {
     ["Hash Chain", hashOk, v && v.hashed ? (v.verified ? "verified" : "BROKEN") : "not hashed"],
     ["Receipt", receipt],
   ];
+  // chain of custody rendered AS a chain (Stripe data-map pattern): each node
+  // carries its recorded artifact and links to the source — the checklist
+  // below stays the formal verification record.
+  const find = (t) => ch.find(e => e.type === t);
+  const dec = find("compliance.reviewed") || find("treasury.decided");
+  const app = find("payout.approved") || find("payout.rejected");
+  const setl = find("settlement.confirmed");
+  const setP = (setl || {}).payload || {};
+  const evNodes = [
+    ["Decision", dec, dec ? `evt ${dec.event_hash ? dec.event_hash.slice(0, 7) : dec.id}` : "not recorded", null],
+    ["Approval", app, app ? `evt ${app.event_hash ? app.event_hash.slice(0, 7) : app.id}` : "not reached", null],
+    ["Settlement", setl, setl ? `${setP.settled_amount_usdc} USDC · ${setP.chain || ""}` : "no money moved", null],
+    ["Receipt", setl && setP.tx_hash, setP.tx_hash ? `tx ${setP.tx_hash.slice(0, 10)}…` : "no receipt", setP.explorer],
+  ];
   el.innerHTML = `
     <div class="vhead"><h1>Evidence Pack</h1><span class="sub mono">${fmtUSD(p.amount)} · ${esc(subject)}</span></div>
+    <div class="evgraph">${evNodes.map(([label, on, art, ext], i) => (i ? '<span class="dm-arrow">→</span>' : "") +
+      (ext ? `<a class="evnode on" href="${esc(ext)}" target="_blank" rel="noopener">` : `<span class="evnode ${on ? "on" : ""}" data-go="#/ops/${esc(run)}/${esc(subject)}">`) +
+      `<span class="evn-l">${label} ${on ? '<b class="ec-ok">✓</b>' : '<b class="ec-no">—</b>'}</span>
+       <span class="evn-a mono">${esc(art)}</span>` + (ext ? `</a>` : `</span>`)).join("")}</div>
+    <p class="policynote">each node links to its source — the replay step on the record${setP.explorer ? ", the receipt to the block explorer" : ""}.</p>
     <div class="evpack">${checks.map(([label, ok, note]) => `
       <div class="evcheck"><span>${esc(label)}${note ? ` <span class="sub">(${esc(note)})</span>` : ""}</span>
         <span class="${ok ? "ec-ok" : "ec-no"}">${ok ? "✓" : "—"}</span></div>`).join("")}
       <div class="evbtns"><button id="evJson">Export JSON</button><button id="evPdf" class="ghost">Export PDF</button></div>
     </div>`;
+  wireGo(el);
   $("#evJson").onclick = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -851,18 +1206,59 @@ const ACTORS = {intake: "var(--blue)", compliance: "var(--violet)", treasury: "#
 const GRAPH_ACTORS = ["intake", "compliance", "treasury", "resolution", "auditor", "verasettle"];
 let liveTimer = null, liveRendered = 0;
 
-async function startLive() {
-  const code = prompt("Judge access code (from the submission notes):");
-  if (!code) return;
-  const r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, {method: "POST"});
-  const body = await r.json().catch(() => ({}));
-  if (r.status === 409) { watchLive("a run is already in progress — watching it live"); return; }
-  if (!r.ok) { alert(body.detail || "couldn't start a live run"); return; }
+function toggleLiveForm(open) {
+  const form = $("#liveCodeForm");
+  const willOpen = open ?? form.hidden;
+  form.hidden = !willOpen;
+  $("#liveBtn").setAttribute("aria-expanded", String(willOpen));
+  $("#liveCodeErr").textContent = "";
+  if (willOpen) { $("#liveCodeInput").value = ""; $("#liveCodeInput").focus(); }
+}
+async function submitLiveCode(e) {
+  e.preventDefault();
+  const code = $("#liveCodeInput").value.trim();
+  const errEl = $("#liveCodeErr");
+  errEl.textContent = "";
+  if (!code) { errEl.textContent = "enter a code first"; return; }
+  const go = $("#liveCodeGo");
+  go.disabled = true; go.textContent = "…";
+  let r, body;
+  try {
+    r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, {method: "POST"});
+    body = await r.json().catch(() => ({}));
+  } catch {
+    go.disabled = false; go.textContent = "Go";
+    errEl.textContent = "couldn't reach the server — try again";
+    return;
+  }
+  go.disabled = false; go.textContent = "Go";
+  if (r.status === 409) { toggleLiveForm(false); watchLive("a run is already in progress — watching it live"); return; }
+  if (!r.ok) { errEl.textContent = body.detail || "incorrect code"; return; }
+  toggleLiveForm(false);
   watchLive("live Qwen calls + real testnet settlement · 3–6 min");
 }
+$("#liveCodeForm").addEventListener("submit", submitLiveCode);
+$("#liveCodeCancel").onclick = () => toggleLiveForm(false);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#liveCodeForm").hidden) toggleLiveForm(false); });
 function buildLiveGraph() {
   $("#liveGraph").innerHTML = GRAPH_ACTORS.map((a, i) =>
     (i ? '<span class="sep"></span>' : "") + `<span class="ln" data-actor="${a}" style="--lac:${ACTORS[a]}"><i></i>${a}</span>`).join("");
+  $("#liveLanes").innerHTML = "";
+}
+// dots positioned by recorded t_offset when present (fallback: arrival order)
+// — honest timing, not decorative animation.
+function renderLiveLanes(evs) {
+  const wrap = $("#liveLanes");
+  if (!wrap || !evs.length) return;
+  const maxT = Math.max(1, ...evs.map((e, i) => e.t_offset ?? i));
+  wrap.innerHTML = GRAPH_ACTORS.map(a => {
+    const dots = evs.map((e, i) => {
+      if (e.actor !== a) return "";
+      const t = e.t_offset ?? i;
+      return `<i style="left:${(t / maxT * 100).toFixed(1)}%; --lac:${ACTORS[a]}" title="${esc(e.type)} · t+${t}s"></i>`;
+    }).join("");
+    return `<div class="lane"><span class="ln-l" style="--lac:${ACTORS[a]}">${a}</span><div class="ln-track">${dots}</div></div>`;
+  }).join("");
 }
 function pulseActor(actor, done) {
   const node = document.querySelector(`#liveGraph .ln[data-actor="${actor}"]`);
@@ -873,12 +1269,22 @@ function pulseActor(actor, done) {
 }
 function watchLive(meta) {
   $("#live").classList.add("on"); buildLiveGraph();
-  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtn").textContent = "⚡ running…";
-  $("#liveFeed").innerHTML = ""; liveRendered = 0; $("#liveMeta").textContent = meta;
+  $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtnLabel").textContent = "running…";
+  $("#liveFeed").innerHTML = ""; liveRendered = 0; livePollFailures = 0; $("#liveMeta").textContent = meta;
   liveTimer = setInterval(pollLive, 2500); pollLive();
 }
+let livePollFailures = 0;
 async function pollLive() {
-  let s; try { s = await api("/api/live/status"); } catch { return; }
+  let s;
+  try { s = await api("/api/live/status"); livePollFailures = 0; }
+  catch {
+    // a transient blip is normal (2.5s cadence); only surface it once it's
+    // no longer transient, so a judge watching the feed sees *something*
+    // instead of the feed just quietly stopping mid-run.
+    livePollFailures++;
+    if (livePollFailures >= 3) $("#liveMeta").textContent = `lost contact with the run (${livePollFailures} failed checks) — still trying…`;
+    return;
+  }
   if (s.state === "running") {
     const feed = $("#liveFeed"), evs = s.events || [];
     const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 24;
@@ -886,16 +1292,17 @@ async function pollLive() {
       const e = evs[i], P = e.payload || {};
       const gist = P.risk_tier ? `risk ${P.risk_tier}` : P.verdict || P.action || (P.ruling || "").replace(/_/g, " ") || (P.tx_hash ? P.tx_hash.slice(0, 18) : "") || "";
       const d = document.createElement("div");
-      d.innerHTML = `<span class="la" style="color:${ACTORS[e.actor] || "var(--muted)"}">${esc(e.actor)}</span> <b>${esc(e.type)}</b> <span class="mono">${e.subject !== "batch" ? esc(e.subject) : ""}</span> ${esc(gist)}`;
+      d.innerHTML = `<span class="actor" style="--ac:${ACTORS[e.actor] || "var(--muted)"}">${esc(e.actor)}</span> <b>${esc(e.type)}</b> <span class="mono">${e.subject !== "batch" ? esc(e.subject) : ""}</span> ${esc(gist)}`;
       feed.appendChild(d); pulseActor(e.actor, e.type === "settlement.confirmed");
     }
     liveRendered = evs.length;
+    renderLiveLanes(evs);
     $("#liveMeta").textContent = `${evs.length} events · ${Math.round(s.elapsed)}s elapsed`;
     if (atBottom) feed.scrollTop = feed.scrollHeight;
     return;
   }
   clearInterval(liveTimer); liveTimer = null;
-  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtn").textContent = "⚡ live run";
+  $("#liveBtn").disabled = false; $("#liveBtn").classList.remove("running"); $("#liveBtnLabel").textContent = "live run";
   if (s.state === "done" && s.run) {
     $("#liveMeta").textContent = "done — loading your run";
     opsRuns = null;                      // force /api/runs refresh so the new run appears
@@ -905,7 +1312,7 @@ async function pollLive() {
     $("#liveMeta").textContent = "the live run failed — its events are recorded, not hidden; every archived run still replays";
   }
 }
-$("#liveBtn").onclick = startLive;
+$("#liveBtn").onclick = () => toggleLiveForm();
 
 // boot
 if (!location.hash) location.hash = "#/overview";

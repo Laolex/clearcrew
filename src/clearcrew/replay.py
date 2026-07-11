@@ -19,7 +19,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from . import data, events as event_log, policy
 
@@ -219,6 +219,14 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     a hypothetical policy version. Only the mechanical layer (P1/P2/P3 over
     known amounts) is re-evaluated — recorded agent judgments are replayed
     as-is, never re-generated. Executable history, not prediction."""
+    # the frontend's `min`/`max` on the number inputs are UX hints only — this
+    # button fires a manual fetch(), not a <form> submit, so HTML5 constraint
+    # validation never runs. This is the actual, only enforcement.
+    for name, val in (("reserve_floor", reserve_floor), ("p2_amount", p2_amount), ("p2_age_days", p2_age_days)):
+        if val is not None and val < 0:
+            raise HTTPException(422, f"{name} must be zero or positive")
+    if p2_age_days is not None and p2_age_days > 365:
+        raise HTTPException(422, "p2_age_days must be 365 or fewer")
     events = _load_events(run_name)
     m = _RUN_RE.match(run_name)
     batch = data.make_batch(int(m["n"]))
@@ -426,3 +434,13 @@ def live_status(auth=Depends(require_auth)):
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (STATIC_DIR / "index.html").read_text()
+
+
+@app.get("/img/{name}")
+def image(name: str):
+    """Diagram assets referenced by the README and the dev.to post."""
+    path = (STATIC_DIR / "img" / name).resolve()
+    if path.parent != (STATIC_DIR / "img").resolve() or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})

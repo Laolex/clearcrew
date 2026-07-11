@@ -1,0 +1,129 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 680" font-family="'IBM Plex Sans','Segoe UI',-apple-system,sans-serif">
+  <defs>
+    <marker id="arrT" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#0b766b"/>
+    </marker>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="1" fill="#e0ddd2"/>
+    </pattern>
+    <filter id="ps" x="-8%" y="-8%" width="116%" height="124%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="3" flood-color="#17211c" flood-opacity=".08"/>
+    </filter>
+    <linearGradient id="tealbar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0b766b"/><stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="spine" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfd4dc"/><stop offset="1" stop-color="#0b766b"/>
+    </linearGradient>
+    <linearGradient id="narrow" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="rgba(13,148,136,.16)"/><stop offset="1" stop-color="rgba(13,148,136,.03)"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .panel { fill:#ffffff; stroke:#e3e1d6; filter:url(#ps); }
+    .t   { fill:#17211c; font-size:15px; font-weight:600; }
+    .s   { fill:#4d5560; font-size:12px; }
+    .d   { fill:#667080; font-size:11px; }
+    .mono{ font-family:'IBM Plex Mono','SF Mono',Consolas,monospace; }
+    .step{ fill:#17211c; font-size:13px; font-weight:700; letter-spacing:.05em; }
+    .num { fill:#0b766b; font-size:10px; font-weight:700; }
+    .lbl { fill:#667080; font-size:10px; letter-spacing:.12em; font-weight:700; }
+    .teal{ fill:#0b766b; }
+  </style>
+
+  <rect width="960" height="680" fill="#f7f6f2"/>
+  <rect width="960" height="680" fill="url(#dots)"/>
+  <rect x="0" y="0" width="960" height="3" fill="url(#tealbar)"/>
+
+  <text x="40" y="44" class="t" font-size="13">ClearCrew <tspan fill="#9aa2b1">· system documentation</tspan></text>
+  <text x="920" y="44" text-anchor="end" class="teal" font-size="11" font-weight="600">mechanisms, not promises</text>
+  <line x1="40" y1="58" x2="920" y2="58" stroke="#e3e1d6"/>
+  <text x="40" y="96" fill="#17211c" font-size="26" font-weight="700" letter-spacing="-.02">trust model</text>
+  <text x="40" y="118" class="s">six properties in order — each one is a named mechanism in the repo</text>
+
+  <!-- spine -->
+  <line x1="66" y1="150" x2="66" y2="618" stroke="url(#spine)" stroke-width="2.5"/>
+
+  <g>
+    <circle cx="66" cy="172" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="176" class="num" text-anchor="middle">1</text>
+    <rect x="94" y="148" width="380" height="52" rx="9" class="panel"/>
+    <text x="112" y="172" class="step">DECISION</text>
+    <text x="112" y="190" class="s">five agents argue; the orchestrator records the verdict</text>
+    <text x="456" y="172" class="d mono" text-anchor="end">orchestrator.py</text>
+
+    <circle cx="66" cy="248" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="252" class="num" text-anchor="middle">2</text>
+    <rect x="94" y="224" width="380" height="52" rx="9" class="panel"/>
+    <text x="112" y="248" class="step">RECORDED</text>
+    <text x="112" y="266" class="s">append-only, verbatim reasons, flushed before acting</text>
+    <text x="456" y="248" class="d mono" text-anchor="end">events.emit()</text>
+
+    <circle cx="66" cy="324" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="328" class="num" text-anchor="middle">3</text>
+    <rect x="94" y="300" width="380" height="52" rx="9" class="panel"/>
+    <text x="112" y="324" class="step">REPLAYABLE</text>
+    <text x="112" y="342" class="s">state = fold(events) — never re-runs a model</text>
+    <text x="456" y="324" class="d mono" text-anchor="end">replay.py</text>
+
+    <circle cx="66" cy="400" r="12" fill="rgba(13,148,136,.12)" stroke="#0b766b" stroke-width="2"/>
+    <text x="66" y="404" class="num" text-anchor="middle">4</text>
+    <rect x="94" y="376" width="380" height="52" rx="9" fill="#ffffff" stroke="#0b766b" filter="url(#ps)"/>
+    <text x="112" y="400" class="step teal">VERIFIABLE</text>
+    <text x="112" y="418" class="s">hash chain recomputed end-to-end, exact break index</text>
+    <text x="456" y="400" class="d mono" text-anchor="end">verify_chain()</text>
+
+    <circle cx="66" cy="476" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="480" class="num" text-anchor="middle">5</text>
+    <rect x="94" y="452" width="380" height="52" rx="9" class="panel"/>
+    <text x="112" y="476" class="step">EXECUTABLE</text>
+    <text x="112" y="494" class="s">only payout.approved reaches the rail — idempotent</text>
+    <text x="456" y="476" class="d mono" text-anchor="end">settlement.py</text>
+
+    <circle cx="66" cy="552" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="556" class="num" text-anchor="middle">6</text>
+    <rect x="94" y="528" width="380" height="52" rx="9" class="panel"/>
+    <text x="112" y="552" class="step">EXPORTABLE</text>
+    <text x="112" y="570" class="s">decision · chain · receipt · verification, one GET away</text>
+    <text x="456" y="552" class="d mono" text-anchor="end">/explain/{payout}</text>
+  </g>
+
+  <text x="94" y="612" class="d">Tamper with any earlier event and the chain breaks at that exact index.</text>
+
+  <!-- ===== trust boundaries: narrowing funnel ===== -->
+  <text x="540" y="152" class="lbl">TRUST BOUNDARIES — WHERE TRUST CHANGES HANDS</text>
+
+  <!-- funnel backdrop -->
+  <path d="M520 172 L920 172 L860 596 L580 596 Z" fill="url(#narrow)"/>
+
+  <rect x="530" y="180" width="380" height="86" rx="9" class="panel"/>
+  <text x="548" y="205" class="step" font-size="12">USER</text>
+  <text x="548" y="226" class="s">trusts the evidence pack, not the vendor</text>
+  <rect x="548" y="238" width="150" height="18" rx="4" fill="#efede6"/>
+  <text x="558" y="251" class="d" font-size="10">delegates: a decision</text>
+
+  <rect x="546" y="278" width="352" height="94" rx="9" fill="#ffffff" stroke="#0b766b" stroke-width="1.5" filter="url(#ps)"/>
+  <text x="564" y="303" class="step teal" font-size="12">CLEARCREW <tspan class="d" font-weight="400" font-size="10.5">(this repo)</tspan></text>
+  <text x="564" y="324" class="s">decides — trust is earned via the hash-chained record:</text>
+  <text x="564" y="341" class="s">you don’t believe the agents, you replay them</text>
+  <rect x="564" y="349" width="212" height="18" rx="4" fill="rgba(13,148,136,.10)"/>
+  <text x="574" y="362" class="teal" font-size="10" font-weight="600">delegates: only an approved instruction</text>
+
+  <rect x="562" y="384" width="320" height="94" rx="9" class="panel"/>
+  <text x="580" y="409" class="step" font-size="12">VERASETTLE</text>
+  <text x="580" y="430" class="s">executes — scoped: one approved payout → one</text>
+  <text x="580" y="447" class="s">single-item idempotent batch, receipt required</text>
+  <rect x="580" y="455" width="186" height="18" rx="4" fill="#efede6"/>
+  <text x="590" y="468" class="d" font-size="10">delegates: only a signed transfer</text>
+
+  <rect x="578" y="490" width="288" height="80" rx="9" class="panel"/>
+  <text x="596" y="515" class="step" font-size="11.5">CIRCLE · BASE SEPOLIA</text>
+  <text x="596" y="535" class="s">settles — trust here is public:</text>
+  <text x="596" y="552" class="s">the tx hash is verifiable on any RPC</text>
+
+  <text x="722" y="600" class="teal" font-size="12" font-weight="700" text-anchor="middle">discretion narrows · evidence accumulates</text>
+
+  <line x1="40" y1="628" x2="920" y2="628" stroke="#e3e1d6"/>
+  <text x="40" y="652" class="d">Each boundary hands over less discretion than the one above it.</text>
+  <text x="920" y="652" text-anchor="end" class="d mono">docs/TRUST_MODEL.md</text>
+</svg>

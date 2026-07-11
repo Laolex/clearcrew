@@ -3,7 +3,7 @@ title: "The night my AI agent caught another AI agent lying"
 description: "Building an agent society for payout operations on Qwen Cloud — and what the event log taught me that no eval score could."
 published: false
 tags: [ai, agent, qwen, provenance, hackathon]
-cover_image: https://clearcrew.verasettle.com/img/devto-card.png
+cover_image: https://clearcrew.verasettle.com/img/devto-cover.png
 series: Agent Society Deep-Dive
 ---
 
@@ -70,6 +70,8 @@ payout `5affb229`, five events, verbatim:
 4. **Orchestrator:** payout rejected.
 5. **Auditor:** "...Treasury ultimately rejected the transaction due to an
    **incorrect determination** that the amount violated the P2 policy limit."
+
+![The recorded chain of payout 5affb229 — Compliance clears it correctly, Treasury hallucinates a P2 violation on a $5,000 payout, and the Auditor flags the incorrect determination unprompted](https://clearcrew.verasettle.com/img/devto-caught-lie.png)
 
 Read that last line again. The system caught its own agent's error, unprompted,
 in plain English, in the same run. The monolith made errors too that night —
