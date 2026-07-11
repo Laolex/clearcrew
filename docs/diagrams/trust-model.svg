@@ -39,56 +39,70 @@
   <text x="920" y="44" text-anchor="end" class="teal" font-size="11" font-weight="600">mechanisms, not promises</text>
   <line x1="40" y1="58" x2="920" y2="58" stroke="#e3e1d6"/>
   <text x="40" y="96" fill="#17211c" font-size="26" font-weight="700" letter-spacing="-.02">trust model</text>
-  <text x="40" y="118" class="s">six properties in order — each one is a named mechanism in the repo</text>
+  <text x="40" y="118" class="s">eight properties in order — each one is a named mechanism in the repo</text>
 
   <!-- spine -->
-  <line x1="66" y1="150" x2="66" y2="618" stroke="url(#spine)" stroke-width="2.5"/>
+  <line x1="66" y1="146" x2="66" y2="600" stroke="url(#spine)" stroke-width="2.5"/>
 
   <g>
-    <circle cx="66" cy="172" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
-    <text x="66" y="176" class="num" text-anchor="middle">1</text>
-    <rect x="94" y="148" width="380" height="52" rx="9" class="panel"/>
-    <text x="112" y="172" class="step">DECISION</text>
-    <text x="112" y="190" class="s">five agents argue; the orchestrator records the verdict</text>
-    <text x="456" y="172" class="d mono" text-anchor="end">orchestrator.py</text>
+    <circle cx="66" cy="164" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="168" class="num" text-anchor="middle">1</text>
+    <rect x="94" y="142" width="380" height="46" rx="9" class="panel"/>
+    <text x="112" y="163" class="step">PROPOSED</text>
+    <text x="112" y="180" class="s">what the society wants — not yet a decision</text>
+    <text x="456" y="163" class="d mono" text-anchor="end">orchestrator.py</text>
 
-    <circle cx="66" cy="248" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
-    <text x="66" y="252" class="num" text-anchor="middle">2</text>
-    <rect x="94" y="224" width="380" height="52" rx="9" class="panel"/>
-    <text x="112" y="248" class="step">RECORDED</text>
-    <text x="112" y="266" class="s">append-only, verbatim reasons, flushed before acting</text>
-    <text x="456" y="248" class="d mono" text-anchor="end">events.emit()</text>
+    <circle cx="66" cy="222" r="12" fill="rgba(146,64,14,.12)" stroke="#92400e" stroke-width="2"/>
+    <text x="66" y="226" class="num" text-anchor="middle" fill="#92400e">2</text>
+    <rect x="94" y="200" width="380" height="46" rx="9" fill="#ffffff" stroke="#92400e" filter="url(#ps)"/>
+    <text x="112" y="221" class="step" fill="#92400e">GOVERNED</text>
+    <text x="112" y="238" class="s">policy may refuse an approval — never create one</text>
+    <text x="456" y="221" class="d mono" text-anchor="end">_promote()</text>
 
-    <circle cx="66" cy="324" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
-    <text x="66" y="328" class="num" text-anchor="middle">3</text>
-    <rect x="94" y="300" width="380" height="52" rx="9" class="panel"/>
-    <text x="112" y="324" class="step">REPLAYABLE</text>
-    <text x="112" y="342" class="s">state = fold(events) — never re-runs a model</text>
-    <text x="456" y="324" class="d mono" text-anchor="end">replay.py</text>
+    <circle cx="66" cy="280" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="284" class="num" text-anchor="middle">3</text>
+    <rect x="94" y="258" width="380" height="46" rx="9" class="panel"/>
+    <text x="112" y="279" class="step">RECORDED</text>
+    <text x="112" y="296" class="s">append-only, verbatim reasons, flushed before acting</text>
+    <text x="456" y="279" class="d mono" text-anchor="end">events.emit()</text>
 
-    <circle cx="66" cy="400" r="12" fill="rgba(13,148,136,.12)" stroke="#0b766b" stroke-width="2"/>
-    <text x="66" y="404" class="num" text-anchor="middle">4</text>
-    <rect x="94" y="376" width="380" height="52" rx="9" fill="#ffffff" stroke="#0b766b" filter="url(#ps)"/>
-    <text x="112" y="400" class="step teal">VERIFIABLE</text>
-    <text x="112" y="418" class="s">hash chain recomputed end-to-end, exact break index</text>
-    <text x="456" y="400" class="d mono" text-anchor="end">verify_chain()</text>
+    <circle cx="66" cy="338" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="342" class="num" text-anchor="middle">4</text>
+    <rect x="94" y="316" width="380" height="46" rx="9" class="panel"/>
+    <text x="112" y="337" class="step">REPLAYABLE</text>
+    <text x="112" y="354" class="s">state = fold(events) — never re-runs a model</text>
+    <text x="456" y="337" class="d mono" text-anchor="end">replay.py</text>
 
-    <circle cx="66" cy="476" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
-    <text x="66" y="480" class="num" text-anchor="middle">5</text>
-    <rect x="94" y="452" width="380" height="52" rx="9" class="panel"/>
-    <text x="112" y="476" class="step">EXECUTABLE</text>
-    <text x="112" y="494" class="s">only payout.approved reaches the rail — idempotent</text>
-    <text x="456" y="476" class="d mono" text-anchor="end">settlement.py</text>
+    <circle cx="66" cy="396" r="12" fill="rgba(13,148,136,.12)" stroke="#0b766b" stroke-width="2"/>
+    <text x="66" y="400" class="num" text-anchor="middle">5</text>
+    <rect x="94" y="374" width="380" height="46" rx="9" fill="#ffffff" stroke="#0b766b" filter="url(#ps)"/>
+    <text x="112" y="395" class="step teal">VERIFIABLE</text>
+    <text x="112" y="412" class="s">hash chain recomputed end-to-end, exact break index</text>
+    <text x="456" y="395" class="d mono" text-anchor="end">verify_chain()</text>
 
-    <circle cx="66" cy="552" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
-    <text x="66" y="556" class="num" text-anchor="middle">6</text>
-    <rect x="94" y="528" width="380" height="52" rx="9" class="panel"/>
-    <text x="112" y="552" class="step">EXPORTABLE</text>
-    <text x="112" y="570" class="s">decision · chain · receipt · verification, one GET away</text>
-    <text x="456" y="552" class="d mono" text-anchor="end">/explain/{payout}</text>
+    <circle cx="66" cy="454" r="12" fill="rgba(13,148,136,.12)" stroke="#0b766b" stroke-width="2"/>
+    <text x="66" y="458" class="num" text-anchor="middle">6</text>
+    <rect x="94" y="432" width="380" height="46" rx="9" fill="#ffffff" stroke="#0b766b" filter="url(#ps)"/>
+    <text x="112" y="453" class="step teal">ANCHORED</text>
+    <text x="112" y="470" class="s">an outside authority signs the head hash</text>
+    <text x="456" y="453" class="d mono" text-anchor="end">anchor.py</text>
+
+    <circle cx="66" cy="512" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="516" class="num" text-anchor="middle">7</text>
+    <rect x="94" y="490" width="380" height="46" rx="9" class="panel"/>
+    <text x="112" y="511" class="step">EXECUTABLE</text>
+    <text x="112" y="528" class="s">only payout.approved reaches the rail — idempotent</text>
+    <text x="456" y="511" class="d mono" text-anchor="end">settlement.py</text>
+
+    <circle cx="66" cy="570" r="12" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/>
+    <text x="66" y="574" class="num" text-anchor="middle">8</text>
+    <rect x="94" y="548" width="380" height="46" rx="9" class="panel"/>
+    <text x="112" y="569" class="step">EXPORTABLE</text>
+    <text x="112" y="586" class="s">decision · chain · receipt · verification, one GET away</text>
+    <text x="456" y="569" class="d mono" text-anchor="end">/explain/{payout}</text>
   </g>
 
-  <text x="94" y="612" class="d">Tamper with any earlier event and the chain breaks at that exact index.</text>
+  <text x="94" y="614" class="d">Rewrite the chain to hide an edit, and the head no longer matches the one a third party signed.</text>
 
   <!-- ===== trust boundaries: narrowing funnel ===== -->
   <text x="540" y="152" class="lbl">TRUST BOUNDARIES — WHERE TRUST CHANGES HANDS</text>

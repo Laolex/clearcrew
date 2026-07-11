@@ -75,6 +75,8 @@ verdict, and money movement in one tamper-evident history.**
 | **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
 | **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
 | **Eval bar** | the reserve floor as a chess-style position bar — folds the recorded decisions and shows the 2 archived runs that **broke** the floor |
+| **Policy gate** | agents *propose*, policy *promotes*: an approval P1/P2/P3 forbids **cannot be recorded**. The reserve floor is an invariant, not a grade. Veto-only — it can refuse, never approve |
+| **Anchored** | the head hash is signed by an independent RFC-3161 authority, so rewriting history needs a forged third-party signature, not just recomputed hashes |
 | **For agents** | 6-tool read-only [MCP server](docs/MCP.md) over the audit trail |
 | **Sharp edges we hit** | [GOTCHAS.md](GOTCHAS.md) — documented so you don't |
 
@@ -252,6 +254,81 @@ Which is the whole argument in one screen: **the record is what lets you find
 the bug.** The monolith erred in these same runs too — but it left nothing to
 read. Here the mistake sits on the record, in the agent's own words, which is
 how it got diagnosed and fixed.
+
+## Agents propose. Policy promotes.
+
+The eval bar above performs an autopsy. This is the seatbelt.
+
+Until recently the policy layer was a **grader**: agents decided, and afterwards
+the benchmark told us whether they'd been right. That is why two archived runs
+were able to record approvals that overdrew the treasury — nothing stopped them.
+
+Now nothing an agent says is terminal. Agents emit a **proposal**; the
+deterministic policy layer decides whether it may be **promoted** into a
+recorded decision:
+
+```
+treasury.decided          →  the agent's judgment
+payout.proposed  approve  →  what the society wants to do
+policy.blocked   P3       →  the reserve floor refuses it — recorded, not hidden
+payout.rejected           →  the terminal decision
+```
+
+**The reserve floor is now an invariant, not a benchmark result.** No run can
+record an approval that breaches it, however confidently Treasury argues. The
+run that overdrew by $14,460 is no longer *expressible* — and the test that
+proves it (`test_reserve_floor_is_an_invariant_not_a_grade`) reconstructs
+exactly that scenario: ten payouts, all proposed for approval, floor holds
+anyway.
+
+Two properties keep this honest:
+
+**The gate is veto-only.** It can refuse an approval; it can never manufacture
+one. `policy.evaluate()` models arithmetic (P1–P3), not judgment, disputes, or
+the P4 flags the agents exist to weigh. A gate that could *approve* would be
+deciding rather than constraining — and the society would be decorative.
+
+**The benchmark now scores proposals, not outcomes.** This matters more than it
+sounds. If we kept grading terminal decisions after installing a gate, the
+society would score 100% *by construction* forever — we'd be measuring the gate
+and calling it the agents. Scoring the proposal keeps the number falsifiable:
+an agent can still propose something wrong, and the record still says so.
+
+## The chain is anchored outside itself
+
+A hash chain is computed by the same process that writes the log. So on its own
+it stops accidents and naive edits — but not an attacker with write access, who
+can edit event 12, recompute every hash after it, and produce a chain that
+verifies perfectly clean. Hash chaining alone is tamper-**evident**, not
+tamper-**proof**, and this README used to blur that line.
+
+Closing it needs one thing the writer can't reach: a copy of the head hash held
+somewhere else. No blockchain required — [RFC-3161](https://www.rfc-editor.org/rfc/rfc3161)
+gives it away for free. An independent Time Stamping Authority signs
+`(our head hash, its clock)` with its own key:
+
+```json
+{"type": "chain.anchored", "actor": "anchor", "payload": {
+  "provider": "https://freetsa.org/tsr",
+  "head_hash": "7317a904276619230a99331b755d612d0351d7f79706cc1ac6fe7681046ae2c0",
+  "tsa_time":  "20260711172852Z",
+  "serial":    102686232,
+  "token":     "3082121e30030201..."}}
+```
+
+To rewrite an anchored run you'd now have to forge freetsa.org's signature.
+Three independent authorities with failover; a failed anchor is recorded as
+`chain.anchor_failed` and **never** as a success. Verify any token yourself —
+the check does not run on our machines:
+
+```bash
+openssl ts -verify -in token.tsr -digest <head_hash> -CAfile tsa-ca.pem
+```
+
+Its limits, stated rather than buried: only the prefix *before* an anchor is
+protected (the tamper window is the anchor interval — we anchor at the end of
+every batch), and an anchor proves the log wasn't *edited*, not that it was ever
+*true*.
 
 ## Executable policy — counterfactual replay
 

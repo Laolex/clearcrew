@@ -1,35 +1,51 @@
 # Trust Model
 
-![Trust model — six properties and trust boundaries](diagrams/trust-model.svg)
+![Trust model — eight properties and trust boundaries](diagrams/trust-model.svg)
 
 ## The chain of custody for a decision
 
-Every payout decision passes through six properties, in order. Each one is a
+Every payout decision passes through eight properties, in order. Each one is a
 mechanism in this repo, not a promise:
 
 ```text
- DECISION        five specialist agents argue; the orchestrator records
-    │            the terminal verdict                       (orchestrator.py)
+ PROPOSED        five specialist agents argue; the orchestrator records what
+    │            the society WANTS to do — not yet a decision  (orchestrator.py)
+    ▼
+ GOVERNED        the deterministic policy layer promotes the proposal, or
+    │            refuses it. An approval that P1/P2/P3 forbid cannot become a
+    │            terminal decision — the attempt is recorded as policy.blocked.
+    │            Veto-only: it can refuse, never approve.      (_promote, policy.py)
     ▼
  RECORDED        append-only JSONL, one event per judgment,
-    │            verbatim reasons, no paraphrase            (events.py: emit)
+    │            verbatim reasons, no paraphrase               (events.py: emit)
     ▼
  REPLAYABLE      state = fold(events); the UI replays the
-    │            recorded trace — it never re-runs a model  (replay.py)
+    │            recorded trace — it never re-runs a model     (replay.py)
     ▼
  VERIFIABLE      sha256 hash chain: every event commits to its
     │            predecessor; verify_chain recomputes all of it
-    │            and reports the exact break index           (events.py: verify_chain)
+    │            and reports the exact break index             (events.py: verify_chain)
+    ▼
+ ANCHORED        the head hash is signed by an RFC-3161 authority with its own
+    │            key. Hash chaining alone only stops someone who cannot rewrite
+    │            the file; this stops someone who can.         (anchor.py)
     ▼
  EXECUTABLE      only payout.approved reaches the rail; one
-    │            single-item batch per payout, idempotent    (settlement.py)
+    │            single-item batch per payout, idempotent      (settlement.py)
     ▼
  EXPORTABLE      the whole trail — decision, chain, receipt,
-                 verification — is one GET away              (/api/runs/{run}/explain/{payout})
+                 verification — is one GET away                (/api/runs/{run}/explain/{payout})
 ```
 
 Tamper with any earlier event — a reason, an amount, a verdict — and the chain
-breaks at that index. The tx hash is checkable on any Base Sepolia RPC.
+breaks at that index. Rewrite the whole chain to hide it, and the recomputed
+head no longer matches the one a third party signed. The tx hash is checkable
+on any Base Sepolia RPC.
+
+**Why GOVERNED sits second.** It used to sit nowhere: the policy layer graded
+decisions after the fact, and two archived runs recorded approvals that overdrew
+the treasury. Grading tells you that you lost money. A gate means the loss was
+never expressible. For a trust product, an invariant beats a benchmark.
 
 ## Trust boundaries — where trust changes hands
 
