@@ -155,6 +155,44 @@ The single agent **overdraws the treasury in every run it has ever been given.**
 Its *best* accuracy run (91.7%) closed at **−$9,460** — worse than four of its
 88.9% runs, because which payouts you get wrong matters more than how many.
 
+### …but that table is not a fair fight, so we ran the ablation
+
+Only one of those systems has a **policy gate**, and the gate is
+architecture-independent — it refuses a forbidden approval no matter who proposed
+it. So we bolted it onto the monolith and re-ran the numbers
+(`python scripts/ablation.py`; the gate is deterministic, so the monolith's
+*recorded* decisions are folded through it — no model is re-run):
+
+| | monolith | monolith **+ gate** | society |
+|---|---|---|---|
+| reserve floor breached | **10 / 10** | **0 / 10** | **0 / 10** |
+| legitimate payouts **stranded** (mean) | — | **$8,500** | **$0** |
+| judgment (proposal accuracy) | 87.5% | 87.5% | **100.0%** |
+
+**The treasury protection is the gate's, not the society's.** Say it plainly:
+give a single agent the same gate and it is just as safe. Anyone claiming a
+committee of agents is what keeps the money in the vault is selling you
+something.
+
+**But look at what the gated monolith actually does to stay safe.** It closes
+*richer* — $25,540 against the society's $15,540 — and that is bad, not good. A
+higher balance means money that should have gone out didn't. The gate is
+veto-only by design: it can refuse a payout that breaks the rules, but it can
+never *rescue* one that was wrongly refused. **The gated monolith holds the floor
+by not paying people it owes — $8,500 of legitimate payouts stranded, every
+run.** The society strands $0.
+
+So the two claims separate cleanly, and both are real:
+
+- **Governance stops you paying the wrong people.** Any architecture can have it.
+- **Only judgment makes you pay the right ones.** No gate can fix a stranded
+  payout — that is what the society is for, and it is worth **$8,500 a run**,
+  plus a record that explains every call.
+
+You can replay the ablation yourself: run
+`events-20260711-195934-gated-mono-n36.jsonl` in the console and watch the gate
+refuse the monolith's two $15,000 reserve-floor approvals in real recorded events.
+
 Its failure is structural, not noisy. It misses the **same four payouts** every
 stable run: it approves *both* $15,000 P3 payouts (the reserve floor is the one
 rule that can't be judged one payout at a time) and rejects two clean $5,000

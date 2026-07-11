@@ -1,11 +1,26 @@
 # Benchmark Methodology
 
-The claim under test: **is a society of specialist agents measurably safer than
-one monolithic agent on the same task** — not "feels safer", measurably, with
-the same policy, same models, same batch.
+The claim under test *used* to be: **is a society of specialist agents measurably
+safer than one monolithic agent?** Running the ablation killed that question. A
+single agent with the same policy gate is exactly as safe — the gate does that
+work, and any architecture can have one.
 
-This page exists so the number can be attacked. Everything needed to reproduce
-or falsify it is below, including the parts that don't flatter us.
+So here is the claim as the evidence actually supports it:
+
+> **Governance makes a system safe. Judgment makes it correct. They are different
+> problems, and only one of them is solved by adding agents.**
+
+Measured, on the same batch, same policy, same models:
+
+- **The gate** takes a single agent from breaching the reserve floor **10/10 runs
+  to 0/10**. Safety is architecture-independent.
+- **The society** proposes correctly **100.0%** of the time against the
+  monolith's **87.5%** — worth **$8,500 per run** in legitimate payouts that a
+  gated monolith strands and no gate can rescue.
+
+This page exists so both numbers can be attacked. Everything needed to reproduce
+or falsify them is below, including the parts that don't flatter us — and the
+ablation is one of those parts.
 
 ## The setup
 
@@ -148,12 +163,58 @@ is the whole argument for reporting dollars.
 The society breached the floor zero times. After the policy gate it *cannot*:
 no approval that P1/P2/P3 forbids can be recorded, whatever an agent proposes.
 
-### The gate did not fire once in these ten runs — and that is not a problem
+### The ablation: how much of that is the society, and how much is the gate?
+
+The table above is **not a fair fight**, and it took a reviewer to make us say so.
+Only one of those systems has a policy gate. The gate is
+**architecture-independent** — `_promote()` refuses a forbidden approval no matter
+who proposed it — so putting "society 0/10" next to "monolith 10/10" silently
+credits the society with the gate's work.
+
+So we settled it with an experiment instead of a disclaimer. `baseline_gated.py`
+is the monolith with the same gate bolted on. `scripts/ablation.py` folds each of
+the ten **recorded** monolith decision sets through it — the gate is
+deterministic, so nothing is re-run and nothing is simulated. (One live
+end-to-end gated run is archived too:
+`events-20260711-195934-gated-mono-n36.jsonl`. It agrees exactly.)
+
+| | monolith | monolith **+ gate** | society |
+|---|---|---|---|
+| reserve floor breached | **10 / 10** | **0 / 10** | **0 / 10** |
+| legitimate payouts **stranded** (mean) | — | **$8,500** | **$0** |
+| judgment (proposal accuracy) | 87.5% | 87.5% | **100.0%** |
+| closing balance (typical run) | −$4,460 | +$25,540 | +$15,540 |
+
+**1. The treasury protection is the gate's.** It takes the single agent from
+10/10 breaches to 0/10, refusing an average of 2.8 of its approvals per run. A
+gated monolith is *safe*. Any architecture can have this, and a committee of
+agents is not what keeps money in the vault.
+
+**2. But the gated monolith closes *richer* — and that is bad, not good.**
+$25,540 against the society's $15,540. A higher balance means money that should
+have gone out didn't. The gate is **veto-only** by design: it can refuse a payout
+that breaks the rules; it can never *rescue* one that was wrongly refused. The
+gated monolith holds the floor **by not paying people it owes** — $8,500 of
+legitimate payouts stranded, every run. The society strands $0.
+
+**3. So the claims separate cleanly, and both survive:**
+
+| | what it buys | who can have it |
+|---|---|---|
+| **the gate** | you cannot pay the wrong people | any architecture |
+| **the society** | you *do* pay the right people, and can prove why | judgment — no gate substitutes for it |
+
+The society's honest claim is therefore about **judgment, not safety**: 100.0% vs
+87.5% on proposals, worth $8,500 a run in payouts that would otherwise be
+stranded, plus an attributable record for every call. That is a smaller claim than
+the raw treasury table implies, and it is the one the evidence actually supports.
+
+### The gate did not fire once in the society's ten runs — and that is not a problem
 
 `blocked_by_policy` is **0** across all ten. The society proposed correctly every
 time, so the gate had nothing to refuse. A fair reader will ask what it is for.
 
-Three answers, all checkable:
+Four answers, all checkable:
 
 1. **It is an invariant, not a feature that needs to trigger.** A seatbelt that
    never deploys is not a useless seatbelt. `test_reserve_floor_is_an_invariant_not_a_grade`
@@ -164,6 +225,10 @@ Three answers, all checkable:
    treasury, one by $24,460. We publish them. They are not expressible now.
 3. **The monolith commits exactly this failure in all 10 runs.** The gate is the
    difference between a system that can overdraw and one that cannot.
+4. **You can watch it fire on a real recorded run.** In the gated-monolith
+   ablation (`events-20260711-195934-gated-mono-n36.jsonl`) the gate refuses two
+   $15,000 reserve-floor approvals — real events, `policy.blocked`, rule P3,
+   attributed to the monolith. Open it in the console and step through it.
 
 ### What the monolith actually does
 
