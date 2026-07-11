@@ -270,6 +270,81 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     }
 
 
+@app.get("/api/runs/{run_name}/treasury")
+def treasury(run_name: str, auth=Depends(require_auth)):
+    """The treasury position as the batch folds — balance descending toward the
+    reserve floor, one step per recorded terminal decision.
+
+    This is a fold, not a simulation: every step is driven by a recorded
+    `payout.approved` / `payout.rejected` event in emission order, and the
+    amounts come from the deterministic batch. No model is re-run, and nothing
+    here is recomputed from what the policy *would* have said — if a run
+    breached the floor, this reports the breach it actually recorded.
+    """
+    events = _load_events(run_name)
+    m = _RUN_RE.match(run_name)
+    lookup = _batch_lookup(int(m["n"]))
+    pv = policy.CURRENT
+    t0 = events[0]["ts"] if events else 0.0
+
+    # Treasury's own recorded rationale, for the "did it reason cumulatively?"
+    # check below. In the earliest runs it decided each payout in isolation and
+    # never wrote a cumulative total — which is exactly why the floor broke.
+    cumulative_reasons = sum(
+        1 for e in events
+        if e["type"] == "treasury.decided"
+        and "cumulative total" in (e.get("payload", {}).get("reason", "") or "").lower()
+    )
+    treasury_decisions = sum(1 for e in events if e["type"] == "treasury.decided")
+
+    # Which rule the policy says binds — evaluated over the WHOLE batch, since
+    # the P3 waterfall only binds in the context of everything else competing
+    # for the same headroom. Evaluating a payout alone would never bind.
+    ruled = policy.evaluate(list(lookup.values()), pv)
+
+    steps, spent, held = [], 0.0, 0
+    for e in events:
+        if e["type"] not in ("payout.approved", "payout.rejected"):
+            continue
+        detail = lookup.get(e["subject"])
+        if not detail:
+            continue
+        approved = e["type"] == "payout.approved"
+        # a "hold" is a rejection the reserve floor caused — not a P1/P2 rejection
+        floor_hold = not approved and ruled[e["subject"]]["rule"] == "P3"
+        if approved:
+            spent += detail["amount"]
+        elif floor_hold:
+            held += 1
+        steps.append({
+            "payout_id": e["subject"],
+            "amount": detail["amount"],
+            "approved": approved,
+            "held": floor_hold,
+            "t_offset": round(e["ts"] - t0, 2),
+            "spent": round(spent, 2),
+            "balance": round(pv.balance - spent, 2),
+            "below_floor": (pv.balance - spent) < pv.reserve_floor,
+        })
+
+    breach = round(spent - pv.headroom, 2)
+    return {
+        "run": run_name,
+        "balance": pv.balance,
+        "reserve_floor": pv.reserve_floor,
+        "headroom": pv.headroom,
+        "steps": steps,
+        "spent": round(spent, 2),
+        "final_balance": round(pv.balance - spent, 2),
+        "breached": breach > 0,
+        "breach_amount": breach if breach > 0 else 0.0,
+        "held": held,
+        # False for the early runs: treasury judged payouts one at a time and
+        # never recorded a running total. The floor breach follows from that.
+        "reasoned_cumulatively": bool(treasury_decisions) and cumulative_reasons == treasury_decisions,
+    }
+
+
 @app.get("/api/overview")
 def overview(auth=Depends(require_auth)):
     scan = _scan_all_runs()

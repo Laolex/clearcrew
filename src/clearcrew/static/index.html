@@ -300,6 +300,53 @@
   .glyph.flag { color: var(--gold); background: var(--gold-soft); }
   .runacc { color: var(--muted); font-size: 11.5px; padding: 0 10px 10px; }
   .runacc b { color: var(--ink); }
+
+  /* Treasury eval bar — the reserve floor as a position you can watch fall.
+     Every step is a recorded terminal decision folded in emission order; the
+     bar is drawn from /api/runs/{run}/treasury, never reconstructed here. */
+  .evalbar { display: flex; gap: 12px; margin: 0 10px 14px; padding: 12px;
+    background: var(--panel); border: 1px solid var(--line); border-radius: 8px; }
+  .eb-gauge { display: flex; gap: 6px; flex: none; }
+  .eb-track { position: relative; width: 26px; height: 172px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 5px; overflow: hidden; }
+  .eb-reserve { position: absolute; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(-45deg, rgba(185,28,28,.16) 0 3px, transparent 3px 7px); }
+  .eb-fill { position: absolute; left: 0; right: 0; bottom: 0; background: var(--teal-strong);
+    transition: height var(--t-med) ease-out, background var(--t-med); }
+  .eb-fill.below { background: var(--red); }
+  .eb-floor { position: absolute; left: -1px; right: -1px; height: 0;
+    border-top: 2px dashed var(--red); }
+  /* scale gutter: the two numbers that give the bar meaning */
+  .eb-scale { position: relative; width: 56px; flex: none; height: 172px; font-size: 9.5px;
+    color: var(--dim); letter-spacing: .04em; }
+  .eb-scale span { position: absolute; left: 0; transform: translateY(-50%); white-space: nowrap; }
+  .eb-scale .fl { color: var(--red); font-weight: 700; }
+
+  .eb-side { flex: 1; min-width: 0; }
+  .eb-head { font-size: 10px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--dim); font-weight: 700; }
+  .eb-num { font-size: 21px; font-weight: 700; color: var(--ink); margin-top: 3px;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+  .eb-num.below { color: var(--red); }
+  .eb-num span { font-size: 11.5px; font-weight: 400; color: var(--muted); margin-left: 5px;
+    letter-spacing: 0; }
+  .eb-sub { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+  .eb-scrub { display: flex; flex-wrap: wrap; gap: 2.5px; margin: 10px 0 9px; }
+  .eb-step { width: 9px; height: 16px; border-radius: 2px; padding: 0; cursor: pointer;
+    background: var(--green); border: 1px solid var(--green); outline-offset: 2px;
+    transition: opacity var(--t-fast); }
+  .eb-step.rej { background: var(--card); border-color: var(--dim); }
+  .eb-step.held { background: var(--red-soft); border-color: var(--red); }
+  /* not yet folded in — the batch hasn't reached these decisions */
+  .eb-step.future { background: transparent; border-color: var(--line); }
+  .eb-foot { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
+  .eb-foot .eb-sub { margin-top: 0; }
+  .eb-foot button { background: var(--card); border: 1px solid var(--line); border-radius: 5px;
+    color: var(--teal-strong); font: inherit; font-size: 11px; font-weight: 600;
+    padding: 4px 10px; cursor: pointer; white-space: nowrap; }
+  @media (hover: hover) and (pointer: fine) { .eb-foot button:hover { border-color: var(--teal); } }
+  .eb-legend { font-size: 10.5px; color: var(--dim); margin-top: 8px; }
+  .eb-note { font-size: 11px; color: var(--gold); margin-top: 7px; line-height: 1.45; }
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
   .event .body b { color: var(--ink); }
   .event .hashes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
@@ -706,6 +753,7 @@ async function loadOpsList(name) {
   list.innerHTML = `<h2>${d.payouts.length} payouts · ${d.total_events} events` +
     (runChain && runChain.hashed ? (runChain.verified ? ` · chain verified` : ` · CHAIN BROKEN`) : ``) + `</h2>` +
     accLine +
+    `<div id="evalBar"></div>` +
     d.payouts.map(p => `
       <div class="payout" data-id="${esc(p.id)}" role="button" tabindex="0">
         <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
@@ -720,6 +768,106 @@ async function loadOpsList(name) {
     row.onclick = go;
     row.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } };
   });
+  loadEvalBar(name);
+}
+
+// ── Treasury eval bar ───────────────────────────────────────────────────────
+// The reserve floor is the one policy rule that can only be judged over the
+// whole batch: no single payout breaches it, the twenty-fourth one does. So we
+// show it the way a chess engine shows a position — a bar that falls as the
+// batch folds. Steps come from the server's fold of recorded terminal
+// decisions; scrubbing re-reads that fold, it never re-runs anything.
+let treasury = null, treStep = 0, trePlay = null;
+
+// an overdrawn treasury reads as −$14,460, never "$-14,460"
+const fmtSigned = (a) => a == null ? "—" : (a < 0 ? "−" + fmtUSD(-a) : fmtUSD(a));
+const fmtK = (a) => "$" + Math.round(a / 1000) + "k";   // gauge ticks only
+
+async function loadEvalBar(name) {
+  const host = $("#evalBar");
+  if (!host) return;
+  stopFold();
+  try { treasury = await api(`/api/runs/${name}/treasury`); }
+  catch { host.innerHTML = ""; return; }   // bar is an enhancement, not the page
+  if (!treasury.steps.length) { host.innerHTML = ""; return; }
+  treStep = treasury.steps.length;         // open on the final position
+  renderEvalBar();
+}
+
+function balanceAt(i) {
+  return i === 0 ? treasury.balance : treasury.steps[i - 1].balance;
+}
+
+function renderEvalBar() {
+  const host = $("#evalBar");
+  if (!host || !treasury) return;
+  const t = treasury, n = t.steps.length;
+  const bal = balanceAt(treStep);
+  const below = bal < t.reserve_floor;
+  const pct = Math.max(0, Math.min(100, (bal / t.balance) * 100));
+  const floorPct = (t.reserve_floor / t.balance) * 100;
+  const done = treStep === n;
+
+  // The headline number reads differently mid-fold vs at the end: while
+  // scrubbing it's a position, at the end it's a verdict.
+  let sub;
+  if (bal < 0) sub = `overdrawn by ${fmtUSD(-bal)} — the floor did not hold`;
+  else if (below) sub = `${fmtUSD(t.reserve_floor - bal)} into the reserve`;
+  else if (done) sub = `floor held · ${fmtUSD(bal - t.reserve_floor)} above the floor`;
+  else sub = `${fmtUSD(bal - t.reserve_floor)} above the floor`;
+
+  const steps = t.steps.map((s, i) => {
+    const cls = !s.approved ? (s.held ? "held" : "rej") : "";
+    return `<button class="eb-step ${cls} ${i < treStep ? "" : "future"}" data-i="${i}"
+      title="${esc(s.payout_id)} · ${fmtUSD(s.amount)} · ${s.approved ? "approved" : "rejected"} → balance ${fmtUSD(s.balance)}"
+      aria-label="decision ${i + 1} of ${n}"></button>`;
+  }).join("");
+
+  host.innerHTML = `
+    <div class="evalbar">
+      <div class="eb-gauge">
+        <div class="eb-track" role="img" aria-label="treasury balance ${fmtSigned(bal)} against a reserve floor of ${fmtUSD(t.reserve_floor)}">
+          <div class="eb-reserve" style="height:${floorPct}%"></div>
+          <div class="eb-fill${below ? " below" : ""}" style="height:${pct}%"></div>
+          <div class="eb-floor" style="bottom:${floorPct}%"></div>
+        </div>
+        <div class="eb-scale" aria-hidden="true">
+          <span style="top:4px">${fmtK(t.balance)}</span>
+          <span class="fl" style="bottom:${floorPct}%; top:auto; transform:translateY(50%)">${fmtK(t.reserve_floor)} floor</span>
+        </div>
+      </div>
+      <div class="eb-side">
+        <div class="eb-head">treasury position</div>
+        <div class="eb-num${below ? " below" : ""}">${fmtSigned(bal)}<span>balance</span></div>
+        <div class="eb-sub">${sub}</div>
+        <div class="eb-scrub">${steps}</div>
+        <div class="eb-foot">
+          <button id="ebPlay">${trePlay ? "❚❚ pause" : "▶ fold the batch"}</button>
+          <span class="eb-sub">${treStep} of ${n} decisions${t.held ? ` · ${t.held} held at the floor` : ""}</span>
+        </div>
+        <div class="eb-legend">one mark per recorded decision, in emission order</div>
+        ${!t.reasoned_cumulatively
+          ? `<div class="eb-note">treasury judged each payout alone in this run — it never recorded a running total, which is how the floor broke.</div>` : ""}
+      </div>
+    </div>`;
+
+  host.querySelectorAll(".eb-step").forEach(b => {
+    b.onclick = () => { stopFold(); treStep = +b.dataset.i + 1; renderEvalBar(); };
+  });
+  $("#ebPlay").onclick = toggleFold;
+}
+
+function stopFold() { if (trePlay) { clearInterval(trePlay); trePlay = null; } }
+
+function toggleFold() {
+  if (trePlay) { stopFold(); renderEvalBar(); return; }
+  if (treStep >= treasury.steps.length) treStep = 0;   // replay from the top
+  trePlay = setInterval(() => {
+    if (treStep >= treasury.steps.length) { stopFold(); renderEvalBar(); return; }
+    treStep++;
+    renderEvalBar();
+  }, 140);
+  renderEvalBar();
 }
 
 async function selectPayout(run, subject, row) {
