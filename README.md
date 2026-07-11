@@ -100,6 +100,8 @@ for Devpost/deck):
 | [Guarantees](docs/GUARANTEES.md) | 8 invariants **checked against all 10 recorded runs** (script included), plus honest scope |
 | [Threat model](docs/THREAT_MODEL.md) | threat → mitigation → mechanism, including what v1 explicitly does *not* mitigate |
 | [Evidence pack example](docs/evidence-pack-example.json) | a real export: decision, 8-event chain, receipt, verification — untouched API output |
+| [Benchmark methodology](docs/BENCHMARK.md) | how the number is produced, how to falsify it, what it costs (6.3× tokens) and what it doesn't prove |
+| [Design principles](docs/DESIGN_PRINCIPLES.md) | the five rules that decided the architecture, each with its cost — and why this isn't an agent framework |
 
 ```
 batch → Intake (triage, qwen-turbo)
