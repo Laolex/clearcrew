@@ -17,6 +17,16 @@ Return JSON: {{"decisions": [{{"payout_id": str, "action": "approve"|"reject", "
 
 
 def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
+    # The benchmark runs each system in its own subprocess, so the parent's
+    # llm.usage_totals never sees these calls — the counter has to travel back
+    # in the result. (It didn't, for a while, and the token numbers silently
+    # became stale.)
+    result = _decide(payouts, balance, reserve_floor)
+    result["usage"] = dict(llm.usage_totals)
+    return result
+
+
+def _decide(payouts: list[dict], balance: float, reserve_floor: float) -> dict:
     return llm.complete(
         MONOLITH_SYS,
         str({

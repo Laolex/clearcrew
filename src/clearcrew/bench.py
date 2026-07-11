@@ -42,6 +42,12 @@ def _run_in_subprocess(module: str, batch_json: str, event_log: str) -> dict:
     return json.loads(proc.stdout)
 
 
+def _tokens(result: dict) -> int:
+    """Token spend, carried back from the subprocess that actually made the calls."""
+    u = result.get("usage") or {}
+    return u.get("prompt_tokens", 0) + u.get("completion_tokens", 0)
+
+
 def _score(decisions: dict[str, str], batch: list[dict]) -> float:
     correct = sum(1 for p in batch if decisions.get(p["id"], "?").startswith(p["_expected"][:6]))
     return correct / len(batch)
@@ -80,6 +86,7 @@ def run() -> None:
     society_decisions = society_proposals or society_terminal   # pre-gate runs have no proposals
     society = {
         "seconds": society_secs,
+        "tokens": _tokens(society_result),
         "accuracy": _score(society_decisions, batch),
         "scored_on": "proposals" if society_proposals else "terminal_decisions",
         "blocked_by_policy": sum(
@@ -104,6 +111,7 @@ def run() -> None:
     monolith = {
         "seconds": mono_secs,
         "accuracy": _score(mono_decisions, batch),
+        "tokens": _tokens(mono_result),
         "auditable": False,
     }
 
@@ -116,9 +124,10 @@ def run() -> None:
         print(f"{p['id']:<10}{p['amount']:>8.0f} {p['from_country']+'-'+p['to_country']:<8}"
               f"{p['_expected']:<10}{soc:<10}{mono:<10}{mark}")
     print()
-    print(f"{'':<12}{'accuracy':>10}{'seconds':>10}{'auditable':>11}")
+    print(f"{'':<12}{'accuracy':>10}{'tokens':>10}{'seconds':>10}{'auditable':>11}")
     for name, r in (("society", society), ("monolith", monolith)):
-        print(f"{name:<12}{r['accuracy']:>10.0%}{r['seconds']:>10}{str(r['auditable']):>11}")
+        print(f"{name:<12}{r['accuracy']:>10.0%}{r['tokens']:>10}{r['seconds']:>10}"
+              f"{str(r['auditable']):>11}")
 
     # --- Archive society event log ---
     stamp = time.strftime("%Y%m%d-%H%M%S")

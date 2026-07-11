@@ -7,7 +7,7 @@ refuse it — and the gate may only ever refuse. See `_promote`.
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 
-from . import agents, anchor, events, policy
+from . import agents, anchor, events, llm, policy
 
 
 def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
@@ -98,7 +98,10 @@ def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floo
     events.emit("batch.completed", "batch", "orchestrator", {})
     anchor.anchor_now()
     return {"state": events.fold_state(), "explanations": explanations,
-            "proposals": {pid: p["verdict"] for pid, p in proposals.items()}}
+            "proposals": {pid: p["verdict"] for pid, p in proposals.items()},
+            # the benchmark runs us in a subprocess: the parent's counter never
+            # sees these calls, so the usage has to ride home in the result
+            "usage": dict(llm.usage_totals)}
 
 
 def _promote(payouts: list[dict], proposals: dict[str, dict],
