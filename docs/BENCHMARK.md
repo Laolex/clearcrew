@@ -37,6 +37,33 @@ This matters: **labels and the replay engine cannot drift apart**, because
 they are the same code path. It also means the benchmark measures *policy
 adherence*, not "was the decision wise" — that's the honest scope of the claim.
 
+## What is scored: the proposal, not the outcome
+
+This changed when the policy gate landed, and the reason is worth stating
+plainly because it is a trap we nearly walked into.
+
+The gate refuses to record an approval the policy forbids. So **terminal
+outcomes now agree with policy by construction** — if we kept scoring them, the
+society would report 100% forever, and we would be measuring the gate while
+calling it the agents. The number would be unfalsifiable, which for a benchmark
+is the same as worthless.
+
+So the benchmark scores `payout.proposed` — what the society actually judged,
+before governance had its say:
+
+```python
+society_decisions = society_result["proposals"]     # what the agents wanted
+```
+
+An agent can still propose something wrong, and the record still says so. The
+gate stops the money; it does not launder the mistake. In the console a blocked
+payout carries **both** a `blocked P1` chip and a `miss` chip, because two
+different things are true: the treasury was protected, *and* an agent was wrong.
+
+The monolith has no gate and no proposals, so it is scored exactly as before —
+on the decisions it actually produced. Both systems are therefore graded on
+their own judgment, which is the only comparison that means anything.
+
 ## Results — read these as a ladder, not as trials
 
 The four recorded n=36 runs are **not four samples of one system**. Each is a
