@@ -84,9 +84,71 @@ these are properties the data actually has, not properties we intend it to have.
 
 | | |
 |---|---|
-| **Implemented** | replay · explain · counterfactual replay · hash-chain verification · **external RFC-3161 anchoring** · **veto-only policy gate** · evidence export (JSON/PDF) · real testnet USDC settlement · society-vs-monolith benchmark · live judge mode · read-only MCP server |
-| **Recorded but early** | 2 of 21 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
-| **Roadmap, not claimed** | multi-policy version history · durable event store beyond JSONL (**the writer is single-process: concurrent writers would fork the chain**) · per-agent cryptographic signing (attribution today is a label the orchestrator writes, not a signature) · production custody & key management · mainnet settlement |
+| **Implemented** | replay · explain · counterfactual replay · hash-chain verification · **external RFC-3161 anchoring** · **veto-only policy gate** · **durable event store: forks impossible, indexed reads, idempotent appends** · evidence export (JSON/PDF) · real testnet USDC settlement · society-vs-monolith benchmark · live judge mode · read-only MCP server |
+| **Recorded but early** | 2 of 22 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
+| **Roadmap, not claimed** | multi-policy version history · **multi-host** writers (the store is single-node SQLite; the schema and the anti-fork constraint port to Postgres unchanged) · per-agent cryptographic signing (attribution today is a label the orchestrator writes, not a signature) · production custody & key management · mainnet settlement |
+
+### The writer forked the chain. We reproduced it, then fixed it.
+
+This page used to carry a line under *Roadmap, not claimed*: **"the writer is
+single-process: concurrent writers would fork the chain."** That was true, and
+it was load-bearing — an anchor over a forkable chain attests to a lie.
+
+It is now closed, and the failure is worth describing because it is not the one
+you would guess. `emit()` guarded the chain with a `threading.Lock` and an
+in-process cache of the tail hash. Both are per-process, and this system has
+always run more than one process on the log — the MCP server and a batch run are
+two. Two writers each read the same tail and each chained onto it.
+
+The result was **not corruption.** Every event was present, nothing was lost, and
+each branch hash-verified perfectly on its own. The log simply contained *two
+valid chains* instead of one, and a linear walk misreported it as **tampering**
+— pointing an operator at an attacker who did not exist.
+
+A lock would have prevented this. It would not have made it *impossible* — an
+advisory lock only works while every writer agrees to take it, and the next one
+to forget forks the log again. So the tip constraint moved into the store:
+
+```sql
+prev_hash TEXT NOT NULL UNIQUE
+```
+
+Two events cannot claim the same predecessor, because the second INSERT violates
+a UNIQUE index. The loser of a race does not fork — it is **refused**, and retries
+against the new tip. `BEGIN IMMEDIATE` serialises writers so the race is rare; the
+index is the airtight backstop for when it isn't. This is not a novel idea: it is
+exactly the `UNIQUE(world_id, parent_hash)` that `@civ/history` already runs in
+production, and we ported it.
+
+| | before | after |
+|---|---|---|
+| two processes × 25 events | **chain forks at event 1**, `verified: False` | 50 events, **one chain**, `verified: True` |
+| a fork is… | detected, after it happened | **impossible** — refused by a UNIQUE index |
+| tip hash | cached in the process (**this was the bug**) | read inside the append transaction |
+| `explain(payout)` | full parse of the log — **O(total history)** | index lookup: **0.7 ms against a 3,000-event log** |
+| `fold_state()` | replay every event in Python | aggregated in SQL — 4.4 ms |
+| a retried `emit()` | **records the event twice** | `idempotency_key` → returns the original |
+| durability | `flush()` — OS page cache only | `fsync` per commit (`synchronous=FULL`) |
+| diagnosis | `broken_at` only | tells a **fork** from an **orphan** from a **tamper** |
+
+*Checked: `test_two_processes_cannot_fork_the_chain` spawns two contending
+writers and asserts one verified chain and two live writers. A raw `INSERT` that
+bypasses `emit()` entirely and reuses a `prev_hash` is refused by the store:
+`UNIQUE constraint failed: events.prev_hash`.*
+
+**JSONL is still the archive format.** The database is the writer; the file is
+what an auditor reads. `export_jsonl()` writes it byte-compatible with every run
+already in `runs/`, and replay, the console, and evidence export are unchanged.
+
+**What this costs, and what is still not claimed.** `synchronous=FULL` flushes to
+disk on every append, which caps writes at **~90/s** — a deliberate trade (a
+payout ledger that loses acknowledged events on power loss is worthless), and
+irrelevant at this scale, where a 36-payout run appends ~220 events. It would
+matter at thousands of payouts a second, and the fix there is batching commits
+per tick, not weakening the flush. `read_all()` is still O(n) by definition; only
+the callers that needed one payout stopped paying for the whole log. Multi-*host*
+writers would need Postgres rather than SQLite — the schema and the constraint
+port unchanged.
 
 ## How the invariants were checked
 

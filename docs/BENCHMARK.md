@@ -181,9 +181,35 @@ end-to-end gated run is archived too:
 | | monolith | monolith **+ gate** | society |
 |---|---|---|---|
 | reserve floor breached | **10 / 10** | **0 / 10** | **0 / 10** |
-| legitimate payouts **stranded** (mean) | — | **$8,500** | **$0** |
-| judgment (proposal accuracy) | 87.5% | 87.5% | **100.0%** |
+| legitimate payouts **stranded** (mean of 10) | — | **$8,500** | **$0** |
+| judgment (proposal accuracy, mean of 10 × 36 payouts) | 87.5% | 87.5% | **100.0%** |
 | closing balance (typical run) | −$4,460 | +$25,540 | +$15,540 |
+
+**Read the two dollar figures carefully — they are from different columns.**
+$25,540 is one typical run; $8,500 is the mean of ten. They are not meant to
+match, and per-run they reconcile as an exact identity:
+
+> **gated balance = society balance + stranded.** Every row. No exceptions.
+
+That is not a coincidence — it is the veto-only property restated as arithmetic.
+The society pays everything it owes, so its closing balance *is* the correct one.
+Every dollar the gated monolith holds above it is a dollar it owed someone and
+refused. Here is the full ablation, so the identity can be checked row by row:
+
+| run | monolith | monolith **+ gate** | society | blocked | **stranded** |
+|---|---|---|---|---|---|
+| `20260711-173828` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-174646` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-175456` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-180309` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-181100` | −$113,660 | **$15,540** | $15,540 | **10** | **$0** |
+| `20260711-181947` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-182815` | −$9,460 | $20,540 | $15,540 | 2 | $5,000 |
+| `20260711-183603` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-184356` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+| `20260711-185226` | −$4,460 | $25,540 | $15,540 | 2 | $10,000 |
+
+Mean stranded: **$8,500** = (8 × $10,000 + $5,000 + $0) / 10.
 
 **1. The treasury protection is the gate's.** It takes the single agent from
 10/10 breaches to 0/10, refusing an average of 2.8 of its approvals per run. A
@@ -208,6 +234,46 @@ The society's honest claim is therefore about **judgment, not safety**: 100.0% v
 87.5% on proposals, worth $8,500 a run in payouts that would otherwise be
 stranded, plus an attributable record for every call. That is a smaller claim than
 the raw treasury table implies, and it is the one the evidence actually supports.
+
+### The strongest attack on this thesis is in our own data: run `20260711-181100`
+
+Find it in the table above. It is the monolith's **worst** judgment run — 72.2%
+accuracy, −$113,660 unaided, the catastrophe. Under the gate it closes at
+**$15,540 with $0 stranded**: level with the society, on every metric we report.
+
+The mechanism is not luck, and it is worth being blunt about. That run approved
+almost *everything*. So it never wrongly **rejected** anything — nothing to
+strand — and its 10 bad approvals were all mechanically forbidden, so the gate
+caught all 10. **Its recklessness is precisely what made the gate look perfect.**
+
+Which means: on this benchmark, **"rubber-stamp every payout and let the gate
+sort it out" is an optimal strategy.** It ties the society. We are not going to
+bury that, so here is why it does not rescue the monolith — and where it *does*
+bite us:
+
+1. **It is an artifact of the ground truth, not a real strategy.** Our labels
+   *are* the executable policy (`policy.evaluate`), and the gate enforces that
+   same function. So a rubber stamp plus a *complete* gate is optimal **by
+   construction** — we have defined the test such that the gate can catch
+   everything. That is a limitation of the benchmark, not a virtue of the
+   rubber stamp.
+2. **Real gates are never complete.** A gate encodes the subset of policy that
+   is expressible as code. Judgment is required exactly where the rules are
+   *not* mechanizable — the payout that is technically approvable and obviously
+   fraudulent (already listed under Known limits). A rubber stamp scores 100%
+   here and is worthless there, and **this benchmark cannot see the difference.**
+3. **It is not free even here.** A system that approves everything produces a
+   record in which every `payout.proposed` is identical and no reasoning is
+   attributable. You cannot ask it why. The 9 other runs show the monolith's
+   *actual* behaviour, which strands $8,500 — the rubber stamp is a strategy it
+   fell into once, catastrophically, not one it reliably executes.
+
+The honest reading: **our benchmark rewards a degenerate strategy, and we can see
+it doing so.** Closing that hole means ground truth that is *not* identical to
+the gate — a policy with a judgment-shaped hole in it that no code can check.
+That is the next experiment, and it is not done. Until it is, the judgment claim
+rests on the nine runs where the monolith behaved like a monolith rather than a
+coin flip.
 
 ### The gate did not fire once in the society's ten runs — and that is not a problem
 
@@ -301,14 +367,19 @@ monolith is the correct choice and we would say so.
 
 - **Synthetic batch.** Seeded generator, not production payout traffic. It
   exercises the policy's rule surface, not the messiness of real data.
-- **Small n, and n=1 at the final config.** 36 payouts, and the current
-  architecture has one recorded n=36 run. Enough to show a consistent gap across
-  four governance versions; not enough for a confidence interval anyone should
-  bet on.
-- **Policy adherence, not judgment.** Ground truth is the mechanical policy.
-  A payout that's *technically* approvable and *obviously* fraudulent scores as
-  "approve" — the benchmark would not catch that, and neither system is being
-  credited for it.
+- **Small batch, ten runs.** Every accuracy figure here is the mean of **10 runs
+  × 36 payouts** (~360 decisions) at the current config — not a handful of calls.
+  But it is still one seeded 36-payout batch: enough for the spread we report
+  (society sd 0.0%, monolith sd 5.4%), not enough for a confidence interval
+  anyone should bet real money on.
+- **Policy adherence, not judgment — and this is the load-bearing limit.**
+  Ground truth is the mechanical policy, and the gate enforces that same
+  function. A payout that's *technically* approvable and *obviously* fraudulent
+  scores as "approve", and neither system is credited for catching it. This is
+  what lets a rubber stamp tie the society in run `20260711-181100` (see the
+  ablation). **Any claim we make about "judgment" is bounded by the fact that our
+  ground truth is mechanizable.** Fixing it requires a policy with a
+  judgment-shaped hole no code can check. Not done.
 - **Same models both sides** is a strength for fairness and a limit for
   generality: this is evidence about *architecture*, not about Qwen.
 - **We report every run we have.** No run was discarded; the four above are

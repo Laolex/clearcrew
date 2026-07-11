@@ -26,7 +26,7 @@ def log(tmp_path, monkeypatch):
 
 
 def _read(path):
-    return [json.loads(line) for line in open(path) if line.strip()]
+    return events.read_all(str(path))
 
 
 def _run_with(monkeypatch, decisions):
