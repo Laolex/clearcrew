@@ -74,6 +74,7 @@ verdict, and money movement in one tamper-evident history.**
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
 | **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
+| **Eval bar** | the reserve floor as a chess-style position bar — folds the recorded decisions and shows the 2 archived runs that **broke** the floor |
 | **For agents** | 6-tool read-only [MCP server](docs/MCP.md) over the audit trail |
 | **Sharp edges we hit** | [GOTCHAS.md](GOTCHAS.md) — documented so you don't |
 
@@ -150,12 +151,16 @@ We publish every n=36 run, including the ones where the society lost — because
 each regression was diagnosed *from the recorded trail* and fixed with
 governance, not prompt-tweaking:
 
-| run | governance in place | society | monolith | what the trail caught |
-|---|---|---|---|---|
-| 1 | written policy · cited vetoes · separation of duties | 100% | 89% | (earlier: Treasury hallucinating P2 — caught in-band by the Auditor) |
-| 2 | same, fresh run (first hash-chained) | 94% | 92% | Treasury judging payouts individually — "sufficient balance" ×24, floor breached |
-| 3 | + **agents judge, ledgers add**: deterministic cumulative ledger for both systems | 97% | 89% | Treasury's recorded reason ends "…Reject." while its action says `pay_now` — a reason/action self-contradiction, machine-checkable |
-| 4 | + **code flags, agents rule**: every treasury decision reconciled against the ledger; mismatches become recorded disputes ruled by Resolution | **100%** | 89% | chain verified, guard armed (did not need to fire) |
+| run | governance in place | society | monolith | treasury | what the trail caught |
+|---|---|---|---|---|---|
+| 1 | written policy · cited vetoes · separation of duties | 100% | 89% | floor held | (earlier: Treasury hallucinating P2 — caught in-band by the Auditor) |
+| 2 | same, fresh run (first hash-chained) | 94% | 92% | **−$14,460 overdrawn** | Treasury judging payouts individually — "sufficient balance" ×24, floor breached |
+| 3 | + **agents judge, ledgers add**: deterministic cumulative ledger for both systems | 97% | 89% | **breached by $9,460** | Treasury's recorded reason ends "…Reject." while its action says `pay_now` — a reason/action self-contradiction, machine-checkable |
+| 4 | + **code flags, agents rule**: every treasury decision reconciled against the ledger; mismatches become recorded disputes ruled by Resolution | **100%** | 89% | **floor held, $15,540 left** | chain verified, guard armed (did not need to fire) |
+
+The `treasury` column is the eval bar's number for each run — folded from the
+decisions that run actually recorded, not from what the policy says should have
+happened. Runs 2 and 3 broke the reserve floor, and we publish that.
 
 The monolith wobbles run-to-run (89–92%) and there is nothing to read, nobody
 to fix. That's the actual claim: the trail is not just explanation — it's
@@ -200,6 +205,53 @@ nothing staged. Deep-linkable: `#<run>/<payout_id>`.
 
 Replay reconstructs recorded history — it never re-runs models or simulates
 alternate outcomes.
+
+## The treasury eval bar — watch the reserve floor hold or break
+
+The org has $100,000 in the bank and a rule: never let the balance fall below
+$10,000. That floor is the one rule you **cannot check one payout at a time**.
+
+Every other rule is a local question. *Is this country sanctioned?* Yes or no.
+*Is this recipient too new for an amount this size?* Yes or no. But "don't drop
+below $10,000" has no answer for a single payout. The $120 one is fine. The $500
+one is fine. Each one, judged alone, is fine — and the twenty-fourth quietly
+pushes you through the floor, only because of the twenty-three before it.
+
+An agent that reasons payout-by-payout will approve them all, feel correct every
+single time, and drain the treasury.
+
+So we show it the way a chess engine shows a position: a bar that falls as the
+batch folds. It starts full at $100,000, drops with every approval, and has the
+reserve floor as a hard red line near the bottom. Each mark below it is one
+recorded decision in the order it was made — click any mark to jump to that
+moment, or press **fold the batch** and watch the money drain.
+
+**What it exposed.** Two of the four archived runs actually broke the floor —
+and nothing in the console had ever shown it. Run `20260702-204555` didn't just
+dip into the reserve, it went **$14,460 overdrawn**. Load it and the bar drains
+straight through the red line.
+
+The cause is legible in the record itself. In that run the Treasury agent judged
+each payout alone, and its own recorded reasons never once carry a running total
+— just "sufficient balance", twenty-four times, correct every time about the one
+payout in front of it. The current architecture ends at **$15,540, floor held**,
+holding back two payouts that would have breached it.
+
+```
+GET /api/runs/<run>/treasury     # the position, folded from recorded decisions
+```
+
+The bar is a **fold, not a forecast**: it replays the terminal decisions the run
+actually recorded and adds them up. It does not model what the policy *should*
+have concluded, and no model is ever re-run. That's why it is willing to show
+the runs where we lost — if a run overdrew the treasury, the bar reports the
+overdraft, because that is what happened. A dashboard that is always green is a
+dashboard nobody should trust.
+
+Which is the whole argument in one screen: **the record is what lets you find
+the bug.** The monolith erred in these same runs too — but it left nothing to
+read. Here the mistake sits on the record, in the agent's own words, which is
+how it got diagnosed and fixed.
 
 ## Executable policy — counterfactual replay
 
