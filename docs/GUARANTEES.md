@@ -1,7 +1,7 @@
 # System Guarantees
 
 Invariants, not features. Each one names its mechanism, and each one was
-checked against **all 10 recorded runs** in `runs/` (script at the bottom) —
+checked against **all 21 recorded runs** in `runs/` (script at the bottom) —
 these are properties the data actually has, not properties we intend it to have.
 
 ## Invariants
@@ -9,7 +9,7 @@ these are properties the data actually has, not properties we intend it to have.
 1. **Every payout has exactly one terminal decision.**
    The orchestrator emits exactly one `payout.approved` or `payout.rejected`
    per payout, after the specialist agents (and, when vetoed, the resolution
-   ruling) have spoken. *Checked: 10/10 runs, every payout.*
+   ruling) have spoken. *Checked: 21/21 runs, every payout.*
 
 2. **Every decision is recorded before anything acts on it.**
    `events.emit()` appends, hashes, and flushes the event before returning.
@@ -20,7 +20,7 @@ these are properties the data actually has, not properties we intend it to have.
    `prev_hash` is the previous event's `event_hash` (genesis-anchored);
    `event_hash` is sha256 over the canonical JSON *including* `prev_hash`.
    Reorder, delete, or edit any event and `verify_chain()` reports the exact
-   break index. *Checked: 8/8 hash-chained runs verify end-to-end; the 2
+   break index. *Checked: 19/19 hash-chained runs verify end-to-end; the 2
    earliest runs predate hash chaining and are honestly reported (and
    displayed in the UI) as "replayable, not tamper-evident".*
 
@@ -57,7 +57,8 @@ these are properties the data actually has, not properties we intend it to have.
    invariant, not a benchmark result**: no run can overdraw the treasury,
    however confidently Treasury argues for it. Two archived runs did exactly
    that before this gate existed; they are still published, and under the
-   current architecture they are not expressible.
+   current architecture they are not expressible. *Checked: 11/11 post-gate
+   runs — no forbidden approval recorded, floor held in every one.*
 
 10. **The gate can only ever refuse.**
     It cannot turn a rejection into an approval. The policy layer models
@@ -76,14 +77,15 @@ these are properties the data actually has, not properties we intend it to have.
     anchor is recorded as `chain.anchor_failed` — never as a success — and runs
     with anchoring off record nothing at all. Only the prefix *before* an anchor
     is protected: the tamper window is the anchor interval, and we anchor at the
-    end of every batch.
+    end of every batch. *Checked: 11/11 post-gate runs carry a TSA token that
+    verifies against the head hash actually recorded in that run.*
 
 ## Honest scope
 
 | | |
 |---|---|
 | **Implemented** | replay · explain · counterfactual replay · hash-chain verification · **external RFC-3161 anchoring** · **veto-only policy gate** · evidence export (JSON/PDF) · real testnet USDC settlement · society-vs-monolith benchmark · live judge mode · read-only MCP server |
-| **Recorded but early** | 2 of 10 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
+| **Recorded but early** | 2 of 21 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
 | **Roadmap, not claimed** | multi-policy version history · durable event store beyond JSONL (**the writer is single-process: concurrent writers would fork the chain**) · per-agent cryptographic signing (attribution today is a label the orchestrator writes, not a signature) · production custody & key management · mainnet settlement |
 
 ## How the invariants were checked

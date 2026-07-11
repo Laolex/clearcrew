@@ -72,7 +72,7 @@ verdict, and money movement in one tamper-evident history.**
 | **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
 | **Headline** | across **10 runs** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot* |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
-| **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
+| **Tests / CI** | 79 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
 | **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
 | **Eval bar** | the reserve floor as a chess-style position bar — folds the recorded decisions and shows the 2 archived runs that **broke** the floor |
 | **Policy gate** | agents *propose*, policy *promotes*: an approval P1/P2/P3 forbids **cannot be recorded**. The reserve floor is an invariant, not a grade. Veto-only — it can refuse, never approve |
@@ -96,14 +96,14 @@ for Devpost/deck):
 
 | doc | one-line pitch |
 |---|---|
-| [Architecture](docs/ARCHITECTURE.md) | one page, no "AI cloud" in the middle: user → decision → history → execution → evidence |
+| [Architecture](docs/ARCHITECTURE.md) | one page, no "AI cloud" in the middle: proposal → policy gate → history → execution → evidence |
 | [Sequence](docs/SEQUENCE.md) | one payout end-to-end with real recorded timestamps — clean path and argued-veto path |
-| [Trust model](docs/TRUST_MODEL.md) | decision → recorded → replayable → verifiable → executable → exportable, trust boundaries, decision state machine |
+| [Trust model](docs/TRUST_MODEL.md) | proposed → governed → recorded → replayable → verifiable → anchored → executable → exportable, trust boundaries, decision state machine |
 | [Data model](docs/DATA_MODEL.md) | 7 entities, the event-type inventory as recorded, and why "the event is the only write" matters |
-| [Guarantees](docs/GUARANTEES.md) | 8 invariants **checked against all 10 recorded runs** (script included), plus honest scope |
+| [Guarantees](docs/GUARANTEES.md) | 11 invariants **checked against all 21 recorded runs** (script included), plus honest scope |
 | [Threat model](docs/THREAT_MODEL.md) | threat → mitigation → mechanism, including what v1 explicitly does *not* mitigate |
 | [Evidence pack example](docs/evidence-pack-example.json) | a real export: decision, 8-event chain, receipt, verification — untouched API output |
-| [Benchmark methodology](docs/BENCHMARK.md) | how the number is produced, how to falsify it, what it costs (6.3× tokens) and what it doesn't prove |
+| [Benchmark methodology](docs/BENCHMARK.md) | 10 runs, why accuracy is the wrong unit, what it costs (6.3× tokens) and what it doesn't prove |
 | [Design principles](docs/DESIGN_PRINCIPLES.md) | the five rules that decided the architecture, each with its cost — and why this isn't an agent framework |
 
 ```
