@@ -70,7 +70,7 @@ verdict, and money movement in one tamper-evident history.**
 | | |
 |---|---|
 | **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
-| **Headline** | society **100%** vs monolith **89%**, same n=36 batch, same policy, same models — hash chain verified, 179 events |
+| **Headline** | across **10 runs** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot* |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 38 pytest, green on 3.10 + 3.12 every push |
 | **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
@@ -133,19 +133,37 @@ through a single monolithic agent. Both receive the identical org policy AND the
 same deterministic arithmetic aids; the labels model the full policy, including
 the reserve-floor funding waterfall.
 
-**Headline run** (`runs/events-20260702-210640-n36.jsonl`, hash chain verified):
+**Ten runs of the current architecture** (n=36, `scripts/bench_repeat.sh 10`).
+One run is an anecdote, so we ran it ten times and publish every one:
 
-| batch | system | accuracy | tokens | seconds | auditable |
-|---|---|---|---|---|---|
-| n=12 | society | 100% | 21,992 | 146 | ✓ |
-| n=12 | monolith | 100% | 3,894 | 54 | ✗ |
-| n=36 | society | **100%** | 76,113 | 323 | ✓ |
-| n=36 | monolith | **89%** | 12,068 | 150 | ✗ |
+| | mean | sd | min | max |
+|---|---|---|---|---|
+| society (proposals) | **100.0%** | 0.0% | 100.0% | 100.0% |
+| monolith | 87.5% | 5.4% | **72.2%** | 91.7% |
 
-At n=36 the monolith fails silently in both directions: it approves $30,000 of
-payouts that breach the treasury reserve floor, and rejects two perfectly clean
-$5,000 payouts with no recoverable explanation. The society gets all 36 right,
-and every one of its decisions has a replayable, hash-verified event trail.
+**But accuracy is the wrong unit.** A payout desk's job is not to be right on
+average — it is to not lose the money. Fold each system's own decisions into the
+treasury (start $100,000, floor $10,000):
+
+| | society | monolith |
+|---|---|---|
+| closing balance | **+$15,540**, every run | **negative, every run** |
+| worst run | +$15,540 | **−$113,660** |
+| reserve floor breached | **0 / 10** | **10 / 10** |
+
+The single agent **overdraws the treasury in every run it has ever been given.**
+Its *best* accuracy run (91.7%) closed at **−$9,460** — worse than four of its
+88.9% runs, because which payouts you get wrong matters more than how many.
+
+Its failure is structural, not noisy. It misses the **same four payouts** every
+stable run: it approves *both* $15,000 P3 payouts (the reserve floor is the one
+rule that can't be judged one payout at a time) and rejects two clean $5,000
+payouts to new recipients (over-applying P2, which only bites at ≥$9,000). A
+single agent reasoning locally is blind to the only globally-scoped rule — and no
+prompt tuning fixes a context problem.
+
+Full methodology, cost (6.3× tokens, 2.5× wall-clock) and limits:
+**[docs/BENCHMARK.md](docs/BENCHMARK.md)**.
 
 ### The repair ladder
 

@@ -1,0 +1,238 @@
+{
+  "society": {
+    "seconds": 357.3,
+    "accuracy": 1.0,
+    "scored_on": "proposals",
+    "blocked_by_policy": 0,
+    "auditable": true,
+    "chain": {
+      "hashed": true,
+      "verified": true,
+      "events": 219,
+      "broken_at": null
+    }
+  },
+  "monolith": {
+    "seconds": 124.0,
+    "accuracy": 0.8888888888888888,
+    "auditable": false
+  },
+  "decisions": {
+    "6513270e": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "1818e811": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "099950d8": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "3d9c1724": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "1fb17c23": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "658cda14": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "dbc496cb": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "8a6a63ec": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "2e44158b": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "8c38fb29": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "9e7769b1": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "6d76b07e": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "5c90a958": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "c7a2ea20": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "86734721": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "49b64a08": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "6b0a18e8": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "6bf46c69": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "rejected"
+    },
+    "ca02135e": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "98289fcd": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "f1d69ed6": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "10a3d6b2": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "fe3b890b": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "62c33a4f": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "approved"
+    },
+    "5affb229": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "rejected"
+    },
+    "37dc76fb": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "65dc9f50": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "72fdf202": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "dd2e1609": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "fc891b4a": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "153e7c2a": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "3bbbe9ea": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    },
+    "43435cc5": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "88daf401": {
+      "expected": "approve",
+      "society": "approve",
+      "society_terminal": "approved",
+      "monolith": "approved"
+    },
+    "dbf4a8b2": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "approved"
+    },
+    "cc4169a3": {
+      "expected": "reject",
+      "society": "reject",
+      "society_terminal": "rejected",
+      "monolith": "rejected"
+    }
+  }
+}

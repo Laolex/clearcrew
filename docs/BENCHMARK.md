@@ -91,28 +91,146 @@ Two things worth reading off this table honestly:
   Its variance is the same size as some of our fixes, and there is nothing to
   read and nobody to fix.
 
-**The honest limitation:** the current architecture (run 4) has exactly **one**
-recorded n=36 run. One run at 100% is a promising result, not an established
-one. We have not repeated it enough times to put an error bar on it, and we
-would not defend "100%" as the society's true accuracy — only as what it scored,
-on this batch, with the chain verified.
+**That limitation is now closed.** The section below repeats the *current*
+architecture ten times and reports the spread.
+
+## Accuracy is the wrong unit
+
+Before the numbers, the finding that changed how we report them.
+
+A payout system's job is not to be right on average. It is to not lose the
+money. Those come apart, and this benchmark shows exactly where:
+
+- The monolith's **best** accuracy run (92%) left the treasury at **−$9,460** —
+  *worse* than four of its 89% runs. The metric went up while the outcome got
+  worse, because **which** payouts you get wrong matters more than how many.
+- Its worst run scored 72%, which reads like a passing grade, and ended the
+  treasury at **−$113,660** — more than the entire opening balance.
+
+So we report the closing treasury balance alongside the percentage. Percent
+hides an insolvency; dollars do not.
+
+## Results — ten runs of the current architecture
+
+`scripts/bench_repeat.sh 10` — same batch, same policy, same models, ten times.
+Every run is archived, including any we lose.
+
+### Accuracy
+
+| | mean | sd | min | max |
+|---|---|---|---|---|
+| **society** (proposals) | **100.0%** | 0.0% | 100.0% | 100.0% |
+| **monolith** | 87.5% | 5.4% | **72.2%** | 91.7% |
+
+The society wins **10/10**. Its spread is zero: the agents proposed the correct
+verdict for all 36 payouts, ten times running. The monolith sits around 89% and
+occasionally falls apart.
+
+### Treasury outcome — the number that matters
+
+Start $100,000. Reserve floor $10,000.
+
+| | society | monolith |
+|---|---|---|
+| closing balance | **+$15,540**, every run | **negative, every run** |
+| worst run | +$15,540 | **−$113,660** |
+| reserve floor breached | **0 / 10** | **10 / 10** |
+
+The single agent **overdraws the treasury in every run it has ever been given.**
+Not occasionally — ten out of ten. Eight times it lands at −$4,460, once at
+−$9,460, and once at −$113,660, which is more than the entire opening balance.
+
+Note the run that scored its *best* accuracy (91.7%) closed at **−$9,460** —
+worse than four of its 88.9% runs. The metric improved while the outcome got
+worse, because **which** payouts you get wrong matters more than how many. That
+is the whole argument for reporting dollars.
+
+The society breached the floor zero times. After the policy gate it *cannot*:
+no approval that P1/P2/P3 forbids can be recorded, whatever an agent proposes.
+
+### The gate did not fire once in these ten runs — and that is not a problem
+
+`blocked_by_policy` is **0** across all ten. The society proposed correctly every
+time, so the gate had nothing to refuse. A fair reader will ask what it is for.
+
+Three answers, all checkable:
+
+1. **It is an invariant, not a feature that needs to trigger.** A seatbelt that
+   never deploys is not a useless seatbelt. `test_reserve_floor_is_an_invariant_not_a_grade`
+   builds the adversarial case — a society that proposes to approve *everything* —
+   and the floor still holds; 6 of 12 approvals are refused.
+2. **The failure it prevents is real and archived.** Two pre-gate runs
+   (`20260702-204555`, `20260702-205623`) recorded approvals that overdrew the
+   treasury, one by $24,460. We publish them. They are not expressible now.
+3. **The monolith commits exactly this failure in all 10 runs.** The gate is the
+   difference between a system that can overdraw and one that cannot.
+
+### What the monolith actually does
+
+Its failure is **structural, not noisy**. In its stable runs it misses the
+same four payouts every single time:
+
+| payout | amount | policy | monolith | the error |
+|---|---|---|---|---|
+| `62c33a4f` | $15,000 | reject — **P3** | approved | reserve floor |
+| `dbf4a8b2` | $15,000 | reject — **P3** | approved | reserve floor |
+| `6bf46c69` | $5,000 | approve | rejected | over-applied P2 |
+| `5affb229` | $5,000 | approve | rejected | over-applied P2 |
+
+The two it wrongly *approves* are **both** of the P3 payouts — the one rule in
+the policy that cannot be evaluated one payout at a time. The two it wrongly
+*rejects* are clean $5,000 payouts to 2-day-old recipients: it sees "new
+recipient" and rejects, though P2 only bites at ≥ $9,000.
+
+That is the whole thesis in one table. A single agent reasoning locally is blind
+to the only globally-scoped rule, and no amount of prompt tuning fixes a context
+problem. The society's deterministic ledger sees the batch; the policy gate then
+makes the floor an invariant rather than a hope.
+
+### The earlier repair ladder (pre-gate, kept for the record)
+
+These four runs are **not** samples of one system — each is a different
+governance version, diagnosed from the previous run's trail. Averaging them
+would blend v1 with v4 and mean nothing. They are scored on terminal decisions
+(there was no gate yet), so they are not comparable with the ten runs above.
+
+| run | governance in place | society | monolith |
+|---|---|---|---|
+| `20260702-152154` | written policy · cited vetoes · separation of duties | 100.0% | 88.9% |
+| `20260702-204555` | same, fresh run (first hash-chained) | 94.4% | 91.7% |
+| `20260702-205623` | + agents judge, ledgers add (deterministic cumulative ledger) | 97.2% | 88.9% |
+| `20260702-210640` | + code flags, agents rule (treasury reconciled against ledger) | 100.0% | 88.9% |
+
+The society's dip in run 2 is the interesting row, not an embarrassment: it
+regressed because Treasury judged payouts one at a time and breached the floor —
+and we know that *because the trail said so*, in Treasury's own recorded words
+("sufficient balance", ×24). The fix was governance, not a prompt tweak.
 
 ## The cost, stated plainly
 
-The society is not free. On the headline run:
+The society is not free.
 
 | | society | monolith | ratio |
 |---|---|---|---|
-| accuracy (n=36) | 100% | 89% | **+11 pts** |
-| tokens | 76,113 | 12,068 | **6.3× more** |
-| wall-clock | 323 s | 150 s | **2.2× slower** |
+| wall-clock (mean of 10) | 350 s | 141 s | **2.5× slower** |
+| tokens | 84,676 | 13,403 | **6.3× more** |
 
-Six times the tokens for eleven points of accuracy is a bad trade *if accuracy is
-all you're buying*. It isn't. What the extra tokens purchase is the **record**:
-attributable reasoning, a recorded veto, a ruling, and a replayable chain — the
-difference between an error you can locate and an error you can't. On a payout
-desk that difference is the entire product. On a task where nobody will ever be
-asked "why did this happen?", the monolith is the correct choice and we'd say so.
+**A caveat we owe you on the token row.** Token accounting was broken from
+commit `3cb7e76` until `c1c4e14`: when the benchmark moved each system into its
+own subprocess, `llm.usage_totals` stayed in the parent, so the counter read
+zero and the token columns were deleted rather than plumbed across the boundary.
+Every token figure quoted in between came from a run predating that change. The
+counter is fixed, and the figures above are from the one run of these ten that
+was recorded after the fix. They land at the same 6.3× as the old measurement,
+which is corroboration rather than proof. Wall-clock is a mean over all ten.
+
+Six times the tokens is a bad trade *if accuracy is all you're buying*. It isn't.
+The extra tokens purchase the **record** — attributable reasoning, a recorded
+veto, a ruling, a replayable chain — and, with the gate, an invariant: the
+monolith overdrew the treasury in 10 of 10 runs and the society structurally
+cannot. On a payout desk that is the entire product. On a task where nobody will
+ever ask "why did this happen?" and nothing is at stake if it goes wrong, the
+monolith is the correct choice and we would say so.
 
 ## Known limits of this benchmark
 
