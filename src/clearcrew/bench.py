@@ -57,9 +57,9 @@ def run() -> None:
     society_log = "events-society.jsonl"
     if os.path.exists(society_log):
         os.remove(society_log)
+    society_events: list[dict] = []
     try:
         society_result = _run_in_subprocess("orchestrator", clean_json, society_log)
-        society_events = []
         with open(society_log) as f:
             society_events = [json.loads(line) for line in f if line.strip()]
         society_chain = _verify(society_events)
@@ -68,10 +68,22 @@ def run() -> None:
         society_result = {"state": {}, "explanations": {}}
         society_chain = {"hashed": False, "verified": False, "events": 0, "broken_at": None}
     society_secs = round(time.time() - t0, 1)
-    society_decisions = {pid: s["status"] for pid, s in society_result.get("state", {}).items() if pid != "batch"}
+    # Score the society's PROPOSALS, not its terminal decisions.
+    #
+    # The policy gate refuses to record an approval the policy forbids, so
+    # terminal outcomes now agree with policy by construction — scoring them
+    # would report 100% forever and measure the gate instead of the agents.
+    # The proposal is what the society actually judged, and it stays falsifiable.
+    society_proposals = society_result.get("proposals", {})
+    society_terminal = {pid: s["status"] for pid, s in society_result.get("state", {}).items()
+                        if pid != "batch"}
+    society_decisions = society_proposals or society_terminal   # pre-gate runs have no proposals
     society = {
         "seconds": society_secs,
         "accuracy": _score(society_decisions, batch),
+        "scored_on": "proposals" if society_proposals else "terminal_decisions",
+        "blocked_by_policy": sum(
+            1 for e in society_events if e["type"] == "policy.blocked"),
         "auditable": True,
         "chain": society_chain,
     }
@@ -115,8 +127,12 @@ def run() -> None:
     os.replace(society_log, dest)
     events.reset_chain()
     with open(f"runs/results-{stamp}-n{len(batch)}.json", "w") as f:
+        # both, because the gate can make them differ — a payout the society
+        # proposed to approve and policy refused reads: society=approve,
+        # society_terminal=rejected. That divergence is the whole point.
         per_payout = {p["id"]: {"expected": p["_expected"],
                                 "society": society_decisions.get(p["id"]),
+                                "society_terminal": society_terminal.get(p["id"]),
                                 "monolith": mono_decisions.get(p["id"])}
                       for p in batch}
         json.dump({"society": society, "monolith": monolith,

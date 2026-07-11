@@ -48,12 +48,31 @@ class SettlementConfirmed:
     tx_hash: str | None = None
 
 
+@dataclass
+class PayoutProposed:
+    """What the society judged — before the policy gate had its say."""
+    verdict: Literal["approve", "reject"]
+    reason: str | None = None
+
+
+@dataclass
+class PolicyBlocked:
+    """An approval the deterministic policy refused to let become executable.
+    The agent's intent survives on the record; only its effect is denied."""
+    proposed: Literal["approve"]
+    rule: Literal["P1", "P2", "P3"]
+    proposed_by: str
+    reason: str
+
+
 EVENT_SCHEMA: dict[str, type[dataclass]] = {
     "intake.classified": IntakeClassified,
     "compliance.reviewed": ComplianceReviewed,
     "treasury.decided": TreasuryDecided,
     "dispute.resolved": DisputeResolved,
     "settlement.confirmed": SettlementConfirmed,
+    "payout.proposed": PayoutProposed,
+    "policy.blocked": PolicyBlocked,
 }
 
 

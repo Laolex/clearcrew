@@ -9,3 +9,7 @@ PRODUCT.md
 DESIGN.md
 build/
 deploy/build/
+
+# transient benchmark logs (archived to runs/ on completion)
+src/events-society.jsonl
+src/events-mono*.jsonl
