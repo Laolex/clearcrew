@@ -133,8 +133,7 @@ def run() -> None:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs("runs", exist_ok=True)
     dest = f"runs/events-{stamp}-n{len(batch)}.jsonl"
-    os.replace(society_log, dest)
-    events.reset_chain()
+    events.export_jsonl(dest, src=society_log)
     with open(f"runs/results-{stamp}-n{len(batch)}.json", "w") as f:
         # both, because the gate can make them differ — a payout the society
         # proposed to approve and policy refused reads: society=approve,
@@ -148,8 +147,10 @@ def run() -> None:
                    "decisions": per_payout}, f, indent=2)
     print(f"\nrun archived: runs/events-{stamp}-n{len(batch)}.jsonl")
     for tmp in (society_log, mono_log):
-        if os.path.exists(tmp):
-            os.remove(tmp)
+        db = events._db_path(tmp)
+        for f in (tmp, db, db + "-wal", db + "-shm"):  # WAL leaves sidecars
+            if os.path.exists(f):
+                os.remove(f)
 
 
 if __name__ == "__main__":

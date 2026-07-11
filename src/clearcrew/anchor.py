@@ -243,7 +243,7 @@ def anchor_now() -> dict:
     the prefix that preceded it — exactly what the token covers. A failed anchor
     is recorded as a failure and never as a success.
     """
-    head = events._tail_hash(config.EVENT_LOG_PATH)
+    head = events.tail_hash(config.EVENT_LOG_PATH)
     try:
         result = _provider().anchor(config.EVENT_LOG_PATH, head)
     except RuntimeError as exc:

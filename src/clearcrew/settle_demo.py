@@ -49,8 +49,7 @@ def run() -> None:
     stamp = time.strftime("%Y%m%d-%H%M%S")
     os.makedirs("runs", exist_ok=True)
     dest = f"runs/events-{stamp}-settled-n{len(batch)}.jsonl"
-    os.replace(config.EVENT_LOG_PATH, dest)
-    events.reset_chain()
+    events.export_jsonl(dest)
     print(f"run archived: {dest}")
 
 

@@ -66,7 +66,7 @@ def test_anchor_now_commits_to_the_head_before_itself(log, monkeypatch):
     assert ev["payload"]["provider"] == "noop"
     # the anchor commits to the head BEFORE itself — exactly the prefix a real
     # token would cover
-    prior = [json.loads(line) for line in open(log) if line.strip()][-2]
+    prior = events.read_all(str(log))[-2]
     assert ev["payload"]["head_hash"] == prior["event_hash"]
 
 
