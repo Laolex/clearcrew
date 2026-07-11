@@ -24,7 +24,7 @@
     .d     { fill:#667080; font-size:11px; }
     .mono  { font-family:'IBM Plex Mono','SF Mono',Consolas,monospace; }
     .lbl   { fill:#667080; font-size:10px; letter-spacing:.12em; font-weight:700; }
-    .lane  { fill:#9aa2b1; font-size:9.5px; letter-spacing:.14em; font-weight:700; }
+    .lane  { fill:#9aa2b1; font-size:8.5px; letter-spacing:.08em; font-weight:700; }
     .teal  { fill:#0b766b; }
     .green { fill:#047857; }
     .flow  { stroke:#8a93a3; stroke-width:1.6; fill:none; marker-end:url(#arr); stroke-linecap:round; }
@@ -37,16 +37,17 @@
 
   <!-- header -->
   <text x="40" y="44" class="t" font-size="13">ClearCrew <tspan fill="#9aa2b1">· system documentation</tspan></text>
-  <text x="920" y="44" text-anchor="end" class="teal" font-size="11" font-weight="600">✓ recorded &#160; ✓ replayable &#160; ✓ verified &#160; ✓ exported</text>
+  <text x="920" y="44" text-anchor="end" class="teal" font-size="11" font-weight="600">✓ recorded &#160; ✓ replayable &#160; ✓ verified &#160; ✓ anchored</text>
   <line x1="40" y1="58" x2="920" y2="58" stroke="#e3e1d6"/>
   <text x="40" y="96" fill="#17211c" font-size="26" font-weight="700" letter-spacing="-.02">v1 architecture</text>
-  <text x="40" y="118" class="s">no “AI cloud” in the middle — user → decision → history → execution → evidence</text>
+  <text x="40" y="118" class="s">no “AI cloud” in the middle — proposal → policy gate → history → execution → evidence</text>
 
   <!-- lane labels -->
   <text x="40" y="185" class="lane">PRESENTATION</text>
   <text x="40" y="330" class="lane">API</text>
   <text x="40" y="470" class="lane">DECISION</text>
   <text x="878" y="470" class="lane">HISTORY</text>
+  <text x="40" y="640" class="lane">GOVERNANCE</text>
   <text x="40" y="723" class="lane">EXECUTION</text>
   <text x="40" y="878" class="lane">SETTLEMENT</text>
   <text x="40" y="985" class="lane">EVIDENCE</text>
@@ -94,9 +95,10 @@
   <text x="550" y="470" class="d mono">events.py</text>
   <text x="550" y="496" class="s mono">runs/events-*.jsonl</text>
   <text x="550" y="514" class="s mono">runs/results-*.json</text>
-  <rect x="550" y="530" width="150" height="22" rx="5" fill="rgba(13,148,136,.10)"/>
-  <text x="625" y="545" class="teal" font-size="11" font-weight="700" text-anchor="middle">sha256 hash chain</text>
-  <text x="550" y="572" class="d mono">prev_hash → event_hash</text>
+  <rect x="550" y="518" width="150" height="22" rx="5" fill="rgba(13,148,136,.10)"/>
+  <text x="625" y="533" class="teal" font-size="11" font-weight="700" text-anchor="middle">sha256 hash chain</text>
+  <text x="550" y="554" class="d mono">prev_hash → event_hash</text>
+  <text x="550" y="573" class="teal mono" font-size="10" font-weight="700">chain.anchored → RFC-3161 TSA</text>
 
   <line x1="470" y1="486" x2="527" y2="486" class="flowT"/>
   <text x="498" y="476" class="teal mono" font-size="10.5" text-anchor="middle">emit()</text>
@@ -109,10 +111,20 @@
   <text x="550" y="662" class="s">reconstructs the recorded trace —</text>
   <text x="550" y="678" class="s">replay ≠ recompute, nothing re-generated</text>
 
-  <!-- decision arrow to verasettle -->
-  <line x1="290" y1="582" x2="290" y2="712" class="flowT"/>
-  <text x="300" y="632" class="teal mono" font-size="11" font-weight="600">payout.approved</text>
-  <text x="300" y="648" class="d">terminal decision, on the record</text>
+  <!-- proposal → policy gate → approved -->
+  <line x1="290" y1="582" x2="290" y2="600" class="flow"/>
+  <text x="300" y="596" class="d mono" font-size="10.5">payout.proposed — what the society WANTS</text>
+
+  <rect x="110" y="603" width="360" height="92" rx="10" fill="#ffffff" stroke="#92400e" stroke-width="1.5" filter="url(#ps)"/>
+  <text x="130" y="627" class="t" fill="#92400e">Policy Gate</text>
+  <text x="130" y="644" class="d mono">policy.py · orchestrator._promote()</text>
+  <rect x="243" y="612" width="215" height="20" rx="5" fill="rgba(180,83,9,.10)"/>
+  <text x="350" y="626" fill="#92400e" font-size="9.5" font-weight="700" text-anchor="middle">VETO-ONLY · refuses, never approves</text>
+  <text x="130" y="666" class="s">promote → <tspan class="mono" fill="#047857">payout.approved</tspan></text>
+  <text x="130" y="684" class="s">refuse → <tspan class="mono" fill="#b91c1c">policy.blocked</tspan> + payout.rejected</text>
+
+  <line x1="290" y1="695" x2="290" y2="712" class="flowT"/>
+  <text x="300" y="709" class="teal mono" font-size="10.5" font-weight="600">payout.approved — terminal, on the record</text>
 
   <!-- verasettle -->
   <rect x="110" y="715" width="360" height="110" rx="10" class="panel"/>

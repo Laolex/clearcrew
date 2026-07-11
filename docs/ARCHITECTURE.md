@@ -2,9 +2,16 @@
 
 ![ClearCrew v1 architecture](diagrams/architecture.svg)
 
-One page. The architecture *is* the thesis: **Decisions → History → Execution → Evidence**.
+One page. The architecture *is* the thesis:
+**Proposals → Governance → History → Execution → Evidence**.
 There is no "AI cloud" in the middle — every box below is a file in this repo or a
 recorded event you can replay.
+
+> **Trust invariant.** Agents never decide; they *propose*. The only path from a
+> proposal to a recorded decision runs through the deterministic policy gate,
+> and the gate may only ever **refuse**. An approval that P1/P2/P3 forbid cannot
+> exist in the log — not as a bug to be caught later, but as a state the system
+> cannot represent.
 
 ```text
                                     USERS
@@ -34,15 +41,31 @@ recorded event you can replay.
    │  intake      · compliance  │          │  runs/results-*.json        │
    │  treasury    · resolution  │          │  sha256 hash chain          │
    │  auditor     + orchestrator│          │  (prev_hash → event_hash)   │
-   │       Qwen models (llm.py) │          └──────────────┬──────────────┘
-   │       Policy v1 (policy.py)│                         │ fold(events)
-   └────────────┬───────────────┘                         ▼
-                │                          ┌─────────────────────────────┐
-                │ payout.approved          │ Replay / Explain /          │
-                │ (terminal decision       │ Counterfactual engine       │
-                │  on the record)          │ state = fold(events);       │
-                ▼                          │ replay ≠ recompute          │
-   ┌────────────────────────────┐          └─────────────────────────────┘
+   │       Qwen models (llm.py) │          │                             │
+   └────────────┬───────────────┘          │  chain.anchored ───────────────▶ RFC-3161 TSA
+                │                          │  the head hash, signed by   │    (anchor.py)
+                │ payout.proposed          │  an independent authority   │    freetsa · digicert
+                │ (what the society WANTS, │                             │    · sectigo
+                │  not yet a decision)     └──────────────┬──────────────┘
+                ▼                                         │ fold(events)
+   ┌────────────────────────────┐                         ▼
+   │       POLICY GATE          │          ┌─────────────────────────────┐
+   │  (policy.py + _promote)    │          │  Replay / Explain /         │
+   │                            │          │  Counterfactual engine      │
+   │  promote → payout.approved │          │  state = fold(events);      │
+   │  refuse  → policy.blocked  │          │  replay ≠ recompute         │
+   │          + payout.rejected │          └─────────────────────────────┘
+   │                            │
+   │  VETO-ONLY: it can refuse  │
+   │  an approval, never make   │
+   │  one. The reserve floor is │
+   │  an invariant, not a grade │
+   └────────────┬───────────────┘
+                │ payout.approved
+                │ (terminal decision
+                │  on the record)
+                ▼
+   ┌────────────────────────────┐
    │     Verasettle Engine      │
    │     (settlement.py)        │
    │  non-custodial USDC payout │
