@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 800" font-family="'IBM Plex Sans','Segoe UI',-apple-system,sans-serif">
+  <defs>
+    <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0 0L10 5L0 10z" fill="#8a93a3"/>
+    </marker>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="1" fill="#e0ddd2"/>
+    </pattern>
+    <filter id="ps" x="-8%" y="-8%" width="116%" height="124%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="3" flood-color="#17211c" flood-opacity=".08"/>
+    </filter>
+    <linearGradient id="tealbar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0b766b"/><stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .panel { fill:#ffffff; stroke:#e3e1d6; filter:url(#ps); }
+    .t   { fill:#17211c; font-size:15px; font-weight:600; }
+    .s   { fill:#4d5560; font-size:12px; }
+    .d   { fill:#667080; font-size:11px; }
+    .mono{ font-family:'IBM Plex Mono','SF Mono',Consolas,monospace; }
+    .ent { fill:#17211c; font-size:13.5px; font-weight:700; letter-spacing:.04em; }
+    .lbl { fill:#667080; font-size:10px; letter-spacing:.12em; font-weight:700; }
+    .num { fill:#8a93a3; font-size:10px; font-weight:700; }
+    .teal{ fill:#0b766b; }
+    .flow{ stroke:#8a93a3; stroke-width:1.6; fill:none; marker-end:url(#arr); stroke-linecap:round; }
+  </style>
+
+  <rect width="960" height="800" fill="#f7f6f2"/>
+  <rect width="960" height="800" fill="url(#dots)"/>
+  <rect x="0" y="0" width="960" height="3" fill="url(#tealbar)"/>
+
+  <text x="40" y="44" class="t" font-size="13">ClearCrew <tspan fill="#9aa2b1">· system documentation</tspan></text>
+  <text x="920" y="44" text-anchor="end" class="teal" font-size="11" font-weight="600">the event is the only write</text>
+  <line x1="40" y1="58" x2="920" y2="58" stroke="#e3e1d6"/>
+  <text x="40" y="96" fill="#17211c" font-size="26" font-weight="700" letter-spacing="-.02">data model</text>
+  <text x="40" y="118" class="s">seven entities — everything else is a fold over the event log</text>
+
+  <!-- entities -->
+  <g>
+    <circle cx="250" cy="168" r="11" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/><text x="250" y="172" class="num" text-anchor="middle">1</text>
+    <rect x="280" y="144" width="440" height="50" rx="9" class="panel"/>
+    <text x="300" y="167" class="ent">RUN</text>
+    <text x="300" y="185" class="d mono" font-size="10.5">runs/events-{stamp}-n{N}.jsonl (+ results-*.json when benchmarked)</text>
+    <line x1="500" y1="194" x2="500" y2="216" class="flow"/>
+    <text x="512" y="211" class="d mono">1 : N</text>
+
+    <circle cx="250" cy="243" r="11" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/><text x="250" y="247" class="num" text-anchor="middle">2</text>
+    <rect x="280" y="219" width="440" height="50" rx="9" class="panel"/>
+    <text x="300" y="242" class="ent">PAYOUT</text>
+    <text x="300" y="260" class="d">amount · corridor · recipient age · memo · expected (policy ground truth)</text>
+    <line x1="500" y1="269" x2="500" y2="291" class="flow"/>
+    <text x="512" y="286" class="d mono">1 : N — its slice of the run’s global chain</text>
+
+    <circle cx="250" cy="326" r="11" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/><text x="250" y="330" class="num" text-anchor="middle">3</text>
+    <rect x="280" y="294" width="440" height="64" rx="9" class="panel"/>
+    <text x="300" y="317" class="ent">EVENT</text>
+    <text x="300" y="335" class="d mono" font-size="10.5">id · ts · type · subject · actor · payload (verbatim reason)</text>
+    <text x="300" y="351" class="teal mono" font-size="10.5" font-weight="600">prev_hash · event_hash</text>
+    <line x1="500" y1="358" x2="500" y2="380" class="flow"/>
+    <text x="512" y="375" class="teal" font-size="10.5" font-weight="600">every event commits to its predecessor</text>
+
+    <circle cx="250" cy="408" r="11" fill="rgba(13,148,136,.12)" stroke="#0b766b" stroke-width="2"/><text x="250" y="412" class="num teal" text-anchor="middle">4</text>
+    <rect x="280" y="383" width="440" height="50" rx="9" fill="#ffffff" stroke="#0b766b" filter="url(#ps)"/>
+    <text x="300" y="406" class="ent teal">HASH CHAIN</text>
+    <text x="300" y="424" class="d mono" font-size="10.5">sha256(canonical JSON incl. prev_hash) — genesis-anchored, run-global</text>
+    <line x1="500" y1="433" x2="500" y2="455" class="flow"/>
+    <text x="512" y="450" class="d">approved payouts only</text>
+
+    <circle cx="250" cy="490" r="11" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/><text x="250" y="494" class="num" text-anchor="middle">5</text>
+    <rect x="280" y="458" width="440" height="64" rx="9" class="panel"/>
+    <text x="300" y="481" class="ent">SETTLEMENT</text>
+    <text x="300" y="499" class="d mono" font-size="10.5">settlement.requested → settlement.confirmed</text>
+    <text x="300" y="515" class="d mono" font-size="10.5">source USD · settled USDC · scale · chain · tx_hash (receipt)</text>
+    <line x1="500" y1="522" x2="500" y2="544" class="flow"/>
+    <text x="512" y="539" class="d">assembled on demand — never stored separately</text>
+
+    <circle cx="250" cy="571" r="11" fill="#ffffff" stroke="#cfd4dc" stroke-width="2"/><text x="250" y="575" class="num" text-anchor="middle">6</text>
+    <rect x="280" y="547" width="440" height="50" rx="9" class="panel"/>
+    <text x="300" y="570" class="ent">EVIDENCE PACK</text>
+    <text x="300" y="588" class="d mono" font-size="10.5">GET /api/runs/{run}/explain/{payout} → JSON / PDF</text>
+  </g>
+
+  <!-- lifecycle -->
+  <text x="40" y="650" class="lbl">EVENT LIFECYCLE</text>
+  <g font-size="11.5">
+    <rect x="40"  y="664" width="126" height="40" rx="8" fill="#ffffff" stroke="#e3e1d6"/><text x="103" y="689" text-anchor="middle" class="s" font-weight="600">created</text>
+    <line x1="166" y1="684" x2="188" y2="684" class="flow"/>
+    <rect x="192" y="664" width="126" height="40" rx="8" fill="#ffffff" stroke="#e3e1d6"/><text x="255" y="689" text-anchor="middle" class="s" font-weight="600">recorded</text>
+    <line x1="318" y1="684" x2="340" y2="684" class="flow"/>
+    <rect x="344" y="664" width="126" height="40" rx="8" fill="rgba(13,148,136,.08)" stroke="#0b766b"/><text x="407" y="689" text-anchor="middle" class="teal" font-weight="700">verified</text>
+    <line x1="470" y1="684" x2="492" y2="684" class="flow"/>
+    <rect x="496" y="664" width="126" height="40" rx="8" fill="#ffffff" stroke="#e3e1d6"/><text x="559" y="689" text-anchor="middle" class="s" font-weight="600">replayed</text>
+    <line x1="622" y1="684" x2="644" y2="684" class="flow"/>
+    <rect x="648" y="664" width="126" height="40" rx="8" fill="#ffffff" stroke="#e3e1d6"/><text x="711" y="689" text-anchor="middle" class="s" font-weight="600">explained</text>
+    <line x1="774" y1="684" x2="796" y2="684" class="flow"/>
+    <rect x="800" y="664" width="120" height="40" rx="8" fill="#ffffff" stroke="#e3e1d6"/><text x="860" y="689" text-anchor="middle" class="s" font-weight="600">exported</text>
+  </g>
+
+  <line x1="40" y1="742" x2="920" y2="742" stroke="#e3e1d6"/>
+  <text x="40" y="768" class="s" font-weight="600">There is no second database to disagree with the record.</text>
+  <text x="920" y="768" text-anchor="end" class="d mono">docs/DATA_MODEL.md</text>
+</svg>

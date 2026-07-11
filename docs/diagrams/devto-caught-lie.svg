@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 620" font-family="'IBM Plex Sans','Segoe UI',-apple-system,sans-serif">
+  <defs>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="11" cy="11" r="1" fill="#e0ddd2"/>
+    </pattern>
+    <filter id="ps" x="-8%" y="-8%" width="116%" height="124%">
+      <feDropShadow dx="0" dy="1.5" stdDeviation="3" flood-color="#17211c" flood-opacity=".08"/>
+    </filter>
+    <linearGradient id="tealbar" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#0b766b"/><stop offset="1" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#cfd4dc"/><stop offset=".55" stop-color="#b91c1c"/><stop offset="1" stop-color="#047857"/>
+    </linearGradient>
+  </defs>
+  <style>
+    .panel { fill:#ffffff; stroke:#e3e1d6; filter:url(#ps); }
+    .t   { fill:#17211c; font-size:15px; font-weight:600; }
+    .s   { fill:#4d5560; font-size:12.5px; }
+    .d   { fill:#667080; font-size:11px; }
+    .mono{ font-family:'IBM Plex Mono','SF Mono',Consolas,monospace; }
+    .chip{ font-size:9.5px; font-weight:700; letter-spacing:.07em; }
+    .etype { fill:#17211c; font-size:12.5px; font-weight:600; }
+    .lbl { fill:#667080; font-size:10px; letter-spacing:.12em; font-weight:700; }
+    .quote { fill:#4d5560; font-size:12px; font-style:italic; }
+    .teal{ fill:#0b766b; } .red{ fill:#b91c1c; } .green{ fill:#047857; }
+  </style>
+
+  <rect width="960" height="620" fill="#f7f6f2"/>
+  <rect width="960" height="620" fill="url(#dots)"/>
+  <rect x="0" y="0" width="960" height="3" fill="url(#tealbar)"/>
+
+  <text x="40" y="44" class="t" font-size="13">ClearCrew <tspan fill="#9aa2b1">· recorded run, verbatim</tspan></text>
+  <text x="920" y="44" text-anchor="end" class="d mono">payout 5affb229 · $5,000 US→PH</text>
+  <line x1="40" y1="58" x2="920" y2="58" stroke="#e3e1d6"/>
+  <text x="40" y="96" fill="#17211c" font-size="25" font-weight="700" letter-spacing="-.02">the system caught its own agent’s lie</text>
+  <text x="40" y="118" class="s">five events. nobody prompted the Auditor to look. this is the raw chain.</text>
+
+  <line x1="70" y1="150" x2="70" y2="500" stroke="url(#rail)" stroke-width="2.5"/>
+
+  <!-- 1 intake -->
+  <circle cx="70" cy="168" r="5.5" fill="#f7f6f2" stroke="#1d4ed8" stroke-width="2.5"/>
+  <rect x="92" y="146" width="828" height="46" rx="9" class="panel"/>
+  <rect x="110" y="159" width="52" height="17" rx="4" fill="rgba(29,78,216,.08)"/>
+  <text x="136" y="171" class="chip" fill="#1d4ed8" text-anchor="middle">INTAKE</text>
+  <text x="172" y="171" class="etype mono">intake.classified</text>
+  <text x="172" y="186" class="d">risk tier <tspan font-weight="600">high</tspan> — new recipient account, worth scrutiny</text>
+
+  <!-- 2 compliance: CORRECT -->
+  <circle cx="70" cy="228" r="6" fill="#f7f6f2" stroke="#6d28d9" stroke-width="2.5"/>
+  <rect x="92" y="206" width="828" height="60" rx="9" class="panel"/>
+  <rect x="110" y="219" width="82" height="17" rx="4" fill="rgba(109,40,217,.09)"/>
+  <text x="151" y="231" class="chip" fill="#6d28d9" text-anchor="middle">COMPLIANCE</text>
+  <text x="202" y="231" class="etype mono">compliance.reviewed</text>
+  <rect x="368" y="219" width="52" height="17" rx="4" fill="rgba(5,150,105,.10)"/>
+  <text x="394" y="231" class="chip green" text-anchor="middle">CLEAR</text>
+  <text x="110" y="253" class="quote">“amount is 5,000 USD, below the 9,000 USD threshold… noted for audit per P4 but not grounds for rejection.”</text>
+  <text x="902" y="231" class="green" font-size="13" font-weight="700" text-anchor="end">✓ correct</text>
+
+  <!-- 3 treasury: THE LIE -->
+  <circle cx="70" cy="300" r="7" fill="#b91c1c" stroke="#b91c1c" stroke-width="2.5"/>
+  <rect x="92" y="278" width="828" height="66" rx="9" fill="#fdf4f4" stroke="#b91c1c" stroke-width="1.5" filter="url(#ps)"/>
+  <rect x="110" y="291" width="70" height="17" rx="4" fill="rgba(126,34,206,.09)"/>
+  <text x="145" y="303" class="chip" fill="#7e22ce" text-anchor="middle">TREASURY</text>
+  <text x="190" y="303" class="etype mono">treasury.decided</text>
+  <rect x="318" y="291" width="58" height="17" rx="4" fill="rgba(185,28,28,.10)"/>
+  <text x="347" y="303" class="chip red" text-anchor="middle">REJECT</text>
+  <text x="110" y="326" class="quote" fill="#b91c1c">“P2 violation: amount &gt;= 9000 USD”</text>
+  <text x="360" y="326" class="s" font-weight="700" fill="#b91c1c">— on a $5,000 payout.</text>
+  <text x="560" y="326" class="d">hallucinated a rule that wasn’t even its job to apply</text>
+  <text x="902" y="303" class="red" font-size="13" font-weight="700" text-anchor="end">✗ the lie</text>
+
+  <!-- 4 orchestrator -->
+  <circle cx="70" cy="378" r="5.5" fill="#f7f6f2" stroke="#b91c1c" stroke-width="2.5"/>
+  <rect x="92" y="356" width="828" height="44" rx="9" class="panel"/>
+  <rect x="110" y="369" width="98" height="17" rx="4" fill="rgba(185,28,28,.08)"/>
+  <text x="159" y="381" class="chip red" text-anchor="middle">ORCHESTRATOR</text>
+  <text x="218" y="381" class="etype mono">payout.rejected</text>
+  <text x="380" y="381" class="d">a correct clearance, overridden</text>
+
+  <!-- 5 auditor: THE CATCH -->
+  <circle cx="70" cy="452" r="7" fill="#047857" stroke="#047857" stroke-width="2.5"/>
+  <rect x="92" y="412" width="828" height="80" rx="9" fill="#f2faf7" stroke="#047857" stroke-width="1.5" filter="url(#ps)"/>
+  <rect x="110" y="428" width="62" height="17" rx="4" fill="rgba(5,150,105,.12)"/>
+  <text x="141" y="440" class="chip green" text-anchor="middle">AUDITOR</text>
+  <text x="182" y="440" class="etype mono">audit.explained</text>
+  <rect x="330" y="428" width="112" height="17" rx="4" fill="rgba(5,150,105,.12)"/>
+  <text x="386" y="440" class="chip green" text-anchor="middle">UNPROMPTED CATCH</text>
+  <text x="110" y="465" class="quote" fill="#047857">“…Treasury ultimately rejected the transaction due to an <tspan font-weight="700" font-style="normal">incorrect determination</tspan> that the amount</text>
+  <text x="110" y="482" class="quote" fill="#047857">violated the P2 policy limit.”</text>
+
+  <!-- the point -->
+  <rect x="40" y="516" width="880" height="58" rx="10" fill="#efede6" stroke="#e3e1d6"/>
+  <text x="60" y="540" class="s" font-weight="700">The monolith made errors that night too — but they were <tspan fill="#b91c1c">silent</tspan>.</text>
+  <text x="60" y="561" class="d">No trail, no attribution, no way to ask why. Here, the trail didn’t just explain the failure — it prescribed the fix.</text>
+
+  <text x="920" y="600" text-anchor="end" class="d mono">clearcrew.verasettle.com · replay it yourself</text>
+</svg>

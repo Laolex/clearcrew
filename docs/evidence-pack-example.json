@@ -1,0 +1,140 @@
+{
+    "subject": "1818e811",
+    "payout": {
+        "id": "1818e811",
+        "amount": 9800.0,
+        "currency": "USD",
+        "from_country": "US",
+        "to_country": "PH",
+        "recipient_age_days": 30,
+        "memo": "contract work",
+        "_expected": "approve"
+    },
+    "verification": {
+        "hashed": true,
+        "verified": true,
+        "events": 41,
+        "broken_at": null
+    },
+    "chain": [
+        {
+            "id": "ad5a021a15eb",
+            "ts": 1783195128.5273259,
+            "type": "intake.classified",
+            "subject": "1818e811",
+            "actor": "intake",
+            "payload": {
+                "risk_tier": "low",
+                "reason": "Destination country (PH) is not sanctioned. Amount (9800.0 USD) is >= 9,000 but recipient account age (30 days) exceeds the 7-day threshold. No policy violations found.",
+                "flags": []
+            },
+            "prev_hash": "33e2e9c1a36495ee21d61059c692728c54562250973ba192b817eb65eaf33641",
+            "event_hash": "9b46a4ce707728257ef3a040a6049605268469f4ff1b57663fc3b0eba7826c74",
+            "t_offset": 3.87
+        },
+        {
+            "id": "59e245e6ea4b",
+            "ts": 1783195128.8367946,
+            "type": "compliance.fast_tracked",
+            "subject": "1818e811",
+            "actor": "orchestrator",
+            "payload": {},
+            "prev_hash": "9d4bcf0b6b62c34a9135835965e3c903c88125e7bb781cf6830b451fad70f055",
+            "event_hash": "25097c54e998fbe0fd41abbe6e0cd2b246dd8ef8557e30b34112b534d90dd2fe",
+            "t_offset": 4.18
+        },
+        {
+            "id": "144faeb6b2db",
+            "ts": 1783195165.1447444,
+            "type": "treasury.decided",
+            "subject": "1818e811",
+            "actor": "treasury",
+            "payload": {
+                "payout_id": "1818e811",
+                "action": "pay_now",
+                "reason": "Cumulative total 11500.0 <= headroom 90000.0"
+            },
+            "prev_hash": "ae97f8cfba20da35c96dede1037ac2792015441aef9fcdb2cdddfce5ec6c3f93",
+            "event_hash": "dc4cbb5935e895d0b909f4ab13ea00d19ea1095718fc980c4271e84a042e025d",
+            "t_offset": 40.49
+        },
+        {
+            "id": "0c54cd4806d5",
+            "ts": 1783195200.0340784,
+            "type": "payout.approved",
+            "subject": "1818e811",
+            "actor": "orchestrator",
+            "payload": {},
+            "prev_hash": "9c2ac79ac69461b6e46b490974f08d3366f10c86cce8cb8f969bcd4239ba5805",
+            "event_hash": "73fce09dc695fe65e6a2b8f3c03acb87114c4e410911cdcb5435d8e172cd04ae",
+            "t_offset": 75.37
+        },
+        {
+            "id": "42bd9ed2f4f7",
+            "ts": 1783195202.3996885,
+            "type": "audit.explained",
+            "subject": "1818e811",
+            "actor": "auditor",
+            "payload": {
+                "explanation": "The payout was fast-tracked for compliance because the recipient's account age exceeded the risk threshold and the destination country is not sanctioned. Treasury approved the immediate payment since the cumulative total remained well within the available headroom."
+            },
+            "prev_hash": "9ffe165fe7d97cc78d45ad168e8c6744a69451bff828c121f44237f8d8bd139c",
+            "event_hash": "eaaccdb234b57d6773ce29fd446c24cff8e7ab673a5b232f7a146cd21e2238a0",
+            "t_offset": 77.74
+        },
+        {
+            "id": "dab7cf8db1e2",
+            "ts": 1783195228.7043986,
+            "type": "settlement.requested",
+            "subject": "1818e811",
+            "actor": "orchestrator",
+            "payload": {
+                "rail": "verasettle-sandbox",
+                "source_amount_usd": 9800.0,
+                "settled_amount_usdc": 0.98,
+                "scale": "1:10000 testnet conversion",
+                "chain": "BASE-SEPOLIA"
+            },
+            "prev_hash": "7c0a3714109ac0d448ea287f1e2ba73c2f6c8a5084959d59b17d56ea83655356",
+            "event_hash": "b0878f48ff634387e458fd53aafab489c8fc6de47e550aa4ed9fecd024e53278",
+            "t_offset": 104.05
+        },
+        {
+            "id": "36b2b518c415",
+            "ts": 1783195243.7455797,
+            "type": "settlement.confirmed",
+            "subject": "1818e811",
+            "actor": "verasettle",
+            "payload": {
+                "rail": "verasettle-sandbox",
+                "verasettle_batch": "cmr6secdk009krskdz86jv6g2",
+                "verasettle_item": "cmr6secdl009mrskdqjtnuu4i",
+                "source_amount_usd": 9800.0,
+                "settled_amount_usdc": 0.98,
+                "scale": "1:10000 testnet conversion (recorded, not implied)",
+                "chain": "BASE-SEPOLIA",
+                "tx_hash": "0x79114919574462918c0a5003b15eac665fd678fd9988f9caca76a610af3110e5",
+                "explorer": "https://sepolia.basescan.org/tx/0x79114919574462918c0a5003b15eac665fd678fd9988f9caca76a610af3110e5",
+                "receipt_id": "cmr6sekwh00a2rskdbq4ichh7",
+                "receipt_content_hash": "3ea4a619533e8724e148a6f65ad26341ba7eeaae16d2077fd01e9fb658794414"
+            },
+            "prev_hash": "b0878f48ff634387e458fd53aafab489c8fc6de47e550aa4ed9fecd024e53278",
+            "event_hash": "7c6f9c82fcd71eae95f6231a9dbbf747d26ca5f11a8a1f8bb4e6d0fab06ff994",
+            "t_offset": 119.09
+        },
+        {
+            "id": "ddbc95e73f38",
+            "ts": 1783195243.745734,
+            "type": "payout.settled",
+            "subject": "1818e811",
+            "actor": "orchestrator",
+            "payload": {
+                "tx_hash": "0x79114919574462918c0a5003b15eac665fd678fd9988f9caca76a610af3110e5",
+                "chain": "BASE-SEPOLIA"
+            },
+            "prev_hash": "7c6f9c82fcd71eae95f6231a9dbbf747d26ca5f11a8a1f8bb4e6d0fab06ff994",
+            "event_hash": "4c23c93b11592089b1e6292aa628e9a3ae67cf7a6357ea3e6eb0a18b788cb868",
+            "t_offset": 119.09
+        }
+    ]
+}
