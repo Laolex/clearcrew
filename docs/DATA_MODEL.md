@@ -80,8 +80,23 @@ Two properties do the heavy lifting:
 | `compliance.reviewed` | compliance | clear or veto, rule cited |
 | `treasury.decided` | treasury | pay_now / reject vs reserve headroom |
 | `dispute.resolved` | resolution | ruling on a veto, argued on the record |
-| `payout.approved` / `payout.rejected` | orchestrator | the terminal decision (exactly one per payout) |
+| `payout.proposed` | treasury / compliance / resolution | **what the society wants to do — not yet a decision.** The unit the benchmark grades |
+| `policy.blocked` | policy | **an approval the gate refused** (P1/P2/P3). The agent's intent survives; only its effect is denied |
+| `payout.approved` / `payout.rejected` | orchestrator | the terminal decision (exactly one per payout) — reachable *only* through the gate |
 | `settlement.requested` / `settlement.confirmed` | orchestrator / verasettle | rail call and receipt (tx hash) |
 | `payout.settled` | orchestrator | decision → money, linked |
 | `audit.explained` | auditor | plain-language narrative |
 | `reconciliation.flagged` | auditor | recorded anomaly, attributed |
+| `chain.anchored` | anchor | the head hash, signed by an independent RFC-3161 authority |
+| `chain.anchor_failed` | anchor | an anchor that did **not** succeed — recorded as a failure, never as a success |
+
+Counts across the 21 archived runs: 372 `payout.proposed`, 354 `payout.approved`,
+228 `payout.rejected`, 11 `chain.anchored`, 0 `chain.anchor_failed`.
+
+**Why `payout.proposed` and `payout.approved` are different events.** Collapsing
+them would destroy two things at once: the ability to grade the *agents* (after a
+gate, terminal decisions agree with policy by construction, so scoring them would
+read 100% forever) and the ability to see an agent's rejected intent at all. The
+proposal is what the society judged; the terminal decision is what governance
+allowed. Recording only the second would be a system that quietly hides its own
+near-misses.

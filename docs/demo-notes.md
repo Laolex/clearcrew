@@ -87,11 +87,71 @@ arithmetic, so the orchestrator reconciles every treasury action against the
 ledger; mismatches become recorded `reconciliation.flagged` disputes ruled on by
 Resolution.
 
-Final run (`runs/events-20260702-210640-n36.jsonl`): society **100%**, monolith
-89%, hash chain verified across all 179 events. The reconciliation guard was
-armed and did not need to fire — Treasury, with the ledger, got it right.
+Final run of that ladder (`runs/events-20260702-210640-n36.jsonl`): society
+**100%**, monolith 89%, hash chain verified across all 179 events. The
+reconciliation guard was armed and did not need to fire.
 
-## SHOOT LIST — exactly what to record (~3:00 total)
+## Act 4 — ten runs, and the number we were reporting was the wrong one
+
+One run is an anecdote, so we ran the final architecture ten times
+(`scripts/bench_repeat.sh 10`).
+
+| | mean | sd | min | max |
+|---|---|---|---|---|
+| society (proposals) | **100.0%** | 0.0% | 100.0% | 100.0% |
+| monolith | 87.5% | 5.4% | **72.2%** | 91.7% |
+
+Then we folded each system's own decisions into the treasury — and the accuracy
+column turned out to have been hiding the result:
+
+| | society | monolith |
+|---|---|---|
+| closing balance | **+$15,540**, every run | **negative, every run** |
+| worst run | +$15,540 | **−$113,660** |
+| reserve floor breached | **0 / 10** | **10 / 10** |
+
+The single agent overdraws the treasury in **every run it has ever been given**.
+And its *best* accuracy run (91.7%) closed at **−$9,460** — worse than four of
+its 88.9% runs. **Accuracy went up while the outcome got worse**, because which
+payouts you get wrong matters more than how many.
+
+Its failure is structural, not noisy: the same four payouts, every stable run.
+It approves *both* $15,000 P3 payouts — the reserve floor being the one rule that
+cannot be judged one payout at a time — and rejects two clean $5,000 payouts by
+over-applying P2 (which only bites at ≥ $9,000). A single agent reasoning locally
+is blind to the only globally-scoped rule.
+
+## Act 5 — the fix: agents propose, policy promotes
+
+Grading after the fact tells you that you lost the money. So the policy layer
+stopped grading and started **gating**: agents emit `payout.proposed`, and only
+`orchestrator._promote()` can turn that into a terminal decision — and it may
+only ever **refuse**. An approval that P1/P2/P3 forbids is recorded as
+`policy.blocked` and the payout is rejected.
+
+The reserve floor is therefore an **invariant, not a benchmark result**. The run
+that overdrew by $24,460 is no longer expressible.
+
+**Say this plainly on camera:** in all ten benchmark runs the gate blocked
+*nothing*, because the agents proposed correctly every time. That is not a
+weakness — a seatbelt that never deploys is still doing its job — but claiming it
+fires would be exactly the dishonesty this project exists to kill. Show the
+adversarial test instead (`test_reserve_floor_is_an_invariant_not_a_grade`): a
+society that proposes to approve *everything*, and the floor holds anyway.
+
+## Act 6 — and the chain is now anchored outside itself
+
+A hash chain is computed by the process that writes the log, so anyone who can
+rewrite the file can rewrite the hashes and verify clean. Hash chaining alone is
+tamper-*evident*, not tamper-*proof* — and we used to blur that.
+
+Now every run's head hash is signed by an independent RFC-3161 Time Stamping
+Authority (`chain.anchored`). To rewrite an anchored run you would have to forge
+freetsa.org's signature. All 11 post-gate runs carry a token that verifies
+against their own recorded head — and you can check it with `openssl`, not with
+our code.
+
+## SHOOT LIST — exactly what to record (~3:30 total)
 
 Setup once: 1920×1080 display, browser at 100% zoom, bookmarks bar hidden,
 one tab, record https://clearcrew.verasettle.com (the LIVE deploy — judges may
@@ -101,55 +161,44 @@ Record screen+voice in one take per shot; stitch after.
 | # | time | on screen | you do | you say (gist) |
 |---|---|---|---|---|
 | 1 | 0:00–0:15 | `docs/thumbnail.png` full-screen | nothing | "ClearCrew: five Qwen agents run payout operations. Agents decide, history verifies, money moves. All three are real — here's the proof." |
-| 2 | 0:15–0:35 | README **headline run** table (scroll to it on GitHub) | hover the 100% and 89% rows | "Same batch, same policy, same models. At n=12 everyone's perfect. At n=36 the single agent silently overdraws the treasury AND strands clean payouts — 89%. The society: 100%." |
-| 3 | 0:35–1:00 | `docs/accountable-failure.png` full-screen | pause on left panel, then right | "Both systems once wrongly rejected this same $5,000 payout. We tried to replay the monolith's decision — we couldn't; it never recorded why. The society's failure came with a name, a rule, and a fix. Failure that can be explained is failure that can be repaired." |
-| 4 | 1:00–1:30 | live site → deep link `#events-20260702-152154-n36.jsonl/5affb229` | step with → key through all 5 events, land on the green auditor card | "Watch the recorded trail: compliance clears it, Treasury hallucinates a violation — and the society's own Auditor catches the error in-band, unprompted. That told us which agent to fix." |
-| 5 | 1:30–1:50 | deep link `#events-20260702-205623-n36.jsonl/62c33a4f` | step to Treasury's event, hover the reason text | "Best artifact in the repo. Treasury's reasoning ends 'Reject.' Its action field says pay_now. Machine-checkable contradiction — so now code flags, agents rule: every treasury action is reconciled against the ledger." |
-| 6 | 1:50–2:10 | deep link `#events-20260702-210640-n36.jsonl` (headline run) | point at green ⛓ badge; open any payout, press Play, let it run to the assertions | "Final run: 100 percent, hash chain verified across 179 events. Every replay ends with these three checks — reconstructed, verified, matches policy. Nothing on this screen is staged." |
-| 7 | 2:10–2:30 | same run, ⑂ counterfactual panel | type 40000 in reserve floor, click Replay, point at the 3 flips | "History is executable. Fold the same recorded batch through next quarter's policy: three payouts flip, rule P3, recorded outcomes untouched. Not prediction — arithmetic over history." |
-| 8 | 2:30–2:55 | deep link `#events-20260703-165045-settled-n6.jsonl/1818e811` | step to the teal VERASETTLE event, **click the tx link**, let Basescan load | "And verdicts move money. This $9,800 approval executed as real testnet USDC through Verasettle — the tx hash is on Base Sepolia, the receipt lives in the same tamper-evident chain as the reasoning that caused it. Decision to movement, one verifiable history." |
-| 9 | 2:55–3:00 | back to the UI on **SETTLED ON-CHAIN** state bar | nothing | "ClearCrew — clearcrew.verasettle.com. Nothing staged." (end card: repo URL) |
+| 2 | 0:15–0:40 | README ten-run table + treasury table | hover the monolith's **91.7%** row, then its **−$9,460** | "Same batch, same policy, same models, ten runs. But look at this: the single agent's BEST run lost the most money. Accuracy went up, the outcome got worse. So we stopped counting percentages." |
+| 3 | 0:40–1:05 | README treasury table | hover **10 / 10 breached** and **−$113,660** | "Folded into the treasury: the single agent overdraws in ten runs out of ten. Once by more than the entire opening balance. The society: zero out of ten." |
+| 4 | 1:05–1:35 | live site → Operations → **eval bar** | click *fold the batch*, let the bar drain and hold above the red floor line | "This is the treasury falling as each recorded decision lands. Watch it stop — floor held, fifteen thousand five hundred and forty left." |
+| 5 | 1:35–2:00 | switch run to `events-20260702-204555-n36.jsonl`, fold again | let the bar drain straight THROUGH the floor and turn red | "Now one of our own early runs. Straight through the floor — fourteen thousand overdrawn. We publish it. And the record says exactly why: Treasury judged each payout alone and never wrote down a running total." |
+| 6 | 2:00–2:20 | payout detail on a blocked payout (or the adversarial test in a terminal) | point at *Society proposed: approve → Policy gate: REFUSED — P1 → Decision: REJECTED* | "So agents stopped deciding. They propose. A deterministic gate promotes — or refuses, and the refusal goes on the record in the agent's own words. It can only ever refuse: if it could approve, the agents would be decorative." |
+| 7 | 2:20–2:35 | terminal: `pytest -k reserve_floor` | let it pass | "Here's a society that proposes to approve everything. The floor holds anyway. The reserve floor stopped being a score and became an invariant." |
+| 8 | 2:35–2:55 | deep link `#events-20260702-205623-n36.jsonl/62c33a4f` | step to Treasury's event, hover the reason text | "Best artifact in the repo. Treasury's reasoning ends 'Reject.' Its action field says pay_now. A machine-checkable contradiction, sitting in the record." |
+| 9 | 2:55–3:15 | a `chain.anchored` event, then terminal `openssl ts -verify …` → **Verification: OK** | let openssl print OK | "One more thing about that chain — we write it, so we could rewrite it. So we don't only trust ourselves: an independent authority signs our head hash with its own key. That's openssl checking it, not our code." |
+| 10 | 3:15–3:35 | deep link `#events-20260703-165045-settled-n6.jsonl/1818e811` | step to the teal VERASETTLE event, **click the tx link**, let Basescan load | "And verdicts move money. This $9,800 approval executed as real testnet USDC — the receipt lives in the same tamper-evident chain as the reasoning that caused it." |
+| 11 | 3:35–3:40 | back to the UI on **SETTLED ON-CHAIN** state bar | nothing | "ClearCrew — clearcrew.verasettle.com. Nothing staged." (end card: repo URL) |
 
-Highlight priorities if trimming: shots 2, 5, 8 are the ones judges must see
-(the number, the contradiction, the money). Shot 4 is the emotional core.
-Cut 7 first, then 3, never 8.
+Highlight priorities if trimming: **shots 2, 4, 5 are the video** — the wrong
+unit, the floor holding, the floor breaking. Then 9 (the anchor) and 10 (the
+money). Cut 8 first, then 7, never 5.
 
 ## Video beat sequence
 
-Slide asset: `docs/accountable-failure.png` — opaque-vs-accountable failure,
-real payout 5affb229 on both sides. Use it as the bridge between beats 3 and 4.
-
-1. Benchmark table n=12: 100% vs 100%. "At toy scale, everyone looks trustworthy."
-2. n=36: 100% vs 89%. "At real batch sizes the single agent fails silently in
-   both directions — it overdraws your treasury AND strands clean payouts."
-3. Monolith's mistake: show the decision. "We tried to replay the monolith's
-   decision. We couldn't. It never recorded why it chose what it chose — the
-   verdict was printed and discarded. That absence IS the problem." (True
-   story: until commit d2d747f the bench didn't even archive monolith
-   verdicts — only the society left anything behind to archive.)
-4. The society's earlier error: step through the 5-event trail. Land on the
-   auditor line catching Treasury's hallucination in-band.
-5. "The trail didn't just explain the error — it told us which agent to fix
-   (separation of duties) and then caught our own benchmark mislabeling correct
-   treasury behavior. History isn't a log. It's how the system gets better."
-6. The "but wait" screenshot: Treasury's reason ends "Reject." — its action says
-   pay_now. "The contradiction was sitting in the event, machine-checkable. Now
-   the orchestrator checks: code flags, agents rule."
-7. Replay Time Machine walkthrough on the final verified run: green ⛓ chain
-   badge, step to the end of a chain, land on the assertions —
-   "✓ reconstructed · ✓ chain verified · ✓ matches policy". Nothing staged.
-8. Counterfactual replay (`docs/counterfactual-replay.png`): open the
-   ⑂ panel on the verified run, set reserve floor to 40,000, click Replay.
-   Three $9,800 payouts flip approve→reject, rule P3, recorded outcomes
-   untouched. "History here isn't just a record — it's executable. What would
-   this batch have done under next quarter's policy? That's not prediction.
-   That's arithmetic over history."
-9. CLOSER — real money moves (`docs/settled-on-chain.png`, run
-   `events-20260703-165045-settled-n6.jsonl`, deep link `/1818e811`): step the
-   $9,800 payout to the end. Intake → fast-track → treasury ledger →
-   approved → auditor → settlement.requested → VERASETTLE
-   settlement.confirmed with a real Base Sepolia tx hash → SETTLED ON-CHAIN.
-   "These aren't simulated payouts. The society's verdicts execute as real
-   testnet USDC through Verasettle — and the settlement receipt lives in the
-   same tamper-evident history as the reasoning that caused it. Decision to
-   movement, one verifiable chain." Click the tx link to Basescan. End card.
+1. **The wrong unit.** Ten runs. The monolith's best accuracy run lost the most
+   money. "Accuracy went up. The outcome got worse."
+2. **The money.** Fold the decisions into the treasury: monolith overdraws
+   10/10, worst run −$113,660 — more than the whole opening balance. Society
+   0/10.
+3. **Why.** It approves BOTH P3 payouts and strands two clean $5,000s, the same
+   four every run. The reserve floor is the one rule you cannot check one payout
+   at a time. No single payout breaches it — the twenty-fourth one does.
+4. **The eval bar.** Fold the batch and watch the treasury fall. Society holds at
+   $15,540. Then run `20260702-204555` — one of OURS — and watch it go through
+   the floor to −$14,460. We publish our losses.
+5. **The trail repairs it.** Treasury said "sufficient balance" 24 times, each
+   time correctly, about one payout. The record didn't just explain the failure,
+   it prescribed the fix.
+6. **The gate.** Agents propose; policy promotes; the gate can only refuse. The
+   reserve floor becomes an invariant — the overdrawing run is no longer
+   expressible. (Be honest: in ten runs it blocked nothing. Show the adversarial
+   test instead.)
+7. **The anchor.** We write the chain, so we could rewrite it. An independent
+   RFC-3161 authority signs the head hash. Verify with `openssl`, not our code.
+8. **The money moves.** Real testnet USDC on Base Sepolia; receipt in the same
+   chain as the reasoning. Click through to Basescan.
+9. **Close.** "The single agent overdrew the treasury in ten runs out of ten, and
+   could not tell you why. ClearCrew doesn't — and now, it can't."
