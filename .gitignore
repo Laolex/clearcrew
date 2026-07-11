@@ -7,3 +7,5 @@ alibaba.env
 *.env
 PRODUCT.md
 DESIGN.md
+build/
+deploy/build/

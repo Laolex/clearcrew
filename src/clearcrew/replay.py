@@ -19,7 +19,7 @@ from dataclasses import replace
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from . import data, events as event_log, policy
 
@@ -434,3 +434,13 @@ def live_status(auth=Depends(require_auth)):
 @app.get("/", response_class=HTMLResponse)
 def index():
     return (STATIC_DIR / "index.html").read_text()
+
+
+@app.get("/img/{name}")
+def image(name: str):
+    """Diagram assets referenced by the README and the dev.to post."""
+    path = (STATIC_DIR / "img" / name).resolve()
+    if path.parent != (STATIC_DIR / "img").resolve() or not path.is_file():
+        raise HTTPException(status_code=404, detail="not found")
+    return FileResponse(path, media_type="image/png",
+                        headers={"Cache-Control": "public, max-age=86400"})
