@@ -71,6 +71,27 @@
   @media (hover: hover) and (pointer: fine) { #liveBtn:hover:not(:disabled) { border-color: var(--gold); } }
   #liveBtn.running:disabled { opacity: 1; animation: livePulse 1.6s ease-in-out infinite; }
   @keyframes livePulse { 50% { opacity: .55; } }
+  .livewrap { position: relative; margin-top: 4px; }
+  .livehint { color: var(--dim); font-size: 10.5px; line-height: 1.4; padding: 5px 12px 0; }
+
+  /* inline judge-code form replaces a native prompt() so a failed/incorrect
+     code reads as part of the instrument's own chrome, not a browser alert.
+     Absolutely positioned (rather than pushing layout) so it works identically
+     in the sidebar rail and the collapsed mobile top bar. */
+  #liveCodeForm { position: absolute; top: 100%; left: 0; z-index: 4; margin-top: 6px;
+    width: 272px; padding: 10px 10px 9px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 4px 16px rgba(23,33,28,.1); }
+  #liveCodeForm[hidden] { display: none; }
+  #liveCodeForm label { display: block; font-size: 10.5px; color: var(--dim); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: 5px; }
+  #liveCodeForm .row { display: flex; gap: 6px; }
+  #liveCodeInput { flex: 1; min-width: 0; background: var(--card); color: var(--ink); border: 1px solid var(--line);
+    border-radius: 5px; padding: 6px 8px; font: inherit; font-size: 12.5px; }
+  #liveCodeForm button { flex: none; font: inherit; font-size: 12px; border-radius: 5px; padding: 6px 11px; cursor: pointer; }
+  #liveCodeGo { background: var(--gold-soft); color: var(--gold); border: 1px solid var(--gold); font-weight: 600; }
+  #liveCodeCancel { background: transparent; color: var(--dim); border: 1px solid var(--line); }
+  #liveCodeErr { color: var(--red); font-size: 11.5px; margin-top: 6px; }
+  #liveCodeErr:empty { display: none; }
 
   /* structural collapse, not fluid shrink: below ~880px the 232px rail eats too
      much width (and the trustbar orphan-wraps), so the sidebar becomes a
@@ -83,15 +104,20 @@
     .side .wm { margin: 0 10px 0 0; white-space: nowrap; }
     .side .wmsub, .side .navgap { display: none; }
     .navlink { margin-bottom: 0; white-space: nowrap; flex: none; }
-    #liveBtn { width: auto; white-space: nowrap; margin-top: 0; flex: none; margin-left: 4px; }
+    .livewrap { margin-top: 0; margin-left: 4px; flex: none; }
+    #liveBtn { width: auto; white-space: nowrap; margin-top: 0; }
+    .livehint { display: none; }
+    #liveCodeForm { right: 0; left: auto; width: 220px; }
   }
 
   /* ---- main column ---- */
   .col { min-width: 0; display: flex; flex-direction: column; }
+  /* brand teal, but the AA-passing shade: #0d9488 measures 3.7:1 on white,
+     too weak for 11.5px text — --teal-strong clears 4.5:1. */
   .trustbar { position: sticky; top: 0; z-index: 3; background: var(--panel);
-    border-bottom: 1px solid var(--line); color: var(--dim); font-size: 11.5px;
+    border-bottom: 1px solid var(--line); color: var(--teal-strong); font-size: 11.5px;
     letter-spacing: .04em; padding: 7px 24px; display: flex; gap: 18px; flex-wrap: wrap; }
-  .trustbar b { color: var(--green); font-weight: 700; }
+  .trustbar b { color: var(--teal-strong); font-weight: 700; }
   .stage { padding: 22px 28px 64px; overflow-y: auto; }
   /* the summary pages (everything but Operations, which needs its full width
      for the 3-panel hero) are short — capping their measure keeps them
@@ -121,6 +147,7 @@
   .stat b.text { font-size: 15px; font-weight: 600; letter-spacing: 0; white-space: nowrap; }
   .stat.win b { color: var(--green); }
   .stat.chain-ok b { color: var(--green); }
+  .stat .spark { display: block; margin: 2px 0 4px; opacity: .85; }
 
   /* ---- chips ---- */
   .chip { font-size: 10.5px; font-weight: 600; letter-spacing: .04em; padding: 2.5px 8px;
@@ -156,11 +183,6 @@
      questions the panel answers, so they read as two groups, not one list. */
   .kvline.kvbreak { margin-top: 10px; padding-top: 15px; border-top: 1px solid var(--ink); border-top-color: color-mix(in srgb, var(--ink) 12%, transparent); }
 
-  .truststrip { display: flex; gap: 18px; flex-wrap: wrap; margin: 4px 0 14px; font-size: 13px; color: var(--muted); }
-  .truststrip span { white-space: nowrap; }
-  .truststrip .tc.ok { color: var(--green); font-weight: 700; }
-  .truststrip .tc.no { color: var(--dim); font-weight: 700; }
-
   /* Decision / Replay / Execution used to sit side by side as a 3-column
      grid that only reached 3-up past ~1550px of window width — everyone on
      a normal laptop got a stacked pile of three full panels instead. Tabs
@@ -177,10 +199,22 @@
 
   .payout-head { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; margin-bottom: 10px; }
   .payout-head h2 { font-size: 38px; font-weight: 700; letter-spacing: -.03em; }
+  .runsum { color: var(--muted); font-size: 12px; margin: -4px 0 12px; }
+  .runsum b { color: var(--ink); }
 
   /* ---- ops list ---- */
   .opsgrid { display: grid; grid-template-columns: 360px 1fr; gap: 0; }
-  @media (max-width: 1000px){ .opsgrid { grid-template-columns: 1fr; } }
+  .opsback { display: none; }
+  /* below 1000px #opsList and #opsDetail stack in one scroll region (a
+     detail panel can run long: trust strip, tabs, full timeline) — this
+     sticky control is the only way back to the list without scrolling past
+     all of it by hand. */
+  @media (max-width: 1000px){
+    .opsgrid { grid-template-columns: 1fr; }
+    .opsback { display: flex; align-items: center; gap: 6px; position: sticky; top: 0; z-index: 2;
+      width: 100%; background: var(--panel); border: none; border-bottom: 1px solid var(--line);
+      color: var(--teal); font: inherit; font-size: 12.5px; font-weight: 600; padding: 10px 12px; cursor: pointer; }
+  }
   #opsList { border-right: 1px solid var(--line); padding: 8px 12px 40px; max-height: calc(100vh - 200px); overflow-y: auto; }
   #opsList h2 { font-size: 11px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); padding: 4px 10px 10px; }
   .payout { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; cursor: pointer;
@@ -258,6 +292,14 @@
     padding: 2.5px 9px; border-radius: 5px; background: var(--acs, var(--teal-soft)); color: var(--ac, var(--teal)); }
   .etype { font-size: 13px; color: var(--ink); font-weight: 600; }
   .toff { margin-left: auto; color: var(--dim); font-size: 11.5px; }
+  .ehash { background: var(--card); border: 1px solid var(--line); border-radius: 4px;
+    padding: 1px 6px; font-size: 10.5px; color: var(--muted); margin-right: 4px; }
+  .glyph { font-size: 10.5px; font-weight: 700; letter-spacing: .03em; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .glyph.ok { color: var(--green); background: var(--green-soft); }
+  .glyph.miss { color: var(--red); background: var(--red-soft); outline: 1px solid var(--red); }
+  .glyph.flag { color: var(--gold); background: var(--gold-soft); }
+  .runacc { color: var(--muted); font-size: 11.5px; padding: 0 10px 10px; }
+  .runacc b { color: var(--ink); }
   .event .body { color: var(--muted); font-size: 13.5px; white-space: pre-wrap; }
   .event .body b { color: var(--ink); }
   .event .hashes { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--line);
@@ -272,29 +314,51 @@
      other actor is told apart by its text label, not a seventh arbitrary
      color — seven simultaneous hues in one timeline read as noise, not
      information, and crowded out teal as a legible brand accent. */
-  .event.a-intake, .event.a-compliance, .event.a-treasury, .event.a-orchestrator {
+  .event.a-intake, .event.a-compliance, .event.a-treasury, .event.a-orchestrator,
+  .sdot.a-intake, .sdot.a-compliance, .sdot.a-treasury, .sdot.a-orchestrator {
     --ac: var(--muted); --acs: var(--card); }
-  .event.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
-  .event.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
-  .event.a-verasettle { --ac: var(--teal); --acs: var(--teal-soft); }
-  .event.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
-  .event.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+  .event.a-resolution, .sdot.a-resolution { --ac: var(--gold); --acs: var(--gold-soft); }
+  .event.a-auditor, .sdot.a-auditor { --ac: var(--green); --acs: var(--green-soft); }
+  .event.a-verasettle, .sdot.a-verasettle { --ac: var(--teal); --acs: var(--teal-soft); }
+  .event.verdict-approved, .sdot.verdict-approved { --ac: var(--green); --acs: var(--green-soft); }
+  .event.verdict-rejected, .sdot.verdict-rejected { --ac: var(--red); --acs: var(--red-soft); }
+
+  /* the whole-run map: one dot per event, actor-colored, click to jump.
+     The vertical timeline stays the narrator; this is the "you are here". */
+  .scrub { display: flex; gap: 5px; align-items: center; flex-wrap: wrap; margin: 0 0 12px; }
+  .scrub .sdot { width: 14px; height: 14px; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 2px solid var(--line); background: var(--bg);
+    transition: border-color var(--t-fast), background var(--t-fast), box-shadow var(--t-fast); }
+  .scrub .sdot.on { border-color: var(--ac, var(--teal)); background: var(--acs, var(--teal-soft)); }
+  .scrub .sdot.cur { background: var(--ac, var(--teal)); border-color: var(--ac, var(--teal));
+    box-shadow: 0 0 0 3px var(--acs, var(--teal-soft)); }
+  @media (hover:hover){ .scrub .sdot:hover { border-color: var(--ac, var(--teal)); } }
+  .scrub .slabel { color: var(--dim); font-size: 11px; margin-left: 6px; }
   .event .body a { color: var(--blue); border-bottom: 1px solid var(--blue); }
 
-  /* ---- decision → money ---- */
-  /* a wayfinding primer, not a fourth content panel — sized and weighted
-     well below the Decision/Replay/Execution tabs so it reads as "here's
-     the shape of the journey" and gets out of the way, rather than
-     competing with the actual tab content for attention. */
-  .decmoney { background: var(--card); border-radius: 7px;
-    padding: 8px 14px; margin: 14px 0 18px; }
-  .decmoney .dmhead { font-size: 9.5px; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); margin-bottom: 6px; }
-  .dmrow { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-  .dm-node { background: var(--panel); border: 1px solid var(--line); color: var(--dim);
-    border-radius: 5px; padding: 4px 10px; font: inherit; font-size: 11.5px; cursor: pointer;
-    white-space: nowrap; transition: border-color var(--t-fast), color var(--t-fast); }
-  .dm-node.on { color: var(--ink); border-color: var(--green); box-shadow: 0 0 0 1px var(--green); }
+  /* (arrow connector shared with the Evidence artifact graph) */
   .dm-arrow { color: var(--dim); flex: none; font-size: 11px; }
+
+  /* ---- dispute transcript ---- */
+  /* deposition typography, zero skeuomorphism: hanging speaker labels,
+     verbatim recorded reasons, ruling as a quiet stamped line. The drama is
+     the argument itself — the chrome stays flat or it reads as staged. */
+  .transcript { margin-top: 14px; }
+  .transcript .tr-head { font-size: 11px; text-transform: uppercase; letter-spacing: .1em;
+    color: var(--dim); padding-bottom: 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+  .tr-line { display: grid; grid-template-columns: 110px 1fr auto; gap: 12px; padding: 10px 0;
+    border-bottom: 1px solid var(--line); font-size: 13.5px; }
+  .tr-sp { font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+    text-align: right; padding-top: 2px; color: var(--tc, var(--muted)); }
+  .tr-q { color: var(--ink); }
+  .tr-q .qm { color: var(--dim); }
+  .tr-t { color: var(--dim); font-size: 11.5px; padding-top: 2px; }
+  .tr-ruling { display: flex; gap: 12px; align-items: baseline; justify-content: space-between;
+    margin-top: 12px; padding: 10px 14px; border: 1px solid var(--gold); border-radius: 6px;
+    background: var(--gold-soft); }
+  .tr-ruling b { font-size: 12.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold); }
+  .tr-ruling .why { color: var(--muted); font-size: 12.5px; }
+  @media (max-width: 700px) { .tr-line { grid-template-columns: 1fr; gap: 2px; } .tr-sp { text-align: left; } }
 
   /* ---- counterfactual ---- */
   #cf { margin: 18px 0 0; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); }
@@ -346,6 +410,16 @@
   table.bench tr.headline td { font-size: 15px; font-weight: 600; background: var(--green-soft); }
 
   /* ---- evidence pack ---- */
+  .evgraph { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; margin: 14px 0 4px; }
+  .evgraph .dm-arrow { align-self: center; }
+  .evnode { display: flex; flex-direction: column; gap: 2px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 7px; padding: 8px 12px; cursor: pointer;
+    text-decoration: none; color: var(--dim); min-width: 118px;
+    transition: border-color var(--t-fast), box-shadow var(--t-fast); }
+  .evnode.on { color: var(--ink); border-color: var(--green); }
+  @media (hover:hover){ .evnode.on:hover { box-shadow: 0 0 0 1px var(--green); } }
+  .evnode .evn-l { font-size: 12.5px; font-weight: 600; display: flex; gap: 6px; justify-content: space-between; }
+  .evnode .evn-a { font-size: 10.5px; color: var(--muted); }
   .evpack { max-width: 560px; }
   .evcheck { display: flex; justify-content: space-between; align-items: center; padding: 11px 14px;
     border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; background: var(--panel); font-size: 14px; }
@@ -369,9 +443,22 @@
   #liveGraph .ln.spoke { color: var(--lac); } #liveGraph .ln.spoke i { border-color: var(--lac); }
   #liveGraph .ln.done i { background: var(--lac); }
   #liveGraph .sep { flex: none; width: 14px; height: 1px; background: var(--line); }
+  /* control-room swimlanes: one lane per actor, dot at t_offset — the whole
+     society deliberating on one time axis (the org-level choreography the
+     flat feed can't show). */
+  #liveLanes { margin: 0 0 10px; }
+  #liveLanes .lane { display: flex; align-items: center; gap: 8px; }
+  #liveLanes .ln-l { width: 84px; flex: none; font-size: 9.5px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .05em; color: var(--lac, var(--dim)); text-align: right; }
+  #liveLanes .ln-track { position: relative; flex: 1; height: 15px; border-bottom: 1px dashed var(--line); }
+  #liveLanes .ln-track i { position: absolute; top: 3px; width: 8px; height: 8px; border-radius: 50%;
+    background: var(--lac, var(--dim)); transform: translateX(-50%); }
   #liveFeed { max-height: 220px; overflow-y: auto; font-size: 12px; }
-  #liveFeed div { padding: 2px 0; color: var(--muted); }
-  #liveFeed .la { display: inline-block; min-width: 92px; font-weight: 600; text-transform: uppercase; font-size: 10px; letter-spacing: .05em; }
+  #liveFeed div { padding: 3px 0; color: var(--muted); }
+  /* same chip vocabulary as the replay timeline cards — live and replayed
+     events are the same data type, so they wear the same clothes. */
+  #liveFeed .actor { --acs: color-mix(in srgb, var(--ac, currentColor) 12%, transparent);
+    min-width: 92px; text-align: center; margin-right: 6px; }
   #liveFeed b { color: var(--ink); font-weight: 600; }
 
   footer { text-align: center; padding: 10px; font-size: 11.5px; color: var(--dim); }
@@ -397,7 +484,19 @@
   <a class="navlink" href="#/failures"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2.25 14.25 13H1.75L8 2.25Z"/><path d="M8 6.75v3M8 11.5v.05"/></svg>Failures</a>
   <a class="navlink" href="#/analytics"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 13.5v-4M7 13.5v-8M11.5 13.5v-6M14 2.5 9.9 6.6 7.3 4l-4.6 4.6"/></svg>Analytics</a>
   <div class="navgap"></div>
-  <button id="liveBtn" title="Judge mode: run the society live (access code required)"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8.6 1 3 9h3.6l-.9 6L13 7H9.2l.9-6Z"/></svg><span id="liveBtnLabel">live run</span></button>
+  <div class="livewrap">
+    <button id="liveBtn" aria-expanded="false" aria-controls="liveCodeForm" title="Judge mode: run the society live (access code required)"><svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor"><path d="M8.6 1 3 9h3.6l-.9 6L13 7H9.2l.9-6Z"/></svg><span id="liveBtnLabel">live run</span></button>
+    <div class="livehint">Judges only — needs the access code from the submission notes.</div>
+    <form id="liveCodeForm" hidden>
+      <label for="liveCodeInput">Judge access code</label>
+      <div class="row">
+        <input id="liveCodeInput" type="password" autocomplete="off" placeholder="code">
+        <button type="submit" id="liveCodeGo">Go</button>
+        <button type="button" id="liveCodeCancel">✕</button>
+      </div>
+      <div id="liveCodeErr" role="alert"></div>
+    </form>
+  </div>
 </nav>
 
 <div class="col">
@@ -416,6 +515,7 @@
     <div id="live" role="status">
       <div class="lhead">live run in progress <span class="mono" id="liveMeta"></span></div>
       <div id="liveGraph" aria-hidden="true"></div>
+      <div id="liveLanes" aria-hidden="true"></div>
       <div id="liveFeed"></div>
     </div>
   </div>
@@ -510,21 +610,37 @@ function route() {
 window.addEventListener("hashchange", route);
 
 // ── OVERVIEW ────────────────────────────────────────────────────────────────
+// tiny trend line under a stat — series must be real per-run data (folded
+// from the same event logs as the number above it), never decorative.
+function spark(vals, color) {
+  if (vals.length < 2) return "";
+  const w = 84, h = 16, min = Math.min(...vals), max = Math.max(...vals), rng = (max - min) || 1;
+  const pts = vals.map((v, i) => `${(i / (vals.length - 1) * w).toFixed(1)},${(h - 2 - (v - min) / rng * (h - 4)).toFixed(1)}`).join(" ");
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
 async function renderOverview() {
   const el = $("#view-overview");
   el.innerHTML = `<div class="loading">reading recorded history…</div>`;
   let o; try { o = await api("/api/overview"); } catch { return showError("#view-overview", renderOverview); }
+  if (!opsRuns) { try { opsRuns = (await api("/api/runs")).runs; } catch { /* sparklines just won't render */ } }
   const t = o.totals;
+  const perRun = (opsRuns || []).map(r => r.n);
+  const accRuns = (opsRuns || []).filter(r => r.results);
+  const accSeries = accRuns.map(r => r.results.society.accuracy * 100);
   el.innerHTML = `
     <div class="vhead"><h1>Recorded History</h1>
       <span class="sub">every number below is folded from append-only event logs — nothing staged</span></div>
     <div class="stats">
       <div class="stat"><b>${t.runs}</b>runs</div>
-      <div class="stat"><b>${t.payouts}</b>payouts</div>
+      <div class="stat" title="payouts per run, oldest → newest"><b>${t.payouts}</b>payouts
+        ${spark(perRun, "var(--teal)")}</div>
       <div class="stat"><b>${t.settlements}</b>on-chain settlements</div>
       <div class="stat"><b>${t.usdc_moved}</b>USDC moved (testnet)</div>
       <div class="stat win"><b>${t.replay_pct}%</b>replay coverage</div>
       <div class="stat chain-ok"><b>${t.hash_verified_pct}%</b>hash verified</div>
+      ${accSeries.length >= 2 ? `<div class="stat win" title="society decision accuracy per benchmarked run, oldest → newest">
+        <b>${Math.round(accSeries[accSeries.length - 1])}%</b>society accuracy (latest)
+        ${spark(accSeries, "var(--green)")}</div>` : ""}
     </div>
     <div class="vhead" style="margin-top:22px"><h1 style="font-size:15px">Recent activity</h1></div>
     <table class="grid"><thead><tr><th>Payout</th><th>Run</th><th>Amount</th><th>Status</th><th></th></tr></thead>
@@ -541,7 +657,7 @@ async function renderOverview() {
 
 // ── OPERATIONS + payout detail ──────────────────────────────────────────────
 let opsRuns = null;      // cached /api/runs
-let chain = [], step = 0, playTimer = null, runChain = null, payoutExpected = null, pulsed = false, keyRepeat = false;
+let chain = [], step = 0, playTimer = null, playSpeed = 1, runChain = null, payoutExpected = null, pulsed = false, keyRepeat = false;
 
 async function renderOps(rest) {
   const el = $("#view-ops");
@@ -554,12 +670,14 @@ async function renderOps(rest) {
       <div class="vhead"><h1>Operations</h1><span class="sub">pick a payout to replay its recorded decision → execution → evidence</span>
         <select class="runsel" id="runSel" aria-label="Select run" style="margin-left:auto"></select></div>
       <div class="opsgrid"><div id="opsList"><div class="loading">reading…</div></div>
+      <div class="opsDetailCol"><button type="button" class="opsback" id="opsBack">← Back to payouts</button>
       <div id="opsDetail"><div class="placeholder">Pick a payout on the left to replay its recorded event chain.<br><br>
-        <span class="chip disputed">escalated</span> payouts show a veto argued and ruled on the record.</div></div></div>`;
+        <span class="chip disputed">escalated</span> payouts show a veto argued and ruled on the record.</div></div></div></div>`;
     el.dataset.built = "1";
     const sel = $("#runSel");
     sel.innerHTML = opsRuns.map(r => `<option value="${esc(r.name)}">${esc(r.stamp)} · n=${r.n}${r.results ? " · benchmarked" : ""}</option>`).join("");
     sel.onchange = () => navigate(`#/ops/${sel.value}`);
+    $("#opsBack").onclick = () => $("#opsList").scrollIntoView({block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth"});
   }
   $("#runSel").value = def.name;
   await loadOpsList(def.name);
@@ -575,8 +693,19 @@ async function loadOpsList(name) {
   list.innerHTML = `<div class="loading">reading event log…</div>`;
   let d; try { d = await api(`/api/runs/${name}`); } catch { return showError("#opsList", () => loadOpsList(name)); }
   runChain = d.chain;
+  // run report card, chess-review style: graded strictly from recorded
+  // ground truth (expected/miss per payout); benchmark accuracy only shown
+  // when the run was actually benchmarked.
+  const graded = d.payouts.filter(p => p.expected != null);
+  const hits = graded.filter(p => !p.miss).length;
+  const runMeta = (opsRuns || []).find(r => r.name === name);
+  const bench = runMeta && runMeta.results
+    ? ` · society ${Math.round(runMeta.results.society.accuracy * 100)}% vs monolith ${Math.round(runMeta.results.monolith.accuracy * 100)}%` : "";
+  const accLine = graded.length
+    ? `<div class="runacc">policy accuracy <b>${hits}/${graded.length}</b>${bench}</div>` : "";
   list.innerHTML = `<h2>${d.payouts.length} payouts · ${d.total_events} events` +
     (runChain && runChain.hashed ? (runChain.verified ? ` · chain verified` : ` · CHAIN BROKEN`) : ``) + `</h2>` +
+    accLine +
     d.payouts.map(p => `
       <div class="payout" data-id="${esc(p.id)}" role="button" tabindex="0">
         <span class="amt">${fmtUSD(p.amount)} <span class="meta">${esc(p.corridor ?? "")}</span></span>
@@ -613,15 +742,32 @@ function foldFinal(ch) {
   return {label, disputed, settled};
 }
 
-function trustStrip(ch, verification) {
-  const has = (t) => ch.some(e => e.type === t);
-  const decided = has("payout.approved") || has("payout.rejected") || has("payout.settled");
-  const settled = has("payout.settled");
-  const evidence = verification && verification.hashed;
-  const mark = (ok) => ok ? '<span class="tc ok">✓</span>' : '<span class="tc no">—</span>';
-  return `<div class="truststrip">
-    <span>Decision ${mark(decided)}</span><span>Replay ${mark(ch.length > 0)}</span>
-    <span>Settlement ${mark(settled)}</span><span>Evidence ${mark(evidence)}</span></div>`;
+// escalated payouts: the veto → ruling exchange, verbatim from the record.
+// Every quoted line is a recorded payload.reason/explanation — no paraphrase.
+function disputeTranscript(ch, subject) {
+  const ruling = ch.find(e => e.type === "dispute.resolved");
+  if (!ruling) return "";
+  const argued = ch.filter(e =>
+    (e.type === "compliance.reviewed" && (e.payload || {}).verdict === "veto") ||
+    e.type === "treasury.decided" || e.type === "dispute.raised");
+  if (!argued.length) return "";
+  const RP = ruling.payload || {};
+  const line = (e) => {
+    const P = e.payload || {};
+    const text = P.reason || P.explanation || "";
+    if (!text) return "";
+    return `<div class="tr-line">
+      <span class="tr-sp" style="--tc:${ACTORS[e.actor.toLowerCase()] || "var(--muted)"}">${esc(e.actor)}</span>
+      <span class="tr-q"><span class="qm">“</span>${esc(text)}<span class="qm">”</span></span>
+      <span class="tr-t mono">t+${e.t_offset}s</span></div>`;
+  };
+  return `<div class="transcript">
+    <div class="tr-head">on the record — dispute, payout ${esc(subject)}</div>
+    ${argued.map(line).join("")}
+    <div class="tr-ruling"><span><b>ruling — ${esc((RP.ruling || "resolved").replace(/_/g, " "))}</b>
+      ${RP.explanation || RP.reason ? `<span class="why"> ${esc(RP.explanation || RP.reason)}</span>` : ""}</span>
+      <span class="tr-t mono">t+${ruling.t_offset}s</span></div>
+  </div>`;
 }
 
 function renderPayoutDetail(run, subject, data) {
@@ -630,10 +776,13 @@ function renderPayoutDetail(run, subject, data) {
   const p = data.payout || {};
   const fin = foldFinal(chain);
   const decision = fin.disputed && !fin.settled ? "ESCALATED" : (fin.label === "SETTLED" ? "APPROVED" : fin.label);
+  // CI-style orientation strip: what triggered this, how long, how it ended —
+  // answered before the judge starts scrubbing.
+  const first = chain[0], last = chain[chain.length - 1];
+  const runSummary = chain.length ? `<div class="runsum mono">triggered by ${esc(first.actor)} · t+${first.t_offset}s → t+${last.t_offset}s · ${chain.length} events · <b>${fin.label === "pending" ? decision : fin.label}</b> · <a href="#/evidence/${esc(run)}/${esc(subject)}">evidence pack →</a></div>` : "";
   $("#opsDetail").innerHTML =
-    trustStrip(chain, data.verification) +
     `<div class="payout-head"><h2>${fmtUSD(p.amount)} <span class="mono" style="color:var(--dim);font-size:15px">${esc(subject)}</span></h2></div>
-    ${decisionMoney(chain, run, subject)}
+    ${runSummary}
     <div class="tabbar" role="tablist">
       <button class="tabbtn" role="tab" id="tabbtn-decision" aria-controls="tab-decision" data-tab="decision">Decision</button>
       <button class="tabbtn" role="tab" id="tabbtn-replay" aria-controls="tab-replay" data-tab="replay">Replay</button>
@@ -647,11 +796,19 @@ function renderPayoutDetail(run, subject, data) {
       <div class="kvline kvbreak"><span class="k">Decision</span><b>${decision}</b></div>
       <div class="kvline"><span class="k">Execution</span><b>${fin.settled ? "SETTLED" : "NOT EXECUTED"}</b></div>
       <div class="kvline"><span class="k">Expected</span><b>${esc(p._expected ?? "?")}</b></div>
+      ${disputeTranscript(chain, subject)}
     </div>
     <div class="tabpanel" role="tabpanel" id="tab-replay" aria-labelledby="tabbtn-replay" hidden>
+      <div class="scrub" role="group" aria-label="Jump to event">${chain.map((e, i) => {
+        const a = e.actor.toLowerCase();
+        let c = `sdot a-${a}`;
+        if (e.type === "payout.approved" || e.type === "payout.settled") c += " verdict-approved";
+        if (e.type === "payout.rejected") c += " verdict-rejected";
+        return `<button class="${c}" data-i="${i}" title="${esc(e.type)} · t+${e.t_offset}s" aria-label="Jump to event ${i + 1}: ${esc(e.type)}"></button>`;
+      }).join("")}<span class="slabel">whole run at a glance — click to jump</span></div>
       <div class="controls">
         <button id="prev">← Prev</button><button id="next" class="primary">Next →</button>
-        <button id="play">▶ Play</button><span class="pos" id="pos"></span>
+        <button id="play">▶ Play</button><button id="speed" title="Autoplay speed">${playSpeed}×</button><span class="pos" id="pos"></span>
         <span class="hint">arrow keys work too · click an event for its hashes</span></div>
       <div class="statebar"><span class="k">state</span><span class="v" id="foldState">pending</span><span class="t" id="foldTime"></span></div>
       <div class="timeline"><div class="tl-progress"></div>${chain.map(renderEvent).join("")}</div>
@@ -661,8 +818,9 @@ function renderPayoutDetail(run, subject, data) {
   $("#prev").onclick = () => go(step - 1);
   $("#next").onclick = () => go(step + 1);
   $("#play").onclick = togglePlay;
+  $("#speed").onclick = cycleSpeed;
+  $("#opsDetail").querySelectorAll(".scrub .sdot").forEach(d => d.onclick = () => go(+d.dataset.i + 1));
   wireExpandable($("#opsDetail").querySelectorAll(".event"));
-  $("#opsDetail").querySelectorAll(".dm-node").forEach(n => n.onclick = () => onDmNode(n.dataset.node, run, subject));
   $("#opsDetail").querySelectorAll(".tabbtn").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
   switchTab("decision");
   go(1);
@@ -685,21 +843,6 @@ function switchTab(name) {
   if (name === "replay") go(step);
 }
 
-function onDmNode(node, run, subject) {
-  if (node === "Policy") return navigate("#/policies");
-  if (node === "Evidence") return navigate(`#/evidence/${run}/${subject}`);
-  const map = {Decision: ["compliance.reviewed", "treasury.decided"], Approval: ["payout.approved", "payout.rejected"],
-    Verasettle: ["settlement.requested"], Settlement: ["payout.settled"], Receipt: ["settlement.confirmed"]};
-  const types = map[node] || [];
-  const idx = chain.findIndex(e => types.includes(e.type));
-  if (idx >= 0) {
-    switchTab("replay");
-    go(idx + 1);
-    const cur = document.querySelector(".event.current");
-    if (cur) cur.classList.add("open");
-  }
-}
-
 function renderEvent(e, i) {
   const actor = e.actor.toLowerCase();
   let cls = `event a-${actor}`;
@@ -712,6 +855,20 @@ function renderEvent(e, i) {
         + kv("action", P.action) + kv("ruling", P.ruling && P.ruling.replace(/_/g, " "));
   const text = P.reason || P.explanation || "";
   if (text) body += (body ? "\n" : "") + esc(text);
+  // chess-review grammar: decisions are graded against recorded policy ground
+  // truth (payout._expected), not just displayed. ✓ = matches policy,
+  // ?? = blunder (miss), ?! = flagged but legal (P4). Glyphs always carry a
+  // text label — color is never the sole signal.
+  let glyph = "";
+  const finalOutcome = e.type === "payout.approved" || e.type === "payout.settled" ? "approve"
+    : e.type === "payout.rejected" ? "reject" : null;
+  if (finalOutcome && payoutExpected) {
+    glyph = finalOutcome === payoutExpected
+      ? `<span class="glyph ok">✓ per policy</span>`
+      : `<span class="glyph miss">?? miss — expected ${esc(payoutExpected)}</span>`;
+  } else if (P.policy_rule === "P4") {
+    glyph = `<span class="glyph flag">?! flagged, not rejectable</span>`;
+  }
   if (e.type === "payout.approved") body = "Final: payout approved for settlement.";
   if (e.type === "payout.rejected") body = "Final: payout rejected." + (P.reason ? "\n" + esc(P.reason) : "");
   if (e.type === "settlement.requested")
@@ -726,9 +883,13 @@ function renderEvent(e, i) {
   const hashes = `<div class="hashes"><div><span class="hk">event_hash</span> <span class="hv mono">${esc(e.event_hash || "—")}</span></div>
     <div><span class="hk">prev_hash</span> <span class="hv mono">${esc(e.prev_hash || "—")}</span></div>
     <div><span class="hk">policy</span> <span class="hv">${esc(P.policy_rule || "v1")}</span></div></div>`;
+  // git-log grammar: the short-hash chip is the always-visible face of the
+  // chain (full hashes stay one click away). Borrowed credibility — devs
+  // already read "7 hex chars = tamper-evident pointer".
+  const shortHash = e.event_hash ? `<span class="ehash mono" title="event_hash ${esc(e.event_hash)}">${esc(e.event_hash.slice(0, 7))}</span>` : "";
   return `<div class="${cls}" data-i="${i}">
-    <div class="top"><span class="actor">${esc(e.actor)}</span><span class="etype">${esc(e.type)}</span>
-      <span class="toff mono">t+${e.t_offset}s · ${esc(e.id)}</span></div>
+    <div class="top"><span class="actor">${esc(e.actor)}</span><span class="etype">${esc(e.type)}</span>${glyph}
+      <span class="toff mono">${shortHash} t+${e.t_offset}s</span></div>
     <div class="body">${body}</div>${hashes}</div>`;
 }
 
@@ -747,18 +908,6 @@ function execPanel(ch) {
     <div class="kvline"><span class="k">Source</span><b>${fmtUSD(P.source_amount_usd)}</b></div>
     <div class="kvline"><span class="k">Transaction</span><b>${tx}</b></div>
     <div class="kvline"><span class="k">Verification</span><b class="ok">PASS</b></div></div>`;
-}
-
-function decisionMoney(ch, run, subject) {
-  const has = (t) => ch.some(e => e.type === t);
-  const nodes = [
-    ["Decision", has("compliance.reviewed") || has("treasury.decided")],
-    ["Policy", true], ["Approval", has("payout.approved")],
-    ["Verasettle", has("settlement.requested")], ["Settlement", has("payout.settled")],
-    ["Receipt", has("settlement.confirmed")], ["Evidence", ch.length > 0],
-  ];
-  return `<div class="decmoney"><div class="dmhead">Decision → Money</div><div class="dmrow">` +
-    nodes.map(([n, on], i) => `${i ? '<span class="dm-arrow">→</span>' : ""}<button class="dm-node ${on ? "on" : ""}" data-node="${n}">${n}</button>`).join("") + `</div></div>`;
 }
 
 // timeline scrubbing (ported)
@@ -785,6 +934,9 @@ function go(n) {
   const forward = target > step; step = target;
   const evs = document.querySelectorAll("#opsDetail .event");
   evs.forEach((el, i) => { el.classList.toggle("shown", i < step); el.classList.toggle("current", i === step - 1); });
+  document.querySelectorAll("#opsDetail .scrub .sdot").forEach((d, i) => {
+    d.classList.toggle("on", i < step); d.classList.toggle("cur", i === step - 1);
+  });
   const cur = document.querySelector("#opsDetail .event.current");
   const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
   if (cur && forward) {
@@ -837,7 +989,18 @@ function togglePlay() {
   if (playTimer) return stopPlay();
   if (step >= chain.length) go(1);
   $("#play").textContent = "⏸ Pause";
-  playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800);
+  playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800 / playSpeed);
+}
+// speed is sticky across payout selections on purpose: a judge re-scrubbing
+// several chains sets it once. 1× (1.8s) stays the default — first playback
+// should be legible in a screen recording, not fast.
+function cycleSpeed() {
+  playSpeed = playSpeed === 1 ? 2 : playSpeed === 2 ? 4 : 1;
+  $("#speed").textContent = `${playSpeed}×`;
+  if (playTimer) {            // re-arm the running timer at the new cadence
+    clearInterval(playTimer);
+    playTimer = setInterval(() => step < chain.length ? go(step + 1) : stopPlay(), 1800 / playSpeed);
+  }
 }
 function stopPlay() { clearInterval(playTimer); playTimer = null; const b = $("#play"); if (b) b.textContent = "▶ Play"; }
 document.addEventListener("keydown", (e) => {
@@ -896,7 +1059,13 @@ async function runCounterfactual() {
   if (floor) q.set("reserve_floor", floor);
   if (p2amt) q.set("p2_amount", p2amt);
   if (p2age) q.set("p2_age_days", p2age);
-  let r; try { r = await api(`/api/runs/${runName}/counterfactual?` + q); } catch { return showError("#cfOut", runCounterfactual); }
+  const btn = $("#cfRun");
+  btn.disabled = true; const label = btn.textContent; btn.textContent = "Replaying…";
+  $("#cfOut").innerHTML = `<div class="loading" style="padding:16px 0">re-folding recorded batch…</div>`;
+  let r;
+  try { r = await api(`/api/runs/${runName}/counterfactual?` + q); }
+  catch { btn.disabled = false; btn.textContent = label; return showError("#cfOut", runCounterfactual); }
+  btn.disabled = false; btn.textContent = label;
   const s = r.summary;
   $("#cfOut").innerHTML = `
     <div class="cfsum">policy in force: <b>${s.in_force.approve}</b> approve / <b>${s.in_force.reject}</b> reject
@@ -976,7 +1145,7 @@ async function renderEvidence(rest) {
   const el = $("#view-evidence");
   if (!rest[0] || !rest[1]) {
     el.innerHTML = `<div class="vhead"><h1>Evidence</h1></div>
-      <p class="policynote">Pick a payout in <a href="#/ops">Operations</a>, then use the Decision → Money “Evidence” node — or open <span class="mono">#/evidence/&lt;run&gt;/&lt;payout&gt;</span>.</p>`;
+      <p class="policynote">Pick a payout in <a href="#/ops">Operations</a>, then follow its “evidence pack →” link — or open <span class="mono">#/evidence/&lt;run&gt;/&lt;payout&gt;</span>.</p>`;
     return;
   }
   const [run, subject] = rest;
@@ -993,13 +1162,33 @@ async function renderEvidence(rest) {
     ["Hash Chain", hashOk, v && v.hashed ? (v.verified ? "verified" : "BROKEN") : "not hashed"],
     ["Receipt", receipt],
   ];
+  // chain of custody rendered AS a chain (Stripe data-map pattern): each node
+  // carries its recorded artifact and links to the source — the checklist
+  // below stays the formal verification record.
+  const find = (t) => ch.find(e => e.type === t);
+  const dec = find("compliance.reviewed") || find("treasury.decided");
+  const app = find("payout.approved") || find("payout.rejected");
+  const setl = find("settlement.confirmed");
+  const setP = (setl || {}).payload || {};
+  const evNodes = [
+    ["Decision", dec, dec ? `evt ${dec.event_hash ? dec.event_hash.slice(0, 7) : dec.id}` : "not recorded", null],
+    ["Approval", app, app ? `evt ${app.event_hash ? app.event_hash.slice(0, 7) : app.id}` : "not reached", null],
+    ["Settlement", setl, setl ? `${setP.settled_amount_usdc} USDC · ${setP.chain || ""}` : "no money moved", null],
+    ["Receipt", setl && setP.tx_hash, setP.tx_hash ? `tx ${setP.tx_hash.slice(0, 10)}…` : "no receipt", setP.explorer],
+  ];
   el.innerHTML = `
     <div class="vhead"><h1>Evidence Pack</h1><span class="sub mono">${fmtUSD(p.amount)} · ${esc(subject)}</span></div>
+    <div class="evgraph">${evNodes.map(([label, on, art, ext], i) => (i ? '<span class="dm-arrow">→</span>' : "") +
+      (ext ? `<a class="evnode on" href="${esc(ext)}" target="_blank" rel="noopener">` : `<span class="evnode ${on ? "on" : ""}" data-go="#/ops/${esc(run)}/${esc(subject)}">`) +
+      `<span class="evn-l">${label} ${on ? '<b class="ec-ok">✓</b>' : '<b class="ec-no">—</b>'}</span>
+       <span class="evn-a mono">${esc(art)}</span>` + (ext ? `</a>` : `</span>`)).join("")}</div>
+    <p class="policynote">each node links to its source — the replay step on the record${setP.explorer ? ", the receipt to the block explorer" : ""}.</p>
     <div class="evpack">${checks.map(([label, ok, note]) => `
       <div class="evcheck"><span>${esc(label)}${note ? ` <span class="sub">(${esc(note)})</span>` : ""}</span>
         <span class="${ok ? "ec-ok" : "ec-no"}">${ok ? "✓" : "—"}</span></div>`).join("")}
       <div class="evbtns"><button id="evJson">Export JSON</button><button id="evPdf" class="ghost">Export PDF</button></div>
     </div>`;
+  wireGo(el);
   $("#evJson").onclick = () => {
     const blob = new Blob([JSON.stringify(data, null, 2)], {type: "application/json"});
     const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
@@ -1017,18 +1206,59 @@ const ACTORS = {intake: "var(--blue)", compliance: "var(--violet)", treasury: "#
 const GRAPH_ACTORS = ["intake", "compliance", "treasury", "resolution", "auditor", "verasettle"];
 let liveTimer = null, liveRendered = 0;
 
-async function startLive() {
-  const code = prompt("Judge access code (from the submission notes):");
-  if (!code) return;
-  const r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, {method: "POST"});
-  const body = await r.json().catch(() => ({}));
-  if (r.status === 409) { watchLive("a run is already in progress — watching it live"); return; }
-  if (!r.ok) { alert(body.detail || "couldn't start a live run"); return; }
+function toggleLiveForm(open) {
+  const form = $("#liveCodeForm");
+  const willOpen = open ?? form.hidden;
+  form.hidden = !willOpen;
+  $("#liveBtn").setAttribute("aria-expanded", String(willOpen));
+  $("#liveCodeErr").textContent = "";
+  if (willOpen) { $("#liveCodeInput").value = ""; $("#liveCodeInput").focus(); }
+}
+async function submitLiveCode(e) {
+  e.preventDefault();
+  const code = $("#liveCodeInput").value.trim();
+  const errEl = $("#liveCodeErr");
+  errEl.textContent = "";
+  if (!code) { errEl.textContent = "enter a code first"; return; }
+  const go = $("#liveCodeGo");
+  go.disabled = true; go.textContent = "…";
+  let r, body;
+  try {
+    r = await fetch(`/api/live/start?code=${encodeURIComponent(code)}`, {method: "POST"});
+    body = await r.json().catch(() => ({}));
+  } catch {
+    go.disabled = false; go.textContent = "Go";
+    errEl.textContent = "couldn't reach the server — try again";
+    return;
+  }
+  go.disabled = false; go.textContent = "Go";
+  if (r.status === 409) { toggleLiveForm(false); watchLive("a run is already in progress — watching it live"); return; }
+  if (!r.ok) { errEl.textContent = body.detail || "incorrect code"; return; }
+  toggleLiveForm(false);
   watchLive("live Qwen calls + real testnet settlement · 3–6 min");
 }
+$("#liveCodeForm").addEventListener("submit", submitLiveCode);
+$("#liveCodeCancel").onclick = () => toggleLiveForm(false);
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("#liveCodeForm").hidden) toggleLiveForm(false); });
 function buildLiveGraph() {
   $("#liveGraph").innerHTML = GRAPH_ACTORS.map((a, i) =>
     (i ? '<span class="sep"></span>' : "") + `<span class="ln" data-actor="${a}" style="--lac:${ACTORS[a]}"><i></i>${a}</span>`).join("");
+  $("#liveLanes").innerHTML = "";
+}
+// dots positioned by recorded t_offset when present (fallback: arrival order)
+// — honest timing, not decorative animation.
+function renderLiveLanes(evs) {
+  const wrap = $("#liveLanes");
+  if (!wrap || !evs.length) return;
+  const maxT = Math.max(1, ...evs.map((e, i) => e.t_offset ?? i));
+  wrap.innerHTML = GRAPH_ACTORS.map(a => {
+    const dots = evs.map((e, i) => {
+      if (e.actor !== a) return "";
+      const t = e.t_offset ?? i;
+      return `<i style="left:${(t / maxT * 100).toFixed(1)}%; --lac:${ACTORS[a]}" title="${esc(e.type)} · t+${t}s"></i>`;
+    }).join("");
+    return `<div class="lane"><span class="ln-l" style="--lac:${ACTORS[a]}">${a}</span><div class="ln-track">${dots}</div></div>`;
+  }).join("");
 }
 function pulseActor(actor, done) {
   const node = document.querySelector(`#liveGraph .ln[data-actor="${actor}"]`);
@@ -1040,11 +1270,21 @@ function pulseActor(actor, done) {
 function watchLive(meta) {
   $("#live").classList.add("on"); buildLiveGraph();
   $("#liveBtn").disabled = true; $("#liveBtn").classList.add("running"); $("#liveBtnLabel").textContent = "running…";
-  $("#liveFeed").innerHTML = ""; liveRendered = 0; $("#liveMeta").textContent = meta;
+  $("#liveFeed").innerHTML = ""; liveRendered = 0; livePollFailures = 0; $("#liveMeta").textContent = meta;
   liveTimer = setInterval(pollLive, 2500); pollLive();
 }
+let livePollFailures = 0;
 async function pollLive() {
-  let s; try { s = await api("/api/live/status"); } catch { return; }
+  let s;
+  try { s = await api("/api/live/status"); livePollFailures = 0; }
+  catch {
+    // a transient blip is normal (2.5s cadence); only surface it once it's
+    // no longer transient, so a judge watching the feed sees *something*
+    // instead of the feed just quietly stopping mid-run.
+    livePollFailures++;
+    if (livePollFailures >= 3) $("#liveMeta").textContent = `lost contact with the run (${livePollFailures} failed checks) — still trying…`;
+    return;
+  }
   if (s.state === "running") {
     const feed = $("#liveFeed"), evs = s.events || [];
     const atBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 24;
@@ -1052,10 +1292,11 @@ async function pollLive() {
       const e = evs[i], P = e.payload || {};
       const gist = P.risk_tier ? `risk ${P.risk_tier}` : P.verdict || P.action || (P.ruling || "").replace(/_/g, " ") || (P.tx_hash ? P.tx_hash.slice(0, 18) : "") || "";
       const d = document.createElement("div");
-      d.innerHTML = `<span class="la" style="color:${ACTORS[e.actor] || "var(--muted)"}">${esc(e.actor)}</span> <b>${esc(e.type)}</b> <span class="mono">${e.subject !== "batch" ? esc(e.subject) : ""}</span> ${esc(gist)}`;
+      d.innerHTML = `<span class="actor" style="--ac:${ACTORS[e.actor] || "var(--muted)"}">${esc(e.actor)}</span> <b>${esc(e.type)}</b> <span class="mono">${e.subject !== "batch" ? esc(e.subject) : ""}</span> ${esc(gist)}`;
       feed.appendChild(d); pulseActor(e.actor, e.type === "settlement.confirmed");
     }
     liveRendered = evs.length;
+    renderLiveLanes(evs);
     $("#liveMeta").textContent = `${evs.length} events · ${Math.round(s.elapsed)}s elapsed`;
     if (atBottom) feed.scrollTop = feed.scrollHeight;
     return;
@@ -1071,7 +1312,7 @@ async function pollLive() {
     $("#liveMeta").textContent = "the live run failed — its events are recorded, not hidden; every archived run still replays";
   }
 }
-$("#liveBtn").onclick = startLive;
+$("#liveBtn").onclick = () => toggleLiveForm();
 
 // boot
 if (!location.hash) location.hash = "#/overview";
