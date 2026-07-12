@@ -101,7 +101,7 @@ export default function App() {
             marginBottom: '10px',
           }}
         >
-          CLEARCREW
+          CLEARCREW · TRUST LAYER FOR AUTONOMOUS PAYOUTS
         </div>
         <h1
           style={{

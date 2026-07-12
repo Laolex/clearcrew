@@ -62,19 +62,41 @@ def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floo
 
     # 4. Conflict resolution: high-value vetoes get a policy review by Resolution.
     #    Nothing here is terminal — every branch yields a PROPOSAL.
+    #
+    #    Resolution can only arbitrate a disagreement that exists. Treasury never
+    #    sees a payout compliance vetoed (step 3 runs over `cleared` only), so it
+    #    states its funding position on the contested ones here, on its own ledger
+    #    — a separate call, so the P3 waterfall over `cleared` is not contaminated
+    #    by payouts compliance has already refused. Compliance objects on legality,
+    #    Treasury answers on affordability, and Resolution rules between two
+    #    positions that were actually taken.
+    contested = [p for p in vetoed if p.get("amount", 0) >= 5_000]
+    positions: dict[str, dict] = {}
+    if contested:
+        contested_result = agents.treasury(contested, balance, reserve_floor)
+        positions = {d.get("payout_id"): d for d in contested_result.get("decisions", [])}
+
     proposals: dict[str, dict] = {}
     for payout in vetoed:
+        pid = payout["id"]
         if payout.get("amount", 0) >= 5_000:
-            veto_events = [e for e in events.explain(payout["id"]) if e["type"] == "compliance.reviewed"]
+            veto_events = [e for e in events.explain(pid) if e["type"] == "compliance.reviewed"]
+            # An absent position is recorded as absent. It is never invented: a
+            # fabricated counter-argument would make the dispute a piece of
+            # theatre, and the whole point of the log is that it is not.
+            position = positions.get(pid) or {
+                "action": "no_position",
+                "reason": "Treasury recorded no funding position on this payout.",
+            }
             ruling = agents.negotiate(
                 payout,
                 veto_events[-1]["payload"] if veto_events else {},
-                {"position": "high-value client payout, requests policy review of the veto"},
+                position,
             )
             verdict = "approve" if ruling.get("ruling") == "override_with_conditions" else "reject"
-            proposals[payout["id"]] = {"verdict": verdict, "proposed_by": "resolution"}
+            proposals[pid] = {"verdict": verdict, "proposed_by": "resolution"}
         else:
-            proposals[payout["id"]] = {"verdict": "reject", "proposed_by": "compliance"}
+            proposals[pid] = {"verdict": "reject", "proposed_by": "compliance"}
 
     for payout in cleared:
         pid = payout["id"]
