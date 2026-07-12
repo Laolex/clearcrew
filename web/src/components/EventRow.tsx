@@ -1,4 +1,5 @@
 import type { ClearEvent } from '../lib/domain'
+import { extras, isConflict, judgment, prose } from '../lib/payload'
 import { C, MONO, SANS } from '../lib/tokens'
 import { ActorChip, HashPill } from './Primitives'
 
@@ -14,14 +15,26 @@ const TYPE_COLOR: Record<string, string> = {
   'treasury.decided': C.state.held,
 }
 
+// A judgment word is coloured by what it means, never by who said it.
+const JUDGMENT_COLOR: Record<string, string> = {
+  veto: C.state.vetoed,
+  uphold_veto: C.state.vetoed,
+  enforce_ledger: C.state.vetoed,
+  reject: C.state.rejected,
+  approve: C.state.approved,
+  clear: C.state.approved,
+  pay_now: C.state.approved,
+  high: C.state.rejected,
+  medium: C.state.vetoed,
+  low: C.text.muted,
+}
+
 function hhmmss(ts: number): string {
   const d = new Date(ts * 1000)
   const p = (n: number, w = 2) => String(n).padStart(w, '0')
-  return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}.${p(d.getUTCMilliseconds(), 3)}`
+  return `${p(d.getUTCHours())}:${p(d.getUTCMinutes())}:${p(d.getUTCSeconds())}`
 }
 
-/** One recorded judgment. The `reason` is the most valuable thing on the screen,
- *  so expanding a row surfaces it verbatim — never summarised, never truncated. */
 export function EventRow({
   event,
   index,
@@ -29,6 +42,7 @@ export function EventRow({
   untrusted = false,
   selected = false,
   onToggle,
+  onOpenSubject,
 }: {
   event: ClearEvent
   index: number
@@ -36,10 +50,14 @@ export function EventRow({
   untrusted?: boolean
   selected?: boolean
   onToggle: () => void
+  onOpenSubject?: (subject: string) => void
 }) {
-  const reason = typeof event.payload?.reason === 'string' ? event.payload.reason : null
-  const action = typeof event.payload?.action === 'string' ? event.payload.action : null
+  const text = prose(event)
+  const verdict = judgment(event)
+  const rest = extras(event)
+  const conflict = isConflict(event)
   const typeColor = TYPE_COLOR[event.type] ?? C.text.secondary
+  const vColor = verdict ? (JUDGMENT_COLOR[verdict.label] ?? C.text.secondary) : C.text.secondary
 
   return (
     <div
@@ -55,14 +73,22 @@ export function EventRow({
       }}
       style={{
         borderBottom: `1px solid ${C.border.hairline}`,
-        // Everything at or after a break is untrusted. That has to be visible on
-        // the row itself, not only in a banner at the top of the page.
-        background: untrusted ? '#1E0808' : selected ? C.bg.elevated : 'transparent',
+        background: untrusted
+          ? '#1E0808'
+          : selected
+            ? C.bg.elevated
+            : // A disagreement is lifted off the surface of the log so the eye
+              // lands on it without scanning every row for it.
+              conflict
+              ? '#1A1714'
+              : 'transparent',
         borderLeft: untrusted
           ? `2px solid ${C.state.broken}`
-          : selected
-            ? `2px solid ${C.border.strong}`
-            : '2px solid transparent',
+          : conflict
+            ? `2px solid ${C.state.vetoed}`
+            : selected
+              ? `2px solid ${C.border.strong}`
+              : '2px solid transparent',
         cursor: 'pointer',
         outline: 'none',
       }}
@@ -91,32 +117,72 @@ export function EventRow({
           {hhmmss(event.ts)}
         </span>
 
-        <span
-          style={{
-            fontFamily: MONO,
-            fontSize: '12px',
-            color: typeColor,
-            width: '190px',
-            flexShrink: 0,
-          }}
-        >
+        <span style={{ fontFamily: MONO, fontSize: '12px', color: typeColor, width: '186px', flexShrink: 0 }}>
           {event.type}
         </span>
 
-        <span style={{ width: '150px', flexShrink: 0 }}>
+        <span style={{ width: '146px', flexShrink: 0 }}>
           <ActorChip actor={event.actor} />
         </span>
 
-        <span
-          style={{
-            fontFamily: MONO,
-            fontSize: '11px',
-            color: C.text.secondary,
-            width: '80px',
-            flexShrink: 0,
-          }}
-        >
-          {event.subject}
+        {/* The subject is the way into the decision — "batch" is not a payout,
+            so it is not a link. */}
+        {event.subject === 'batch' || !onOpenSubject ? (
+          <span
+            style={{
+              fontFamily: MONO,
+              fontSize: '11px',
+              color: C.text.muted,
+              width: '76px',
+              flexShrink: 0,
+            }}
+          >
+            {event.subject}
+          </span>
+        ) : (
+          <button
+            onClick={(ev) => {
+              ev.stopPropagation()
+              onOpenSubject(event.subject)
+            }}
+            style={{
+              fontFamily: MONO,
+              fontSize: '11px',
+              color: C.text.secondary,
+              width: '76px',
+              flexShrink: 0,
+              textAlign: 'left',
+              background: 'transparent',
+              border: 'none',
+              borderBottom: `1px dotted ${C.border.strong}`,
+              padding: 0,
+              cursor: 'pointer',
+            }}
+            title="Open the full decision for this payout"
+          >
+            {event.subject}
+          </button>
+        )}
+
+        {/* The judgment word, on the row — you should not have to expand to see
+            that this is where an agent vetoed something. */}
+        <span style={{ width: '108px', flexShrink: 0 }}>
+          {verdict && (
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: '10px',
+                color: vColor,
+                border: `1px solid ${vColor}44`,
+                background: `${vColor}14`,
+                borderRadius: '3px',
+                padding: '2px 6px',
+                letterSpacing: '0.06em',
+              }}
+            >
+              {verdict.label}
+            </span>
+          )}
         </span>
 
         <span style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
@@ -128,14 +194,7 @@ export function EventRow({
         <span style={{ flex: 1 }} />
 
         {untrusted && (
-          <span
-            style={{
-              fontFamily: MONO,
-              fontSize: '9px',
-              color: C.state.broken,
-              letterSpacing: '0.1em',
-            }}
-          >
+          <span style={{ fontFamily: MONO, fontSize: '9px', color: C.state.broken, letterSpacing: '0.1em' }}>
             UNTRUSTED
           </span>
         )}
@@ -146,53 +205,66 @@ export function EventRow({
       </div>
 
       {expanded && (
-        <div style={{ padding: '0 14px 14px 60px', display: 'flex', gap: '28px' }}>
-          {action && (
-            <div>
+        <div style={{ padding: '2px 14px 16px 60px' }}>
+          {text && (
+            <div style={{ maxWidth: '900px', marginBottom: rest.length ? '12px' : 0 }}>
               <div
                 style={{
                   fontFamily: MONO,
                   fontSize: '9px',
                   color: C.text.ghost,
                   letterSpacing: '0.12em',
-                  marginBottom: '4px',
+                  marginBottom: '5px',
                 }}
               >
-                ACTION
-              </div>
-              <div style={{ fontFamily: MONO, fontSize: '12px', color: C.text.secondary }}>
-                {action}
-              </div>
-            </div>
-          )}
-          {reason && (
-            <div style={{ flex: 1 }}>
-              <div
-                style={{
-                  fontFamily: MONO,
-                  fontSize: '9px',
-                  color: C.text.ghost,
-                  letterSpacing: '0.12em',
-                  marginBottom: '4px',
-                }}
-              >
-                REASON
+                {event.type === 'audit.explained' ? 'EXPLANATION' : 'REASON'}
               </div>
               <div
                 style={{
                   fontFamily: SANS,
                   fontSize: '13px',
                   color: untrusted ? C.state.rejected : C.text.primary,
-                  lineHeight: 1.55,
+                  lineHeight: 1.6,
                 }}
               >
-                {reason}
+                {text}
               </div>
             </div>
           )}
-          {!reason && !action && (
+
+          {rest.length > 0 && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+              {rest.map(([k, v]) => (
+                <div key={k} style={{ maxWidth: '420px' }}>
+                  <div
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: '9px',
+                      color: C.text.ghost,
+                      letterSpacing: '0.12em',
+                      marginBottom: '3px',
+                    }}
+                  >
+                    {k.toUpperCase()}
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: MONO,
+                      fontSize: '11px',
+                      color: C.text.secondary,
+                      wordBreak: 'break-all',
+                    }}
+                  >
+                    {v}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {!text && rest.length === 0 && (
             <div style={{ fontFamily: SANS, fontSize: '12px', color: C.text.muted }}>
-              No reason recorded — this event carries structure, not judgment.
+              No judgment recorded — this event carries structure, not reasoning.
             </div>
           )}
         </div>

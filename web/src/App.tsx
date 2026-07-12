@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { ChainIntegrity } from './components/ChainIntegrity'
+import { DecisionDetail } from './components/DecisionDetail'
 import { EventRow } from './components/EventRow'
 import { ActorChip, SectionLabel } from './components/Primitives'
 import { api, type RunEvents } from './lib/api'
+import { isConflict } from './lib/payload'
 import type { RunDetail, RunSummary } from './lib/domain'
 import { C, MONO, SANS } from './lib/tokens'
 
@@ -13,6 +15,8 @@ export default function App() {
   const [trail, setTrail] = useState<RunEvents | null>(null)
   const [expanded, setExpanded] = useState<number | null>(null)
   const [cursor, setCursor] = useState(0)
+  const [onlyConflicts, setOnlyConflicts] = useState(false)
+  const [subject, setSubject] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,13 +46,31 @@ export default function App() {
       .catch((e: Error) => setError(e.message))
   }, [active])
 
-  // Stepping the trail is keyboard-first, not an afterthought.
+  const untrustedFrom = trail?.untrusted_from ?? null
+
+  // What the copy says has to be a fact about the events on screen, not a claim
+  // about the product. The runs directory holds both society runs and the
+  // single-agent baseline they are graded against; those are different stories
+  // and must not be narrated with the same sentence.
+  const actors = trail ? [...new Set(trail.events.map((e) => e.actor))] : []
+  const isBaseline = actors.includes('monolith') && !actors.includes('compliance')
+  const disputes = trail?.events.filter((e) => e.type === 'dispute.resolved').length ?? 0
+  const vetoes = trail?.events.filter((e) => isConflict(e) && e.type === 'compliance.reviewed').length ?? 0
+
+  // The trail is long and mostly routine. The disagreements are the point, so
+  // they get their own way in — scrolling 217 rows to find them is not a design.
+  const all = trail?.events ?? []
+  const conflicts = all.filter(isConflict)
+  const shown = onlyConflicts ? conflicts : all
+
+  // Stepping the trail is keyboard-first, not an afterthought. The cursor moves
+  // through what is on screen, so it stays in bounds when the view is filtered.
   const onKey = useCallback(
     (e: KeyboardEvent) => {
-      if (!trail) return
+      if (!shown.length) return
       if (e.key === 'ArrowDown' || e.key === 'j') {
         e.preventDefault()
-        setCursor((c) => Math.min(c + 1, trail.events.length - 1))
+        setCursor((c) => Math.min(c + 1, shown.length - 1))
       } else if (e.key === 'ArrowUp' || e.key === 'k') {
         e.preventDefault()
         setCursor((c) => Math.max(c - 1, 0))
@@ -59,24 +81,13 @@ export default function App() {
         setExpanded(null)
       }
     },
-    [trail, cursor],
+    [shown.length, cursor],
   )
 
   useEffect(() => {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onKey])
-
-  const untrustedFrom = trail?.untrusted_from ?? null
-
-  // What the copy says has to be a fact about the events on screen, not a claim
-  // about the product. The runs directory holds both society runs and the
-  // single-agent baseline they are graded against; those are different stories
-  // and must not be narrated with the same sentence.
-  const actors = trail ? [...new Set(trail.events.map((e) => e.actor))] : []
-  const isBaseline = actors.includes('monolith') && !actors.includes('compliance')
-  const disputes = trail?.events.filter((e) => e.type === 'dispute.resolved').length ?? 0
-  const vetoes = trail?.events.filter((e) => e.type === 'compliance.reviewed').length ?? 0
 
   return (
     <div style={{ background: C.bg.base, minHeight: '100vh', padding: '40px 48px' }}>
@@ -225,9 +236,50 @@ export default function App() {
       )}
 
       {/* The trail gets the visual budget. */}
-      <SectionLabel>
-        Event trail {trail ? `· ${trail.events.length} events` : ''}
-      </SectionLabel>
+      <SectionLabel>Event trail</SectionLabel>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginBottom: '12px',
+        }}
+      >
+        {(
+          [
+            [false, `all events · ${all.length}`],
+            [true, `disagreements only · ${conflicts.length}`],
+          ] as const
+        ).map(([v, label]) => (
+          <button
+            key={String(v)}
+            onClick={() => {
+              setOnlyConflicts(v)
+              setCursor(0)
+              setExpanded(null)
+            }}
+            style={{
+              fontFamily: MONO,
+              fontSize: '11px',
+              background: onlyConflicts === v ? C.bg.elevated : 'transparent',
+              color: onlyConflicts === v ? C.text.primary : C.text.muted,
+              border: `1px solid ${onlyConflicts === v ? C.border.strong : C.border.hairline}`,
+              borderRadius: '3px',
+              padding: '5px 10px',
+              cursor: 'pointer',
+            }}
+          >
+            {label}
+          </button>
+        ))}
+        {onlyConflicts && conflicts.length === 0 && (
+          <span style={{ fontFamily: SANS, fontSize: '12px', color: C.text.muted }}>
+            Nothing was contested in this run.
+          </span>
+        )}
+      </div>
+
       <div
         style={{
           background: C.bg.surface,
@@ -236,20 +288,26 @@ export default function App() {
           overflow: 'hidden',
         }}
       >
-        {trail?.events.map((e, i) => (
-          <EventRow
-            key={e.id}
-            event={e}
-            index={i}
-            expanded={expanded === i}
-            selected={cursor === i}
-            untrusted={untrustedFrom !== null && i >= untrustedFrom}
-            onToggle={() => {
-              setCursor(i)
-              setExpanded((x) => (x === i ? null : i))
-            }}
-          />
-        ))}
+        {shown.map((e, i) => {
+          // Index is the event's real position in the chain, not its position in
+          // the filtered view — a filtered row must still say where it truly sits.
+          const trueIndex = all.indexOf(e)
+          return (
+            <EventRow
+              key={e.id}
+              event={e}
+              index={trueIndex}
+              expanded={expanded === i}
+              selected={cursor === i}
+              untrusted={untrustedFrom !== null && trueIndex >= untrustedFrom}
+              onToggle={() => {
+                setCursor(i)
+                setExpanded((x) => (x === i ? null : i))
+              }}
+              onOpenSubject={setSubject}
+            />
+          )
+        })}
         {!trail && (
           <div style={{ padding: '24px', fontFamily: MONO, fontSize: '12px', color: C.text.muted }}>
             loading recorded events…
@@ -266,8 +324,12 @@ export default function App() {
           letterSpacing: '0.06em',
         }}
       >
-        ↑↓ navigate · Enter expand · Esc collapse
+        ↑↓ navigate · Enter expand · Esc collapse · click a payout id for its full decision
       </footer>
+
+      {active && subject && (
+        <DecisionDetail run={active} subject={subject} onClose={() => setSubject(null)} />
+      )}
     </div>
   )
 }
