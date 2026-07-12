@@ -1,22 +1,34 @@
-import { useCallback, useEffect, useState } from 'react'
-import { ChainIntegrity } from './components/ChainIntegrity'
+import { useEffect, useState } from 'react'
 import { DecisionDetail } from './components/DecisionDetail'
-import { EventRow } from './components/EventRow'
-import { ActorChip, SectionLabel } from './components/Primitives'
-import { api, type RunEvents } from './lib/api'
-import { isConflict } from './lib/payload'
-import type { RunDetail, RunSummary } from './lib/domain'
+import { SectionLabel } from './components/Primitives'
+import { api } from './lib/api'
+import type { RunSummary } from './lib/domain'
 import { C, MONO, SANS } from './lib/tokens'
+import { Analytics } from './views/Analytics'
+import { Counterfactual } from './views/Counterfactual'
+import { Evidence } from './views/Evidence'
+import { Failures } from './views/Failures'
+import { Overview } from './views/Overview'
+import { Policy } from './views/Policy'
+import { RunTrail } from './views/RunTrail'
+
+const VIEWS = [
+  ['overview', 'Overview', 'Everything recorded, across every run'],
+  ['run', 'Run', 'One batch, event by event'],
+  ['failures', 'Failures', 'Vetoes, disputes, and where the society was wrong'],
+  ['evidence', 'Evidence', 'Verify the chain yourself, then break it'],
+  ['counterfactual', 'Counterfactual', 'What a different rule would have decided'],
+  ['analytics', 'Benchmark', 'The society against the single agent'],
+  ['policy', 'Policy', 'The rules in force'],
+] as const
+
+type ViewKey = (typeof VIEWS)[number][0]
 
 export default function App() {
   const [runs, setRuns] = useState<RunSummary[]>([])
   const [active, setActive] = useState<string | null>(null)
-  const [detail, setDetail] = useState<RunDetail | null>(null)
-  const [trail, setTrail] = useState<RunEvents | null>(null)
-  const [expanded, setExpanded] = useState<number | null>(null)
-  const [cursor, setCursor] = useState(0)
-  const [onlyConflicts, setOnlyConflicts] = useState(false)
-  const [subject, setSubject] = useState<string | null>(null)
+  const [view, setView] = useState<ViewKey>('overview')
+  const [subject, setSubject] = useState<{ run: string; id: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -34,64 +46,13 @@ export default function App() {
       .catch((e: Error) => setError(e.message))
   }, [])
 
-  useEffect(() => {
-    if (!active) return
-    setExpanded(null)
-    setCursor(0)
-    Promise.all([api.run(active), api.events(active)])
-      .then(([d, t]) => {
-        setDetail(d)
-        setTrail(t)
-      })
-      .catch((e: Error) => setError(e.message))
-  }, [active])
-
-  const untrustedFrom = trail?.untrusted_from ?? null
-
-  // What the copy says has to be a fact about the events on screen, not a claim
-  // about the product. The runs directory holds both society runs and the
-  // single-agent baseline they are graded against; those are different stories
-  // and must not be narrated with the same sentence.
-  const actors = trail ? [...new Set(trail.events.map((e) => e.actor))] : []
-  const isBaseline = actors.includes('monolith') && !actors.includes('compliance')
-  const disputes = trail?.events.filter((e) => e.type === 'dispute.resolved').length ?? 0
-  const vetoes = trail?.events.filter((e) => isConflict(e) && e.type === 'compliance.reviewed').length ?? 0
-
-  // The trail is long and mostly routine. The disagreements are the point, so
-  // they get their own way in — scrolling 217 rows to find them is not a design.
-  const all = trail?.events ?? []
-  const conflicts = all.filter(isConflict)
-  const shown = onlyConflicts ? conflicts : all
-
-  // Stepping the trail is keyboard-first, not an afterthought. The cursor moves
-  // through what is on screen, so it stays in bounds when the view is filtered.
-  const onKey = useCallback(
-    (e: KeyboardEvent) => {
-      if (!shown.length) return
-      if (e.key === 'ArrowDown' || e.key === 'j') {
-        e.preventDefault()
-        setCursor((c) => Math.min(c + 1, shown.length - 1))
-      } else if (e.key === 'ArrowUp' || e.key === 'k') {
-        e.preventDefault()
-        setCursor((c) => Math.max(c - 1, 0))
-      } else if (e.key === 'Enter') {
-        e.preventDefault()
-        setExpanded((x) => (x === cursor ? null : cursor))
-      } else if (e.key === 'Escape') {
-        setExpanded(null)
-      }
-    },
-    [shown.length, cursor],
-  )
-
-  useEffect(() => {
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onKey])
+  const meta = VIEWS.find((v) => v[0] === view)!
+  // Only the views that read one run need the run selector on screen.
+  const runScoped = view === 'run' || view === 'evidence' || view === 'counterfactual'
 
   return (
-    <div style={{ background: C.bg.base, minHeight: '100vh', padding: '40px 48px' }}>
-      <header style={{ marginBottom: '36px' }}>
+    <div style={{ background: C.bg.base, minHeight: '100vh', padding: '36px 48px 80px' }}>
+      <header style={{ marginBottom: '24px' }}>
         <div
           style={{
             fontFamily: MONO,
@@ -103,64 +64,52 @@ export default function App() {
         >
           CLEARCREW · TRUST LAYER FOR AUTONOMOUS PAYOUTS
         </div>
-        <h1
-          style={{
-            fontFamily: SANS,
-            fontSize: '28px',
-            fontWeight: 500,
-            color: C.text.primary,
-            margin: 0,
-          }}
-        >
-          Payout Resolution Log
+        <h1 style={{ fontFamily: SANS, fontSize: '26px', fontWeight: 500, color: C.text.primary, margin: 0 }}>
+          {meta[1]}
         </h1>
-        <p
-          style={{
-            fontFamily: SANS,
-            fontSize: '13px',
-            color: C.text.muted,
-            marginTop: '8px',
-            maxWidth: '660px',
-            lineHeight: 1.6,
-          }}
-        >
-          {!trail
-            ? 'Loading a recorded run…'
-            : isBaseline
-              ? 'This run is the single-agent baseline. One model decides alone — no specialists, no veto, nothing to negotiate. It is the control the society is graded against, shown here so the comparison is inspectable rather than asserted.'
-              : `${actors.length} actors wrote to this log. Every judgment below is a recorded event committing to the hash of the one before it.`}
+        <p style={{ fontFamily: SANS, fontSize: '13px', color: C.text.muted, margin: '6px 0 0' }}>
+          {meta[2]}
         </p>
-
-        {/* Who actually spoke — read off the log, not off the pitch. */}
-        {trail && (
-          <div style={{ display: 'flex', gap: '6px', marginTop: '14px', flexWrap: 'wrap' }}>
-            {actors.map((a) => (
-              <ActorChip key={a} actor={a} />
-            ))}
-            {isBaseline && (
-              <span
-                style={{
-                  fontFamily: MONO,
-                  fontSize: '10px',
-                  color: C.state.hypothetical,
-                  border: `1px dashed ${C.state.hypothetical}`,
-                  borderRadius: '3px',
-                  padding: '3px 9px',
-                  letterSpacing: '0.1em',
-                }}
-              >
-                BASELINE · NOT THE SOCIETY
-              </span>
-            )}
-          </div>
-        )}
       </header>
+
+      <nav
+        style={{
+          display: 'flex',
+          gap: '2px',
+          marginBottom: '30px',
+          borderBottom: `1px solid ${C.border.hairline}`,
+          flexWrap: 'wrap',
+        }}
+      >
+        {VIEWS.map(([key, label]) => {
+          const on = key === view
+          return (
+            <button
+              key={key}
+              onClick={() => setView(key)}
+              style={{
+                fontFamily: MONO,
+                fontSize: '12px',
+                background: 'transparent',
+                color: on ? C.text.primary : C.text.muted,
+                border: 'none',
+                borderBottom: `2px solid ${on ? C.text.primary : 'transparent'}`,
+                padding: '9px 14px',
+                cursor: 'pointer',
+                marginBottom: '-1px',
+              }}
+            >
+              {label}
+            </button>
+          )
+        })}
+      </nav>
 
       {error && (
         <div
           style={{
             background: '#280A0A',
-            border: `1px solid #4A1414`,
+            border: '1px solid #4A1414',
             borderRadius: '4px',
             padding: '12px 14px',
             fontFamily: MONO,
@@ -173,162 +122,50 @@ export default function App() {
         </div>
       )}
 
-      {/* Run selector — recorded runs, named by their file on disk. */}
-      <div style={{ marginBottom: '28px' }}>
-        <SectionLabel>Recorded runs</SectionLabel>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-          {runs.map((r) => (
-            <button
-              key={r.name}
-              onClick={() => setActive(r.name)}
-              style={{
-                fontFamily: MONO,
-                fontSize: '11px',
-                background: r.name === active ? C.bg.elevated : C.bg.surface,
-                color: r.name === active ? C.text.primary : C.text.muted,
-                border: `1px solid ${r.name === active ? C.border.strong : C.border.hairline}`,
-                borderRadius: '3px',
-                padding: '6px 10px',
-                cursor: 'pointer',
-              }}
-            >
-              {r.stamp} · n={r.n}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Verification, as a checked result. */}
-      {detail && (
-        <div style={{ marginBottom: '28px', maxWidth: '720px' }}>
-          <ChainIntegrity v={detail.chain} />
-        </div>
-      )}
-
-      {/* The counts are context, not the hero. */}
-      {detail && (
-        <div style={{ display: 'flex', gap: '32px', marginBottom: '32px' }}>
-          {[
-            ['payouts', detail.payouts.length],
-            ['approved', detail.payouts.filter((p) => p.status === 'approved').length],
-            ['rejected', detail.payouts.filter((p) => p.status === 'rejected').length],
-            ['settled', detail.payouts.filter((p) => p.status === 'settled').length],
-            ['vetoes', vetoes],
-            ['disputes resolved', disputes],
-            ['events', detail.total_events],
-          ].map(([k, v]) => (
-            <div key={String(k)}>
-              <div style={{ fontFamily: MONO, fontSize: '16px', color: C.text.primary }}>{v}</div>
-              <div
+      {runScoped && (
+        <div style={{ marginBottom: '28px' }}>
+          <SectionLabel>Recorded runs</SectionLabel>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+            {runs.map((r) => (
+              <button
+                key={r.name}
+                onClick={() => setActive(r.name)}
                 style={{
                   fontFamily: MONO,
-                  fontSize: '10px',
-                  color: C.text.ghost,
-                  letterSpacing: '0.1em',
-                  marginTop: '2px',
+                  fontSize: '11px',
+                  background: r.name === active ? C.bg.elevated : C.bg.surface,
+                  color: r.name === active ? C.text.primary : C.text.muted,
+                  border: `1px solid ${r.name === active ? C.border.strong : C.border.hairline}`,
+                  borderRadius: '3px',
+                  padding: '6px 10px',
+                  cursor: 'pointer',
                 }}
               >
-                {String(k).toUpperCase()}
-              </div>
-            </div>
-          ))}
+                {r.stamp} · n={r.n}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
-      {/* The trail gets the visual budget. */}
-      <SectionLabel>Event trail</SectionLabel>
+      {view === 'overview' && (
+        <Overview onOpen={(run, id) => setSubject({ run, id })} />
+      )}
+      {view === 'run' && active && (
+        <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />
+      )}
+      {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}
+      {view === 'evidence' && <Evidence run={active} />}
+      {view === 'counterfactual' && <Counterfactual run={active} />}
+      {view === 'analytics' && <Analytics />}
+      {view === 'policy' && <Policy />}
 
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          marginBottom: '12px',
-        }}
-      >
-        {(
-          [
-            [false, `all events · ${all.length}`],
-            [true, `disagreements only · ${conflicts.length}`],
-          ] as const
-        ).map(([v, label]) => (
-          <button
-            key={String(v)}
-            onClick={() => {
-              setOnlyConflicts(v)
-              setCursor(0)
-              setExpanded(null)
-            }}
-            style={{
-              fontFamily: MONO,
-              fontSize: '11px',
-              background: onlyConflicts === v ? C.bg.elevated : 'transparent',
-              color: onlyConflicts === v ? C.text.primary : C.text.muted,
-              border: `1px solid ${onlyConflicts === v ? C.border.strong : C.border.hairline}`,
-              borderRadius: '3px',
-              padding: '5px 10px',
-              cursor: 'pointer',
-            }}
-          >
-            {label}
-          </button>
-        ))}
-        {onlyConflicts && conflicts.length === 0 && (
-          <span style={{ fontFamily: SANS, fontSize: '12px', color: C.text.muted }}>
-            Nothing was contested in this run.
-          </span>
-        )}
-      </div>
-
-      <div
-        style={{
-          background: C.bg.surface,
-          border: `1px solid ${C.border.hairline}`,
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}
-      >
-        {shown.map((e, i) => {
-          // Index is the event's real position in the chain, not its position in
-          // the filtered view — a filtered row must still say where it truly sits.
-          const trueIndex = all.indexOf(e)
-          return (
-            <EventRow
-              key={e.id}
-              event={e}
-              index={trueIndex}
-              expanded={expanded === i}
-              selected={cursor === i}
-              untrusted={untrustedFrom !== null && trueIndex >= untrustedFrom}
-              onToggle={() => {
-                setCursor(i)
-                setExpanded((x) => (x === i ? null : i))
-              }}
-              onOpenSubject={setSubject}
-            />
-          )
-        })}
-        {!trail && (
-          <div style={{ padding: '24px', fontFamily: MONO, fontSize: '12px', color: C.text.muted }}>
-            loading recorded events…
-          </div>
-        )}
-      </div>
-
-      <footer
-        style={{
-          fontFamily: MONO,
-          fontSize: '10px',
-          color: C.text.ghost,
-          marginTop: '20px',
-          letterSpacing: '0.06em',
-        }}
-      >
-        ↑↓ navigate · Enter expand · Esc collapse · click a payout id for its full decision
-      </footer>
-
-      {active && subject && (
-        <DecisionDetail run={active} subject={subject} onClose={() => setSubject(null)} />
+      {subject && (
+        <DecisionDetail
+          run={subject.run}
+          subject={subject.id}
+          onClose={() => setSubject(null)}
+        />
       )}
     </div>
   )

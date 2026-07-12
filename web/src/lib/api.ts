@@ -20,6 +20,77 @@ export interface RunEvents {
   events: ClearEvent[]
 }
 
+export interface Overview {
+  totals: {
+    runs: number
+    payouts: number
+    settlements: number
+    usdc_moved: number
+    replay_pct: number
+    hash_verified_pct: number
+  }
+  recent: {
+    run: string
+    id: string
+    amount: number | null
+    status: string
+    settled: boolean
+    disputed: boolean
+    miss: boolean
+  }[]
+}
+
+export interface FailureItem {
+  run: string
+  id: string
+  amount: number | null
+  reason: string | null
+}
+
+export interface Failures {
+  categories: { key: string; label: string; count: number; items: FailureItem[] }[]
+  by_rule: { rule: string; count: number }[]
+}
+
+export interface Analytics {
+  society: { accuracy: number | null; tokens: number | null; seconds: number | null; runs: number }
+  monolith: { accuracy: number | null; tokens: number | null; seconds: number | null; runs: number }
+  capabilities: { name: string; society: boolean; monolith: boolean }[]
+  settlement: { count: number; usdc_moved: number; chains: string[] }
+  coverage: { payouts: number; replay_pct: number; hash_verified_pct: number }
+}
+
+export interface Policies {
+  current: string
+  versions: {
+    version: string
+    enacted: string
+    reason: string
+    params: Record<string, unknown>
+    rendered: string
+  }[]
+  note: string
+}
+
+export interface Counterfactual {
+  run: string
+  note: string
+  policy_in_force: Record<string, unknown>
+  policy_hypothetical: Record<string, unknown>
+  summary: {
+    in_force: { approve: number; reject: number }
+    hypothetical: { approve: number; reject: number }
+  }
+  changes: {
+    payout_id: string
+    amount: number
+    recorded_outcome: string | null
+    in_force: { verdict: string; rule: string | null }
+    hypothetical: { verdict: string; rule: string | null }
+    cause: string
+  }[]
+}
+
 export const api = {
   runs: () => get<{ runs: RunSummary[] }>('/api/runs'),
   run: (name: string) => get<RunDetail>(`/api/runs/${name}`),
@@ -28,12 +99,12 @@ export const api = {
   counterfactual: (run: string, params: Record<string, number | undefined>) => {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined) q.set(k, String(v))
+      if (v !== undefined && !Number.isNaN(v)) q.set(k, String(v))
     }
-    return get<unknown>(`/api/runs/${run}/counterfactual?${q}`)
+    return get<Counterfactual>(`/api/runs/${run}/counterfactual?${q}`)
   },
-  overview: () => get<unknown>('/api/overview'),
-  failures: () => get<unknown>('/api/failures'),
-  analytics: () => get<unknown>('/api/analytics'),
-  policies: () => get<unknown>('/api/policies'),
+  overview: () => get<Overview>('/api/overview'),
+  failures: () => get<Failures>('/api/failures'),
+  analytics: () => get<Analytics>('/api/analytics'),
+  policies: () => get<Policies>('/api/policies'),
 }

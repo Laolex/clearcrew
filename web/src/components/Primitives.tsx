@@ -110,6 +110,66 @@ export function ActorChip({ actor, size = 'sm' }: { actor: Actor; size?: 'sm' | 
   )
 }
 
+/** A figure and what it counts. Never a "hero metric" — the number is the size
+ *  it needs to be read, and no larger. */
+export function Stat({
+  value,
+  label,
+  tone,
+}: {
+  value: string | number
+  label: string
+  tone?: string
+}) {
+  return (
+    <div>
+      <div style={{ fontFamily: MONO, fontSize: '16px', color: tone ?? C.text.primary }}>{value}</div>
+      <div
+        style={{
+          fontFamily: MONO,
+          fontSize: '10px',
+          color: C.text.ghost,
+          letterSpacing: '0.1em',
+          marginTop: '2px',
+          textTransform: 'uppercase',
+        }}
+      >
+        {label}
+      </div>
+    </div>
+  )
+}
+
+export function Panel({ children }: { children: React.ReactNode }) {
+  return (
+    <div
+      style={{
+        background: C.bg.surface,
+        border: `1px solid ${C.border.hairline}`,
+        borderRadius: '4px',
+        overflow: 'hidden',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+export function Loading({ error }: { error?: string | null }) {
+  return (
+    <div
+      style={{
+        padding: '24px',
+        fontFamily: MONO,
+        fontSize: '12px',
+        color: error ? C.state.rejected : C.text.muted,
+      }}
+    >
+      {error ?? 'loading…'}
+    </div>
+  )
+}
+
 export function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
