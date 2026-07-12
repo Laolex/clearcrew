@@ -13,3 +13,7 @@ deploy/build/
 # transient benchmark logs (archived to runs/ on completion)
 src/events-society.jsonl
 src/events-mono*.jsonl
+
+# frontend: source is web/, dist/ is built (Dockerfile stage 1, or `npm --prefix web run build`)
+web/node_modules/
+src/clearcrew/static/dist/

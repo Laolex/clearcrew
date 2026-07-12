@@ -1,0 +1,47 @@
+/* Fonts load in index.html — IBM Plex, matching the rest of ClearCrew. */
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  background: #0e1110;
+  color: #e8edea;
+  font-family: 'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+button {
+  font: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #252b28;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #343d39;
+}
+
+/* Motion here is functional (a state changed), never ambient — so when the user
+   asks for less of it, there is nothing worth keeping. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}

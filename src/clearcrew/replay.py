@@ -20,6 +20,7 @@ from pathlib import Path
 
 from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from . import data, events as event_log, policy
 
@@ -27,6 +28,7 @@ API_TOKEN = os.environ.get("CLEARCREW_API_TOKEN", "")
 
 RUNS_DIR = Path(os.environ.get("CLEARCREW_RUNS_DIR", Path(__file__).parent.parent / "runs"))
 STATIC_DIR = Path(__file__).parent / "static"
+DIST_DIR = STATIC_DIR / "dist"  # built by `npm --prefix web run build`
 
 app = FastAPI(title="ClearCrew Replay Time Machine")
 
@@ -203,6 +205,26 @@ def run_detail(run_name: str, auth=Depends(require_auth)):
     ordered = sorted(payouts.values(), key=lambda p: (-p["disputed"], -(p.get("amount") or 0)))
     return {"run": run_name, "t0": t0, "total_events": len(events),
             "chain": _verify(run_name, events), "payouts": ordered}
+
+
+@app.get("/api/runs/{run_name}/events")
+def run_events(run_name: str, auth=Depends(require_auth)):
+    """The whole recorded trail, in emission order — the chain verifies against
+    this order, so it is served as-is rather than re-sorted for presentation.
+
+    `untrusted_from` is where the linear walk first fails: everything at or after
+    that index is downstream of a break and must not be presented as fact.
+    """
+    events = _load_events(run_name)
+    t0 = events[0]["ts"] if events else 0.0
+    chain = _verify(run_name, events)
+    return {
+        "run": run_name,
+        "t0": t0,
+        "chain": chain,
+        "untrusted_from": chain["broken_at"],
+        "events": [{**e, "t_offset": round(e["ts"] - t0, 2)} for e in events],
+    }
 
 
 @app.get("/api/runs/{run_name}/explain/{subject}")
@@ -519,6 +541,21 @@ def live_status(auth=Depends(require_auth)):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
+    """The React frontend, if it has been built; otherwise the original console.
+
+    Falling back rather than 500-ing keeps `uvicorn clearcrew.replay:app` working
+    in a fresh clone where `web/` was never built — the API and the legacy UI do
+    not depend on node.
+    """
+    built = DIST_DIR / "index.html"
+    if built.is_file():
+        return built.read_text()
+    return (STATIC_DIR / "index.html").read_text()
+
+
+@app.get("/legacy", response_class=HTMLResponse)
+def legacy_index():
+    """The pre-React console. Kept reachable until the port is at parity."""
     return (STATIC_DIR / "index.html").read_text()
 
 
@@ -530,3 +567,9 @@ def image(name: str):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path, media_type="image/png",
                         headers={"Cache-Control": "public, max-age=86400"})
+
+
+# Mounted last so it cannot shadow /api. Only present once the frontend is built;
+# a fresh clone without node still serves the API and the legacy console.
+if (DIST_DIR / "assets").is_dir():
+    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
