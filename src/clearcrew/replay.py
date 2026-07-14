@@ -10,6 +10,7 @@ is enabled only when CLEARCREW_JUDGE_CODE is set — never on the FC deployment.
 """
 import functools
 import json
+import math
 import os
 import re
 import subprocess
@@ -64,9 +65,10 @@ def _load_events(run_name: str) -> list[dict]:
         raise HTTPException(404, "no such run")
     with open(path) as f:
         events = [json.loads(line) for line in f if line.strip()]
-    # file order is emission order (hash chain verifies against it);
-    # stable sort by ts preserves it for equal timestamps
-    return sorted(events, key=lambda e: e["ts"])
+    # JSONL order is append/emission order. It is the only order in which the
+    # predecessor links can be verified; timestamps are presentation metadata
+    # and may regress when a host clock changes.
+    return events
 
 
 _chain_cache: dict[str, dict] = {}
@@ -256,8 +258,8 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     # button fires a manual fetch(), not a <form> submit, so HTML5 constraint
     # validation never runs. This is the actual, only enforcement.
     for name, val in (("reserve_floor", reserve_floor), ("p2_amount", p2_amount), ("p2_age_days", p2_age_days)):
-        if val is not None and val < 0:
-            raise HTTPException(422, f"{name} must be zero or positive")
+        if val is not None and (not math.isfinite(val) or val < 0):
+            raise HTTPException(422, f"{name} must be a finite, non-negative number")
     if p2_age_days is not None and p2_age_days > 365:
         raise HTTPException(422, "p2_age_days must be 365 or fewer")
     events = _load_events(run_name)
@@ -569,7 +571,7 @@ def image(name: str):
                         headers={"Cache-Control": "public, max-age=86400"})
 
 
-# Mounted last so it cannot shadow /api. Only present once the frontend is built;
-# a fresh clone without node still serves the API and the legacy console.
-if (DIST_DIR / "assets").is_dir():
-    app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets"), name="assets")
+# Mounted last so it cannot shadow /api. `check_dir=False` lets a fresh clone
+# start in legacy mode, while still allowing assets to work if the frontend is
+# built after the process starts (without requiring a restart).
+app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets", check_dir=False), name="assets")

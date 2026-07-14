@@ -276,17 +276,19 @@ export async function verifyChainRaw(events: { [k: string]: Raw }[]): Promise<Lo
 /** Fetch the trail as TEXT so number literals survive, and verify it locally.
  *  `serverSaid` is the server's own verdict, kept separate from ours so the page
  *  can show the two side by side without either being put in the other's mouth. */
-export async function fetchAndVerify(run: string, token?: string) {
+export async function fetchAndVerify(run: string, headers: HeadersInit = {}) {
   const res = await fetch(`/api/runs/${run}/events`, {
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
+    headers,
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`)
-  const body = parseRaw(await res.text()) as { [k: string]: Raw }
+  const rawText = await res.text()
+  const body = parseRaw(rawText) as { [k: string]: Raw }
   const events = body.events as { [k: string]: Raw }[]
   const chain = body.chain as { [k: string]: Raw }
   return {
     local: await verifyChainRaw(events),
     events,
     serverSaid: chain?.verified === true,
+    rawText,
   }
 }

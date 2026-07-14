@@ -4,9 +4,20 @@ import type { ChainVerification, ClearEvent, Explain, RunDetail, RunSummary } fr
 // so we only send the header when one was actually configured at build time.
 const TOKEN = import.meta.env.VITE_API_TOKEN as string | undefined
 
+/**
+ * Kept in one place so every browser request has identical auth behaviour.
+ *
+ * A Vite environment variable is bundled into client code, so this is a
+ * convenience credential for a private demo—not a substitute for server-side
+ * session authentication.
+ */
+export function authHeaders(): HeadersInit {
+  return TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {}
+}
+
 async function get<T>(path: string): Promise<T> {
   const res = await fetch(path, {
-    headers: TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
+    headers: authHeaders(),
   })
   if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`)
   return res.json() as Promise<T>
@@ -99,7 +110,7 @@ export const api = {
   counterfactual: (run: string, params: Record<string, number | undefined>) => {
     const q = new URLSearchParams()
     for (const [k, v] of Object.entries(params)) {
-      if (v !== undefined && !Number.isNaN(v)) q.set(k, String(v))
+      if (v !== undefined && Number.isFinite(v)) q.set(k, String(v))
     }
     return get<Counterfactual>(`/api/runs/${run}/counterfactual?${q}`)
   },

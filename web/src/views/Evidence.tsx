@@ -2,12 +2,12 @@ import { useCallback, useEffect, useState } from 'react'
 import { Loading, Panel, SectionLabel } from '../components/Primitives'
 import { C, MONO, SANS } from '../lib/tokens'
 import {
-  canonical,
   fetchAndVerify,
   usingWebCrypto,
   verifyChainRaw,
   type LocalVerification,
 } from '../lib/verify'
+import { authHeaders } from '../lib/api'
 
 type RawEvent = Record<string, unknown>
 
@@ -20,6 +20,7 @@ type RawEvent = Record<string, unknown>
 export function Evidence({ run }: { run: string | null }) {
   const [local, setLocal] = useState<LocalVerification | null>(null)
   const [events, setEvents] = useState<RawEvent[] | null>(null)
+  const [rawText, setRawText] = useState<string | null>(null)
   const [serverSaid, setServerSaid] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tamperAt, setTamperAt] = useState<number | null>(null)
@@ -30,14 +31,16 @@ export function Evidence({ run }: { run: string | null }) {
     if (!run) return
     setLocal(null)
     setEvents(null)
+    setRawText(null)
     setTampered(null)
     setTamperAt(null)
     setError(null)
-    fetchAndVerify(run)
-      .then(({ local, events, serverSaid }) => {
+    fetchAndVerify(run, authHeaders())
+      .then(({ local, events, serverSaid, rawText }) => {
         setLocal(local)
         setEvents(events as RawEvent[])
         setServerSaid(serverSaid)
+        setRawText(rawText)
       })
       .catch((e: Error) => setError(e.message))
   }, [run])
@@ -194,15 +197,16 @@ export function Evidence({ run }: { run: string | null }) {
         )}
       </div>
 
-      <SectionLabel>Evidence pack</SectionLabel>
+      <SectionLabel>Exact evidence response</SectionLabel>
       <Panel>
         <div style={{ padding: '16px' }}>
           <div style={{ fontFamily: SANS, fontSize: '13px', color: C.text.secondary, lineHeight: 1.6 }}>
-            The recorded event log, its verification result, and any settlement receipts it
-            produced — the file an auditor would ask for.
+            Download the exact JSON bytes this page verified. Numeric literals are preserved,
+            so an auditor can reproduce this page's hash calculation without parser-induced
+            changes to the evidence.
           </div>
           <button
-            onClick={() => downloadPack(run!, events, local)}
+            onClick={() => downloadEventResponse(run!, rawText!)}
             style={{
               marginTop: '14px',
               fontFamily: MONO,
@@ -215,7 +219,7 @@ export function Evidence({ run }: { run: string | null }) {
               cursor: 'pointer',
             }}
           >
-            download evidence pack · json
+            download exact event response · json
           </button>
         </div>
       </Panel>
@@ -305,30 +309,17 @@ function Claim({ who, ok }: { who: string; ok: boolean }) {
   )
 }
 
-function downloadPack(run: string, events: RawEvent[], local: LocalVerification) {
-  const settlements = events.filter((e) => e.type === 'settlement.confirmed')
-  const pack = {
-    run,
-    exported_at: new Date().toISOString(),
-    verification: {
-      performed_by: 'clearcrew web client (SHA-256, in-browser)',
-      material: 'sha256(json.dumps({id,ts,type,subject,actor,payload,prev_hash}, sort_keys=True, separators=(",",":")))',
-      result: local,
-    },
-    settlements: settlements.map((s) => s.payload),
-    events,
-  }
-  const blob = new Blob([canonicalPretty(pack)], { type: 'application/json' })
+/**
+ * The verification parser wraps numbers to preserve their original literals.
+ * Serializing that parsed structure would turn 9000.0 into {__num: "9000.0"}
+ * and produce an invalid evidence artifact. Download the response bytes exactly
+ * as received instead.
+ */
+function downloadEventResponse(run: string, rawText: string) {
+  const blob = new Blob([rawText], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${run.replace('.jsonl', '')}-evidence.json`
+  a.download = `${run.replace('.jsonl', '')}-events.json`
   a.click()
   URL.revokeObjectURL(a.href)
-}
-
-function canonicalPretty(v: unknown): string {
-  // The pack is read by humans, so it is indented — but the canonical form used
-  // for hashing is the one documented inside it, not this rendering.
-  void canonical
-  return JSON.stringify(v, null, 2)
 }

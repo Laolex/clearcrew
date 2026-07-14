@@ -4,7 +4,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from clearcrew import replay
+from clearcrew import events as event_log, replay
 
 
 @pytest.fixture(autouse=True)
@@ -58,6 +58,23 @@ def test_explain_returns_ordered_chain_with_offsets(client):
     d = client.get("/api/runs/events-test-n12.jsonl/explain/aaaa1111").json()
     assert [e["type"] for e in d["chain"]] == ["intake.classified", "payout.approved"]
     assert d["chain"][0]["t_offset"] == 1.0  # relative to batch start
+
+
+def test_load_events_keeps_jsonl_append_order_when_clock_regresses(tmp_path, monkeypatch):
+    """Timestamps are display metadata; hash links define archive order."""
+    run = tmp_path / "events-order-n2.jsonl"
+    first = {"id": "e1", "ts": 2.0, "type": "batch.received", "subject": "batch",
+             "actor": "orchestrator", "payload": {"count": 2}, "prev_hash": event_log.GENESIS}
+    first["event_hash"] = event_log._event_hash(first)
+    second = {"id": "e2", "ts": 1.0, "type": "payout.approved", "subject": "aaaa1111",
+              "actor": "orchestrator", "payload": {}, "prev_hash": first["event_hash"]}
+    second["event_hash"] = event_log._event_hash(second)
+    run.write_text("\n".join(json.dumps(e) for e in (first, second)) + "\n")
+    monkeypatch.setattr(replay, "RUNS_DIR", tmp_path)
+
+    loaded = replay._load_events(run.name)
+    assert [e["id"] for e in loaded] == ["e1", "e2"]
+    assert event_log.verify_chain(loaded)["verified"] is True
 
 
 def test_unknown_run_and_subject_404(client):
