@@ -8,6 +8,7 @@ import {
   type LocalVerification,
 } from '../lib/verify'
 import { authHeaders } from '../lib/api'
+import { api, type AnchorEvidence } from '../lib/api'
 
 type RawEvent = Record<string, unknown>
 
@@ -20,7 +21,7 @@ type RawEvent = Record<string, unknown>
 export function Evidence({ run }: { run: string | null }) {
   const [local, setLocal] = useState<LocalVerification | null>(null)
   const [events, setEvents] = useState<RawEvent[] | null>(null)
-  const [rawText, setRawText] = useState<string | null>(null)
+  const [anchors, setAnchors] = useState<AnchorEvidence | null>(null)
   const [serverSaid, setServerSaid] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [tamperAt, setTamperAt] = useState<number | null>(null)
@@ -31,16 +32,16 @@ export function Evidence({ run }: { run: string | null }) {
     if (!run) return
     setLocal(null)
     setEvents(null)
-    setRawText(null)
+    setAnchors(null)
     setTampered(null)
     setTamperAt(null)
     setError(null)
-    fetchAndVerify(run, authHeaders())
-      .then(({ local, events, serverSaid, rawText }) => {
+    Promise.all([fetchAndVerify(run, authHeaders()), api.anchors(run)])
+      .then(([{ local, events, serverSaid }, anchorData]) => {
         setLocal(local)
         setEvents(events as RawEvent[])
         setServerSaid(serverSaid)
-        setRawText(rawText)
+        setAnchors(anchorData)
       })
       .catch((e: Error) => setError(e.message))
   }, [run])
@@ -201,12 +202,12 @@ export function Evidence({ run }: { run: string | null }) {
       <Panel>
         <div style={{ padding: '16px' }}>
           <div style={{ fontFamily: SANS, fontSize: '13px', color: C.text.secondary, lineHeight: 1.6 }}>
-            Download the exact JSON bytes this page verified. Numeric literals are preserved,
-            so an auditor can reproduce this page's hash calculation without parser-induced
-            changes to the evidence.
+            Download the original recorded JSONL. Numeric literals are preserved, so an
+            auditor can reproduce the hash calculation without parser-induced changes to the
+            evidence.
           </div>
           <button
-            onClick={() => downloadEventResponse(run!, rawText!)}
+            onClick={() => downloadExactLog(run!)}
             style={{
               marginTop: '14px',
               fontFamily: MONO,
@@ -219,8 +220,30 @@ export function Evidence({ run }: { run: string | null }) {
               cursor: 'pointer',
             }}
           >
-            download exact event response · json
+            download original event log · jsonl
           </button>
+        </div>
+      </Panel>
+
+      <SectionLabel>External anchor</SectionLabel>
+      <Panel>
+        <div style={{ padding: '16px', fontFamily: SANS, fontSize: '12px', color: C.text.secondary, lineHeight: 1.6 }}>
+          {!anchors || anchors.anchors.length === 0 ? (
+            <>No external timestamp proof was recorded for this run. Its hash chain is tamper-evident, but the writer-controlled archive has no independent timestamp anchor.</>
+          ) : anchors.anchors.map((anchor) => (
+            <div key={anchor.event_id} style={{ marginBottom: '10px' }}>
+              <span style={{ fontFamily: MONO, color: anchor.verification.valid ? C.state.approved : C.state.rejected }}>
+                {anchor.verification.valid ? 'IMPRINT MATCHES' : 'ANCHOR INVALID'}
+              </span>{' '}
+              {anchor.provider ?? 'unknown provider'} · {anchor.tsa_time ?? 'time unavailable'}
+              <div style={{ fontFamily: MONO, fontSize: '10px', color: C.text.ghost, marginTop: '4px', wordBreak: 'break-all' }}>
+                {anchor.head_hash ?? anchor.verification.reason}
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: '8px', color: C.text.muted }}>
+            This checks that a recorded TSA token names the stated chain head. Verify the TSA signature independently with its certificate chain.
+          </div>
         </div>
       </Panel>
     </>
@@ -312,14 +335,16 @@ function Claim({ who, ok }: { who: string; ok: boolean }) {
 /**
  * The verification parser wraps numbers to preserve their original literals.
  * Serializing that parsed structure would turn 9000.0 into {__num: "9000.0"}
- * and produce an invalid evidence artifact. Download the response bytes exactly
- * as received instead.
+ * and produce an invalid evidence artifact. The server therefore serves the
+ * original JSONL bytes directly for export.
  */
-function downloadEventResponse(run: string, rawText: string) {
-  const blob = new Blob([rawText], { type: 'application/json' })
+async function downloadExactLog(run: string) {
+  const response = await fetch(`/api/runs/${run}/export`, { headers: authHeaders() })
+  if (!response.ok) throw new Error(`${response.status} ${response.statusText}`)
+  const blob = new Blob([await response.arrayBuffer()], { type: 'application/x-ndjson' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `${run.replace('.jsonl', '')}-events.json`
+  a.download = run
   a.click()
   URL.revokeObjectURL(a.href)
 }

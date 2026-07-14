@@ -102,10 +102,24 @@ export interface Counterfactual {
   }[]
 }
 
+export interface AnchorEvidence {
+  run: string
+  anchors: {
+    event_id: string
+    head_hash: string | null
+    provider: string | null
+    url: string | null
+    tsa_time: string | null
+    serial: number | null
+    verification: { valid: boolean; reason?: string; gen_time?: string | null }
+  }[]
+}
+
 export const api = {
   runs: () => get<{ runs: RunSummary[] }>('/api/runs'),
   run: (name: string) => get<RunDetail>(`/api/runs/${name}`),
   events: (name: string) => get<RunEvents>(`/api/runs/${name}/events`),
+  anchors: (name: string) => get<AnchorEvidence>(`/api/runs/${name}/anchors`),
   explain: (run: string, subject: string) => get<Explain>(`/api/runs/${run}/explain/${subject}`),
   counterfactual: (run: string, params: Record<string, number | undefined>) => {
     const q = new URLSearchParams()

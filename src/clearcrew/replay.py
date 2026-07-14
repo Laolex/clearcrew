@@ -23,7 +23,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import data, events as event_log, policy
+from . import anchor, data, events as event_log, policy
 
 API_TOKEN = os.environ.get("CLEARCREW_API_TOKEN", "")
 
@@ -227,6 +227,44 @@ def run_events(run_name: str, auth=Depends(require_auth)):
         "untrusted_from": chain["broken_at"],
         "events": [{**e, "t_offset": round(e["ts"] - t0, 2)} for e in events],
     }
+
+
+@app.get("/api/runs/{run_name}/export")
+def export_run(run_name: str, auth=Depends(require_auth)):
+    """Download the archived evidence exactly as it was recorded.
+
+    Unlike the JSON API, this is JSONL with no presentation-only fields. It is
+    the artifact an independent verifier should archive and hash.
+    """
+    _load_events(run_name)  # validates the name and existence before serving
+    path = RUNS_DIR / run_name
+    return FileResponse(path, media_type="application/x-ndjson",
+                        filename=run_name,
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/runs/{run_name}/anchors")
+def run_anchors(run_name: str, auth=Depends(require_auth)):
+    """Anchor records and their local imprint checks for this archived run.
+
+    `valid` means the RFC-3161 token commits to the stated head hash. Signature
+    validation still belongs to an independent tool with the TSA trust chain.
+    """
+    records = []
+    for e in _load_events(run_name):
+        if e["type"] != "chain.anchored":
+            continue
+        p = e.get("payload", {})
+        token, head = p.get("token"), p.get("head_hash")
+        verification = (anchor.verify_token(token, head)
+                        if isinstance(token, str) and isinstance(head, str)
+                        else {"valid": False, "reason": "no external timestamp token recorded"})
+        records.append({
+            "event_id": e["id"], "head_hash": head, "provider": p.get("provider"),
+            "url": p.get("url"), "tsa_time": p.get("tsa_time"), "serial": p.get("serial"),
+            "verification": verification,
+        })
+    return {"run": run_name, "anchors": records}
 
 
 @app.get("/api/runs/{run_name}/explain/{subject}")

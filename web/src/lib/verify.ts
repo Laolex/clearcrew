@@ -289,6 +289,5 @@ export async function fetchAndVerify(run: string, headers: HeadersInit = {}) {
     local: await verifyChainRaw(events),
     events,
     serverSaid: chain?.verified === true,
-    rawText,
   }
 }

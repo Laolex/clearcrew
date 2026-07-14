@@ -77,6 +77,21 @@ def test_load_events_keeps_jsonl_append_order_when_clock_regresses(tmp_path, mon
     assert event_log.verify_chain(loaded)["verified"] is True
 
 
+def test_export_is_byte_exact_jsonl(client, tmp_path):
+    path = tmp_path / "events-test-n12.jsonl"
+    original = path.read_bytes()
+    response = client.get("/api/runs/events-test-n12.jsonl/export")
+    assert response.status_code == 200
+    assert response.content == original
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+
+
+def test_anchors_reports_absent_external_proof(client):
+    response = client.get("/api/runs/events-test-n12.jsonl/anchors")
+    assert response.status_code == 200
+    assert response.json()["anchors"] == []
+
+
 def test_unknown_run_and_subject_404(client):
     assert client.get("/api/runs/events-nope-n5.jsonl").status_code == 404
     assert client.get("/api/runs/events-test-n12.jsonl/explain/zzzz").status_code == 404

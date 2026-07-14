@@ -19,6 +19,7 @@ export function RunTrail({
   const [expanded, setExpanded] = useState<number | null>(null)
   const [cursor, setCursor] = useState(0)
   const [onlyConflicts, setOnlyConflicts] = useState(false)
+  const [query, setQuery] = useState('')
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
@@ -42,7 +43,10 @@ export function RunTrail({
 
   const all = trail?.events ?? []
   const conflicts = all.filter(isConflict)
-  const shown = onlyConflicts ? conflicts : all
+  const searched = query.trim().toLowerCase()
+  const shown = (onlyConflicts ? conflicts : all).filter((e) =>
+    !searched || [e.id, e.subject, e.type, e.actor].some((v) => v.toLowerCase().includes(searched)),
+  )
 
   const onKey = useCallback(
     (e: KeyboardEvent) => {
@@ -162,6 +166,13 @@ export function RunTrail({
             Nothing was contested in this run.
           </span>
         )}
+        <input
+          aria-label="Search events"
+          value={query}
+          onChange={(e) => { setQuery(e.target.value); setCursor(0); setExpanded(null) }}
+          placeholder="search id, actor, type"
+          style={{ marginLeft: 'auto', fontFamily: MONO, fontSize: '11px', background: C.bg.surface, color: C.text.primary, border: `1px solid ${C.border.hairline}`, borderRadius: '3px', padding: '6px 9px', width: '190px' }}
+        />
       </div>
 
       <Panel>
