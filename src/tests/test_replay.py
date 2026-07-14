@@ -12,6 +12,7 @@ def _reset_token():
     """Ensure auth is off so these tests don't get 401."""
     import clearcrew.replay as r
     r.API_TOKEN = ""
+    r._scan_cache.update(expires_at=0.0, data=None)
     yield
 
 
@@ -37,6 +38,18 @@ def client(tmp_path, monkeypatch):
 def test_healthz(client):
     r = client.get("/healthz")
     assert r.status_code == 200 and r.json()["ok"] is True
+
+
+def test_readyz_and_security_headers(client):
+    ready = client.get("/readyz")
+    assert ready.status_code == 200
+    assert ready.json() == {"ok": True, "runs": 1}
+
+    response = client.get("/api/runs")
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["cache-control"] == "no-store"
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
 
 
 def test_list_runs_includes_results(client):

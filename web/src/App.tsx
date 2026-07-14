@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
 import { DecisionDetail } from './components/DecisionDetail'
-import { SectionLabel } from './components/Primitives'
 import { api } from './lib/api'
 import type { RunSummary } from './lib/domain'
-import { C, MONO, SANS } from './lib/tokens'
 import { Analytics } from './views/Analytics'
 import { Counterfactual } from './views/Counterfactual'
 import { Evidence } from './views/Evidence'
@@ -13,16 +11,33 @@ import { Policy } from './views/Policy'
 import { RunTrail } from './views/RunTrail'
 
 const VIEWS = [
-  ['overview', 'Overview', 'Everything recorded, across every run'],
-  ['run', 'Run', 'One batch, event by event'],
-  ['failures', 'Failures', 'Vetoes, disputes, and where the society was wrong'],
-  ['evidence', 'Evidence', 'Verify the chain yourself, then break it'],
-  ['counterfactual', 'Counterfactual', 'What a different rule would have decided'],
-  ['analytics', 'Benchmark', 'The society against the single agent'],
-  ['policy', 'Policy', 'The rules in force'],
+  ['overview', 'Overview', 'Recorded operations at a glance'],
+  ['run', 'Run trail', 'Inspect one recorded batch'],
+  ['failures', 'Exceptions', 'Vetoes, disputes, and misses'],
+  ['evidence', 'Evidence', 'Verify and export the record'],
+  ['counterfactual', 'Counterfactual', 'Test a policy without changing history'],
+  ['analytics', 'Benchmark', 'Compare the society to a single agent'],
+  ['policy', 'Policy', 'Rules in force'],
 ] as const
 
 type ViewKey = (typeof VIEWS)[number][0]
+
+function SettledMark() {
+  return (
+    <svg className="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+      <defs>
+        <linearGradient id="settled-gradient" x1="10" y1="8" x2="54" y2="56" gradientUnits="userSpaceOnUse">
+          <stop offset="0" stopColor="#5EEAD4" />
+          <stop offset=".55" stopColor="#2DD4BF" />
+          <stop offset="1" stopColor="#0D9488" />
+        </linearGradient>
+      </defs>
+      <path d="M15 24 30 42 52 11" stroke="url(#settled-gradient)" strokeWidth="7" strokeLinecap="round" strokeLinejoin="round" />
+      <circle cx="31" cy="17" r="4.8" fill="#2DD4BF" />
+      <path d="M36.1 48.7a7.5 7.5 0 1 1-12.2 0" stroke="url(#settled-gradient)" strokeWidth="3.5" strokeLinecap="round" />
+    </svg>
+  )
+}
 
 export default function App() {
   const [runs, setRuns] = useState<RunSummary[]>([])
@@ -32,141 +47,67 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    api
-      .runs()
-      .then(({ runs }) => {
-        setRuns(runs)
-        // Default to the newest run that actually exercised the society. The
-        // monolith baseline runs are recorded in the same directory, and opening
-        // on one of those would show a batch with no disagreement in it at all.
-        const society = runs.filter((r) => !r.name.includes('mono'))
-        const pick = (society.length ? society : runs).at(-1)
-        if (pick) setActive(pick.name)
-      })
-      .catch((e: Error) => setError(e.message))
+    api.runs().then(({ runs: recorded }) => {
+      setRuns(recorded)
+      const society = recorded.filter((r) => !r.name.includes('mono'))
+      const pick = (society.length ? society : recorded).at(-1)
+      if (pick) setActive(pick.name)
+    }).catch((e: Error) => setError(e.message))
   }, [])
 
-  const meta = VIEWS.find((v) => v[0] === view)!
-  // Only the views that read one run need the run selector on screen.
+  const meta = VIEWS.find((item) => item[0] === view)!
   const runScoped = view === 'run' || view === 'evidence' || view === 'counterfactual'
 
   return (
-    <div style={{ background: C.bg.base, minHeight: '100vh', padding: '36px 48px 80px' }}>
-      <header style={{ marginBottom: '24px' }}>
-        <div
-          style={{
-            fontFamily: MONO,
-            fontSize: '10px',
-            color: C.text.ghost,
-            letterSpacing: '0.18em',
-            marginBottom: '10px',
-          }}
-        >
-          CLEARCREW · TRUST LAYER FOR AUTONOMOUS PAYOUTS
+    <div className="app-shell">
+      <aside className="sidebar">
+        <div className="brand-lockup">
+          <SettledMark />
+          <div><strong>Verasettle<span>.</span></strong><small>ClearCrew audit</small></div>
         </div>
-        <h1 style={{ fontFamily: SANS, fontSize: '26px', fontWeight: 500, color: C.text.primary, margin: 0 }}>
-          {meta[1]}
-        </h1>
-        <p style={{ fontFamily: SANS, fontSize: '13px', color: C.text.muted, margin: '6px 0 0' }}>
-          {meta[2]}
-        </p>
-      </header>
-
-      <nav
-        style={{
-          display: 'flex',
-          gap: '2px',
-          marginBottom: '30px',
-          borderBottom: `1px solid ${C.border.hairline}`,
-          flexWrap: 'wrap',
-        }}
-      >
-        {VIEWS.map(([key, label]) => {
-          const on = key === view
-          return (
-            <button
-              key={key}
-              onClick={() => setView(key)}
-              style={{
-                fontFamily: MONO,
-                fontSize: '12px',
-                background: 'transparent',
-                color: on ? C.text.primary : C.text.muted,
-                border: 'none',
-                borderBottom: `2px solid ${on ? C.text.primary : 'transparent'}`,
-                padding: '9px 14px',
-                cursor: 'pointer',
-                marginBottom: '-1px',
-              }}
-            >
+        <div className="sidebar-label">Audit workspace</div>
+        <nav className="side-nav" aria-label="ClearCrew sections">
+          {VIEWS.map(([key, label]) => (
+            <button key={key} className={key === view ? 'active' : ''} onClick={() => setView(key)}>
               {label}
             </button>
-          )
-        })}
-      </nav>
+          ))}
+        </nav>
+        <div className="sidebar-proof"><span /> Recorded evidence<br />read-only replay</div>
+      </aside>
 
-      {error && (
-        <div
-          style={{
-            background: '#280A0A',
-            border: '1px solid #4A1414',
-            borderRadius: '4px',
-            padding: '12px 14px',
-            fontFamily: MONO,
-            fontSize: '12px',
-            color: C.state.rejected,
-            marginBottom: '24px',
-          }}
-        >
-          {error}
-        </div>
-      )}
-
-      {runScoped && (
-        <div style={{ marginBottom: '28px' }}>
-          <SectionLabel>Recorded runs</SectionLabel>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-            {runs.map((r) => (
-              <button
-                key={r.name}
-                onClick={() => setActive(r.name)}
-                style={{
-                  fontFamily: MONO,
-                  fontSize: '11px',
-                  background: r.name === active ? C.bg.elevated : C.bg.surface,
-                  color: r.name === active ? C.text.primary : C.text.muted,
-                  border: `1px solid ${r.name === active ? C.border.strong : C.border.hairline}`,
-                  borderRadius: '3px',
-                  padding: '6px 10px',
-                  cursor: 'pointer',
-                }}
-              >
-                {r.stamp} · n={r.n}
-              </button>
-            ))}
+      <main className="app-main">
+        <header className="topbar">
+          <div>
+            <p className="eyebrow">ClearCrew / audit trail</p>
+            <h1>{meta[1]}</h1>
+            <p className="page-description">{meta[2]}</p>
           </div>
+          <div className="topbar-proof"><span>Evidence mode</span><b>Append-only</b></div>
+        </header>
+
+        {error && <div className="app-error" role="alert">Unable to load recorded runs: {error}</div>}
+
+        {runScoped && (
+          <section className="run-switcher" aria-label="Recorded runs">
+            <div><p className="eyebrow">Recorded run</p><strong>{active ? active.replace('events-', '').replace('.jsonl', '') : 'Loading archive…'}</strong></div>
+            <div className="run-options">
+              {runs.map((r) => <button key={r.name} className={r.name === active ? 'selected' : ''} onClick={() => setActive(r.name)}>{r.stamp} <span>n={r.n}</span></button>)}
+            </div>
+          </section>
+        )}
+
+        <div className="page-content">
+          {view === 'overview' && <Overview onOpen={(run, id) => setSubject({ run, id })} />}
+          {view === 'run' && active && <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />}
+          {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}
+          {view === 'evidence' && <Evidence run={active} />}
+          {view === 'counterfactual' && <Counterfactual run={active} />}
+          {view === 'analytics' && <Analytics />}
+          {view === 'policy' && <Policy />}
         </div>
-      )}
-
-      {view === 'overview' && (
-        <Overview onOpen={(run, id) => setSubject({ run, id })} />
-      )}
-      {view === 'run' && active && (
-        <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />
-      )}
-      {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}
-      {view === 'evidence' && <Evidence run={active} />}
-      {view === 'counterfactual' && <Counterfactual run={active} />}
-      {view === 'analytics' && <Analytics />}
-      {view === 'policy' && <Policy />}
-
-      {subject && (
-        <DecisionDetail
-          run={subject.run}
-          subject={subject.id}
-          onClose={() => setSubject(null)}
-        />
-      )}
+      </main>
+      {subject && <DecisionDetail run={subject.run} subject={subject.id} onClose={() => setSubject(null)} />}
     </div>
   )
 }

@@ -19,7 +19,7 @@ import time
 from dataclasses import replace
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -34,6 +34,30 @@ DIST_DIR = STATIC_DIR / "dist"  # built by `npm --prefix web run build`
 app = FastAPI(title="ClearCrew Replay Time Machine")
 
 _RUN_RE = re.compile(r"^events-(?P<stamp>[\w-]+?)-n(?P<n>\d+)\.jsonl$")
+
+
+@app.middleware("http")
+async def operational_headers(request: Request, call_next):
+    """Apply a safe browser baseline to both the UI and evidence API.
+
+    The replay service is intentionally read-only, but it is often embedded in
+    demo infrastructure. These headers make that boundary explicit without
+    relying on a particular reverse proxy to add them.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' "
+        "https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; "
+        "script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+    )
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
 
 
 def require_auth(authorization: str | None = Header(None)) -> None:
@@ -87,7 +111,7 @@ def _batch_lookup(n: int) -> dict[str, dict]:
     return {p["id"]: p for p in data.make_batch(n)}
 
 
-def _scan_all_runs() -> dict:
+def _scan_all_runs_uncached() -> dict:
     """Walk every archived run once; return the aggregates that power the
     Overview / Failures / Analytics views. All values are recorded facts —
     nothing is synthesized."""
@@ -151,9 +175,39 @@ def _scan_all_runs() -> dict:
     return out
 
 
+_scan_cache: dict[str, object] = {"expires_at": 0.0, "data": None}
+
+
+def _scan_all_runs() -> dict:
+    """Cache aggregate reads briefly without treating new evidence as stale.
+
+    Archive views ask for the same complete scan several times during a normal
+    browser session. A short TTL keeps the API responsive while making freshly
+    written live-run evidence visible almost immediately.
+    """
+    now = time.monotonic()
+    cached = _scan_cache.get("data")
+    if cached is not None and now < _scan_cache["expires_at"]:
+        return cached  # type: ignore[return-value]
+    scanned = _scan_all_runs_uncached()
+    _scan_cache.update(data=scanned, expires_at=now + 15.0)
+    return scanned
+
+
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "runs": len(_list_runs())}
+    """Liveness only: the process can answer requests."""
+    return {"ok": True}
+
+
+@app.get("/readyz")
+def readyz():
+    """Readiness: archived evidence is reachable and enumerable."""
+    try:
+        runs = _list_runs()
+    except OSError as exc:
+        raise HTTPException(503, "archived evidence is unavailable") from exc
+    return {"ok": True, "runs": len(runs)}
 
 
 @app.get("/api/runs")

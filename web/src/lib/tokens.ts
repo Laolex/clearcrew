@@ -1,36 +1,35 @@
-// Design tokens. Every text token below clears WCAG AA (4.5:1) on `bg.base`;
-// the ratio is stated so it can be re-checked rather than trusted.
+// Verasettle visual system: calm ivory, charcoal ink, and one accountable teal.
+// Teal Ink (not bright teal) is used for text on light surfaces for WCAG AA.
 
 export const C = {
   bg: {
-    base: '#0E1110', // page
-    surface: '#161A18', // raised panel
-    elevated: '#1C2220', // hover, selected
+    base: '#F3F4F1', // ivory canvas
+    surface: '#FFFFFF', // pure surface
+    elevated: '#F4F6F3', // mist surface
   },
   border: {
-    hairline: '#252B28',
-    strong: '#343D39',
+    hairline: '#EEF0EC',
+    strong: '#E6E8E4',
   },
   text: {
-    ghost: '#757F7A', //  4.59:1 — index column, section labels
-    muted: '#7A8580', //  4.97:1 — timestamps, labels
-    secondary: '#B5BEB9', //  9.97:1 — values, metadata
-    primary: '#E8EDEA', // 16.03:1 — prose, agent reasons
+    ghost: '#8A94A2', // metadata
+    muted: '#5B6776', // secondary copy
+    secondary: '#334155', // values, metadata
+    primary: '#0E1620', // charcoal ink
   },
   // Semantic. Colour never carries meaning alone — every chip also carries a word.
   state: {
-    approved: '#52C47A',
-    rejected: '#E0574F',
-    vetoed: '#D9A441',
-    held: '#5A9BD8',
-    hypothetical: '#A78BC4',
-    broken: '#E0574F',
+    approved: '#059669',
+    rejected: '#C2413A',
+    vetoed: '#A16207',
+    held: '#0D9488',
+    hypothetical: '#0E3A53',
+    broken: '#C2413A',
   },
 } as const
 
-// IBM Plex — the typeface the rest of ClearCrew already uses.
-export const MONO = "'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
-export const SANS = "'IBM Plex Sans', ui-sans-serif, system-ui, sans-serif"
+export const MONO = "'JetBrains Mono', 'Geist Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace"
+export const SANS = "Geist, 'Avenir Next', ui-sans-serif, system-ui, sans-serif"
 
 /** 4px base unit. */
 export const S = (n: number) => `${n * 4}px`
