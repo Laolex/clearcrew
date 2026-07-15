@@ -802,3 +802,18 @@ def image(name: str):
 # start in legacy mode, while still allowing assets to work if the frontend is
 # built after the process starts (without requiring a restart).
 app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets", check_dir=False), name="assets")
+
+
+@app.get("/{full_path:path}", response_class=HTMLResponse)
+def spa_fallback(full_path: str):
+    """Serve the SPA shell for client-side routes (e.g. /console).
+
+    Registered last, so every real route and the /assets mount match first.
+    API typos must 404 as JSON rather than silently returning HTML.
+    """
+    if full_path.startswith("api/") or full_path.startswith("assets/"):
+        raise HTTPException(404, "not found")
+    built = DIST_DIR / "index.html"
+    if built.is_file():
+        return built.read_text()
+    return (STATIC_DIR / "index.html").read_text()

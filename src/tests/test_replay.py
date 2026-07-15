@@ -144,6 +144,17 @@ def test_index_serves_ui(client):
     assert "ClearCrew" in r.text and "Verasettle" in r.text
 
 
+def test_spa_fallback_serves_app_for_client_routes(client):
+    r = client.get("/console")
+    assert r.status_code == 200
+    assert 'id="root"' in r.text  # the SPA shell, so react-router can take over
+
+
+def test_spa_fallback_does_not_swallow_unknown_api_paths(client):
+    r = client.get("/api/definitely-not-a-real-route")
+    assert r.status_code == 404
+
+
 def test_live_disabled_without_judge_code(client, monkeypatch):
     monkeypatch.delenv("CLEARCREW_JUDGE_CODE", raising=False)
     assert client.post("/api/live/start?code=x").status_code == 503
