@@ -53,8 +53,8 @@ button:focus-visible, input:focus-visible { outline: 2px solid #2dd4bf; outline-
 .section-kicker { color: #8a94a2; font: 600 10px/1.2 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
 .judge-form { display: grid; gap: 12px; padding: 22px; background: #fff; border: 1px solid #e6e8e4; border-radius: 18px; box-shadow: 0 18px 38px -32px rgba(14,22,32,.34); }
 .judge-form h3 { margin: 2px 0 6px; color: #0e1620; font-size: 17px; letter-spacing: -.03em; }
-.judge-form label { display: grid; gap: 6px; color: #5b6776; font-size: 12px; font-weight: 550; }
-.judge-form input { padding: 9px 11px; color: #0e1620; background: #fff; border: 1px solid #e6e8e4; border-radius: 10px; font-size: 13px; transition: border-color .15s, box-shadow .15s; }
+.judge-form label { display: grid; gap: 6px; min-width: 0; color: #5b6776; font-size: 12px; font-weight: 550; }
+.judge-form input { width: 100%; min-width: 0; padding: 9px 11px; color: #0e1620; background: #fff; border: 1px solid #e6e8e4; border-radius: 10px; font-size: 13px; transition: border-color .15s, box-shadow .15s; }
 .judge-form input:focus { border-color: #2dd4bf; box-shadow: 0 0 0 3px rgba(45,212,191,.16); outline: none; }
 .form-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .primary-action { margin-top: 4px; border: 0; border-radius: 10px; background: #0e1620; color: #fff; cursor: pointer; padding: 11px 14px; font-size: 13px; font-weight: 600; transition: transform .15s, opacity .15s; }
