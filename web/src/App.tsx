@@ -12,7 +12,6 @@ import { Policy } from './views/Policy'
 import { RunTrail } from './views/RunTrail'
 
 const VIEWS = [
-  ['demo', 'Judge demo', 'Create a payout and inspect its isolated evidence'],
   ['overview', 'Overview', 'Recorded operations at a glance'],
   ['run', 'Run trail', 'Inspect one recorded batch'],
   ['failures', 'Exceptions', 'Vetoes, disputes, and misses'],
@@ -20,6 +19,7 @@ const VIEWS = [
   ['counterfactual', 'Counterfactual', 'Test a policy without changing history'],
   ['analytics', 'Benchmark', 'Compare the society to a single agent'],
   ['policy', 'Policy', 'Rules in force'],
+  ['demo', 'Try it', 'Create a payout and inspect its isolated evidence'],
 ] as const
 
 type ViewKey = (typeof VIEWS)[number][0]

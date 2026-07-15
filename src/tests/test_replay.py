@@ -13,7 +13,6 @@ def _reset_token():
     import clearcrew.replay as r
     r.API_TOKEN = ""
     r._scan_cache.update(expires_at=0.0, data=None)
-    r._demo_sessions.clear()
     yield
 
 
@@ -51,26 +50,6 @@ def test_readyz_and_security_headers(client):
     assert response.headers["x-frame-options"] == "DENY"
     assert response.headers["cache-control"] == "no-store"
     assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
-
-
-def test_judge_workspace_is_isolated_and_hash_verified(client):
-    session = client.post("/api/demo/sessions").json()
-    assert session["chain"]["verified"] is True
-    assert session["events"][0]["payload"]["demo"] is True
-
-    created = client.post(f"/api/demo/sessions/{session['id']}/payouts", json={
-        "recipient": "Amina Bello", "corridor": "USD → NGN", "amount": 1250, "memo": "Judge demo",
-    }).json()
-    payout = created["payouts"][0]
-    assert payout["status"] == "pending"
-
-    settled = client.post(
-        f"/api/demo/sessions/{session['id']}/payouts/{payout['id']}/decision",
-        json={"action": "settle"},
-    ).json()
-    assert settled["payouts"][0]["status"] == "settled"
-    assert settled["chain"]["verified"] is True
-    assert settled["events"][-1]["type"] == "payout.settled"
 
 
 def test_list_runs_includes_results(client):
@@ -142,6 +121,17 @@ def test_index_serves_ui(client):
     # is the Decisions/Execution/Evidence trust layer.
     assert r.status_code == 200
     assert "ClearCrew" in r.text and "Verasettle" in r.text
+
+
+def test_spa_fallback_serves_app_for_client_routes(client):
+    r = client.get("/console")
+    assert r.status_code == 200
+    assert 'id="root"' in r.text  # the SPA shell, so react-router can take over
+
+
+def test_spa_fallback_does_not_swallow_unknown_api_paths(client):
+    r = client.get("/api/definitely-not-a-real-route")
+    assert r.status_code == 404
 
 
 def test_live_disabled_without_judge_code(client, monkeypatch):

@@ -1,18 +1,18 @@
 import { FormEvent, useEffect, useState } from 'react'
-import { api, type JudgeDemo } from '../lib/api'
+import { simDemo, type SimSession } from '../lib/simDemo'
 import { midTruncate } from '../components/Primitives'
 
 const INITIAL = { recipient: 'Amina Bello', corridor: 'USD → NGN', amount: '1250', memo: 'Creator payout · July' }
 
 export function JudgeWorkspace() {
-  const [workspace, setWorkspace] = useState<JudgeDemo | null>(null)
+  const [workspace, setWorkspace] = useState<SimSession | null>(null)
   const [form, setForm] = useState(INITIAL)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   async function create() {
     setBusy(true); setError(null)
-    try { setWorkspace(await api.demo.create()) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+    try { setWorkspace(await simDemo.create()) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
   useEffect(() => { void create() }, [])
 
@@ -22,12 +22,12 @@ export function JudgeWorkspace() {
     const amount = Number(form.amount)
     if (!Number.isFinite(amount) || amount <= 0) { setError('Enter a payout amount greater than zero.'); return }
     setBusy(true); setError(null)
-    try { setWorkspace(await api.demo.payout(workspace.id, { ...form, amount })) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+    try { setWorkspace(await simDemo.payout(workspace.id, { ...form, amount })) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
   async function decide(id: string, action: 'settle' | 'hold') {
     if (!workspace) return
     setBusy(true); setError(null)
-    try { setWorkspace(await api.demo.decide(workspace.id, id, action)) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
+    try { setWorkspace(await simDemo.decide(workspace.id, id, action)) } catch (e) { setError((e as Error).message) } finally { setBusy(false) }
   }
 
   const settled = workspace?.payouts.filter((p) => p.status === 'settled').length ?? 0
