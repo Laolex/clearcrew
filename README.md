@@ -73,7 +73,7 @@ verdict, and money movement in one tamper-evident history.**
 | **Headline** | across **10 runs** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot* |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 79 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
-| **Judge mode** | ⚡ live-run button on the demo — watch the society deliberate + settle in real time (code in submission notes) |
+| **Try it live** | on the demo, **replay any recorded run** event-by-event (real Qwen decisions, real on-chain tx), or open **"Try it"** to build a payout and watch its hash chain form and self-verify in your browser — no account, no setup |
 | **Eval bar** | the reserve floor as a chess-style position bar — folds the recorded decisions and shows the 2 archived runs that **broke** the floor |
 | **Policy gate** | agents *propose*, policy *promotes*: an approval P1/P2/P3 forbids **cannot be recorded**. The reserve floor is an invariant, not a grade. Veto-only — it can refuse, never approve |
 | **Anchored** | the head hash is signed by an independent RFC-3161 authority, so rewriting history needs a forged third-party signature, not just recomputed hashes |
@@ -111,6 +111,47 @@ batch → Intake (triage, qwen-turbo)
       → Compliance (veto power, qwen-max)   ─┐ disputes → Resolution agent
       → Treasury (funding/batching)          ─┘ (structured negotiation, recorded)
       → Auditor (plain-English explanation of every payout's event chain)
+```
+
+The division of labour is the code, not a prompt. Here is the society loop —
+trimmed from [`orchestrator.py`](src/clearcrew/orchestrator.py) — decomposing a
+batch, routing by risk, and arbitrating the disputes it creates:
+
+```python
+# orchestrator.py — five roles, one batch: decompose → route → fund → resolve
+def run_batch(payouts):
+    events.emit("batch.received", "batch", "orchestrator", {"count": len(payouts)})
+
+    # 1. Decompose — Intake triages every request in parallel (cheap model)
+    triage = pool.map(agents.intake, payouts)                 # qwen-turbo
+
+    # 2. Route by risk — low-risk is fast-tracked; the rest face Compliance,
+    #    which alone holds the veto
+    for payout, tri in zip(payouts, triage):
+        if tri["risk_tier"] == "low":
+            cleared.append(payout); continue
+        verdict = agents.compliance(payout, tri)              # qwen-max
+        (cleared if verdict["verdict"] == "clear" else vetoed).append(payout)
+
+    # 3. Treasury funds the cleared — then CODE reconciles each decision against
+    #    the ledger; a mismatch becomes a recorded dispute an AGENT rules on
+    treasury_actions = agents.treasury(cleared, balance, reserve_floor)
+    for pid, expected in mechanical.items():
+        if treasury_actions[pid] != expected:                 # code flags,
+            ruling = agents.reconcile(pid, ledger[pid], headroom)   # agent rules
+            if ruling["ruling"] == "enforce_ledger":
+                treasury_actions[pid] = expected
+
+    # 4. Resolve — a high-value veto is arbitrated between two positions that
+    #    were ACTUALLY taken: Compliance's (legality) and Treasury's
+    #    (affordability). An absent position is recorded as absent, never
+    #    invented — a fabricated counter-argument would make the log theatre
+    for payout in contested:
+        ruling = agents.negotiate(payout, veto_reason, treasury_position)
+        proposals[pid] = {"verdict": ruling_to_verdict(ruling), "proposed_by": "resolution"}
+
+    # Every branch yields a PROPOSAL — only policy.evaluate() can promote it,
+    # and every step above is an event in the hash-chained log.
 ```
 
 ## Why the society wins
@@ -461,17 +502,18 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
 
 ## Try it yourself (no setup → full setup)
 
-![The live demo — pick a run, or hit ⚡ live run to spawn a real one](docs/replay-landing.png)
+![The live demo — replay any recorded run, or build one in the browser](docs/replay-landing.png)
 
-1. **Zero setup — the live demo**: https://clearcrew.verasettle.com — pick the
-   `settled` run, click any payout, step its chain (arrow keys). Deep link to
-   the on-chain one: [`#…-settled-n6.jsonl/1818e811`](https://clearcrew.verasettle.com/#events-20260703-165045-settled-n6.jsonl/1818e811).
-2. **Judges: run the society live from the browser** — the **⚡ live run**
-   button (access code in the submission notes) spawns a real 6-payout run:
-   live Qwen calls, recorded disputes, real testnet settlement. You watch the
-   events stream in as the agents deliberate (~2–4 min), then your run loads
-   for replay — hash-chained like every other. Budget-capped per day; if the
-   cap is spent, every archived run replays identically.
+1. **Zero setup — the live demo**: https://clearcrew.verasettle.com — open
+   **Console → Run trail**, pick the `settled` run, click any payout, and step
+   its hash chain (arrow keys). Every event you see was emitted by a real,
+   Qwen-driven run of the society — nothing is staged. The **Benchmark** view
+   folds 10 of these runs and shows the society settling 100% within the
+   reserve floor where the single agent overdrew the treasury in 10/10.
+2. **Build one yourself in the browser** — open **"Try it"**: submit a payout,
+   settle or hold it, and watch the append-only hash chain form and self-verify
+   client-side (real SHA-256, no network). It runs the same event model the
+   society writes — no account, nothing staged.
 3. **Verify a settlement independently** — don't trust us, ask the chain:
    ```bash
    curl -s https://sepolia.base.org -H 'content-type: application/json' -d \
