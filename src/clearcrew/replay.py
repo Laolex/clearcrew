@@ -15,17 +15,13 @@ import os
 import re
 import subprocess
 import sys
-import threading
 import time
-import uuid
 from dataclasses import replace
 from pathlib import Path
-from typing import Literal
 
 from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
 
 from . import anchor, data, events as event_log, policy
 
@@ -196,137 +192,6 @@ def _scan_all_runs() -> dict:
     scanned = _scan_all_runs_uncached()
     _scan_cache.update(data=scanned, expires_at=now + 15.0)
     return scanned
-
-
-# ── judge demo: isolated, ephemeral, and deliberately non-production ───────
-
-class DemoPayoutInput(BaseModel):
-    recipient: str = Field(min_length=2, max_length=80)
-    corridor: str = Field(min_length=3, max_length=32)
-    amount: float = Field(gt=0, le=100_000)
-    memo: str = Field(default="Judge workspace payout", max_length=160)
-
-
-class DemoDecisionInput(BaseModel):
-    action: Literal["settle", "hold"]
-
-
-_demo_lock = threading.RLock()
-_demo_sessions: dict[str, dict] = {}
-
-
-def _demo_event(session: dict, event_type: str, subject: str, actor: str, payload: dict) -> dict:
-    """Append to one judge's in-memory chain, never the evidence archive."""
-    events = session["events"]
-    event = {
-        "id": uuid.uuid4().hex[:12],
-        "ts": time.time(),
-        "type": event_type,
-        "subject": subject,
-        "actor": actor,
-        "payload": {**payload, "demo": True},
-        "prev_hash": events[-1]["event_hash"] if events else event_log.GENESIS,
-    }
-    event = event_log.schema.validate(event)
-    event["event_hash"] = event_log._event_hash(event)
-    events.append(event)
-    return event
-
-
-def _new_demo_session() -> dict:
-    session = {"id": uuid.uuid4().hex, "created_at": time.time(), "events": [], "payouts": {}}
-    _demo_event(session, "batch.received", "demo-batch", "orchestrator", {
-        "count": 0,
-        "source": "judge workspace — simulated, no funds move",
-    })
-    return session
-
-
-def _demo_session(session_id: str) -> dict:
-    session = _demo_sessions.get(session_id)
-    if not session:
-        raise HTTPException(404, "judge workspace expired or does not exist")
-    return session
-
-
-def _demo_snapshot(session: dict) -> dict:
-    events = session["events"]
-    return {
-        "id": session["id"],
-        "created_at": session["created_at"],
-        "payouts": list(session["payouts"].values()),
-        "events": events,
-        "chain": event_log.verify_chain(events),
-        "notice": "Judge workspace only — simulated evidence, no funds move and no archived run changes.",
-    }
-
-
-@app.post("/api/demo/sessions")
-def create_demo_session(auth=Depends(require_auth)):
-    with _demo_lock:
-        session = _new_demo_session()
-        _demo_sessions[session["id"]] = session
-        return _demo_snapshot(session)
-
-
-@app.get("/api/demo/sessions/{session_id}")
-def get_demo_session(session_id: str, auth=Depends(require_auth)):
-    with _demo_lock:
-        return _demo_snapshot(_demo_session(session_id))
-
-
-@app.post("/api/demo/sessions/{session_id}/payouts")
-def add_demo_payout(session_id: str, payout: DemoPayoutInput, auth=Depends(require_auth)):
-    with _demo_lock:
-        session = _demo_session(session_id)
-        payout_id = f"judge-{uuid.uuid4().hex[:6]}"
-        risk = "high" if payout.amount >= 10_000 else "medium" if payout.amount >= 3_000 else "low"
-        record = {"id": payout_id, **payout.model_dump(), "risk": risk, "status": "pending"}
-        session["payouts"][payout_id] = record
-        _demo_event(session, "intake.classified", payout_id, "intake", {
-            "risk_tier": risk, "reason": "submitted in judge workspace", "flags": [],
-        })
-        _demo_event(session, "payout.proposed", payout_id, "orchestrator", {
-            "verdict": "approve", "reason": "awaiting judge action",
-        })
-        return _demo_snapshot(session)
-
-
-@app.post("/api/demo/sessions/{session_id}/payouts/{payout_id}/decision")
-def decide_demo_payout(session_id: str, payout_id: str, decision: DemoDecisionInput,
-                       auth=Depends(require_auth)):
-    with _demo_lock:
-        session = _demo_session(session_id)
-        payout = session["payouts"].get(payout_id)
-        if not payout:
-            raise HTTPException(404, "no such demo payout")
-        if payout["status"] != "pending":
-            raise HTTPException(409, "this demo payout already has a recorded decision")
-        if decision.action == "hold":
-            _demo_event(session, "compliance.reviewed", payout_id, "compliance", {
-                "verdict": "veto", "reason": "held by judge for review", "policy_rule": "P2",
-            })
-            _demo_event(session, "treasury.decided", payout_id, "treasury", {
-                "payout_id": payout_id, "action": "reject", "reason": "judge chose hold",
-            })
-            _demo_event(session, "payout.rejected", payout_id, "orchestrator", {"reason": "held in judge workspace"})
-            payout["status"] = "held"
-        else:
-            _demo_event(session, "compliance.reviewed", payout_id, "compliance", {
-                "verdict": "clear", "reason": "cleared in judge workspace", "policy_rule": "none",
-            })
-            _demo_event(session, "treasury.decided", payout_id, "treasury", {
-                "payout_id": payout_id, "action": "pay_now", "reason": "judge chose settle",
-            })
-            _demo_event(session, "payout.approved", payout_id, "orchestrator", {"reason": "judge approved simulated payout"})
-            _demo_event(session, "settlement.requested", payout_id, "verasettle", {"rail": "simulated"})
-            _demo_event(session, "settlement.confirmed", payout_id, "verasettle", {
-                "rail": "simulated", "source_amount_usd": payout["amount"],
-                "settled_amount_usdc": payout["amount"], "chain": "demo-only", "tx_hash": None,
-            })
-            _demo_event(session, "payout.settled", payout_id, "orchestrator", {"reason": "simulated settlement complete"})
-            payout["status"] = "settled"
-        return _demo_snapshot(session)
 
 
 @app.get("/healthz")
