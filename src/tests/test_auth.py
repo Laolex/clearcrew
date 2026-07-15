@@ -53,6 +53,15 @@ def test_auth_succeeds_with_valid_token(client, monkeypatch):
     assert r.status_code == 200
 
 
+def test_event_verification_endpoint_accepts_valid_auth(client, monkeypatch):
+    """The browser evidence view uses this endpoint with the shared auth header."""
+    monkeypatch.setenv("CLEARCREW_API_TOKEN", "s3cr3t")
+    replay.API_TOKEN = "s3cr3t"
+    r = client.get("/api/runs/events-test-n12.jsonl/events",
+                   headers={"Authorization": "Bearer s3cr3t"})
+    assert r.status_code == 200
+
+
 def test_healthz_is_unauthenticated(client, monkeypatch):
     monkeypatch.setenv("CLEARCREW_API_TOKEN", "s3cr3t")
     replay.API_TOKEN = "s3cr3t"

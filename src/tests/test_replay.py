@@ -4,7 +4,7 @@ import json
 import pytest
 from fastapi.testclient import TestClient
 
-from clearcrew import replay
+from clearcrew import events as event_log, replay
 
 
 @pytest.fixture(autouse=True)
@@ -12,6 +12,8 @@ def _reset_token():
     """Ensure auth is off so these tests don't get 401."""
     import clearcrew.replay as r
     r.API_TOKEN = ""
+    r._scan_cache.update(expires_at=0.0, data=None)
+    r._demo_sessions.clear()
     yield
 
 
@@ -39,6 +41,38 @@ def test_healthz(client):
     assert r.status_code == 200 and r.json()["ok"] is True
 
 
+def test_readyz_and_security_headers(client):
+    ready = client.get("/readyz")
+    assert ready.status_code == 200
+    assert ready.json() == {"ok": True, "runs": 1}
+
+    response = client.get("/api/runs")
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["x-frame-options"] == "DENY"
+    assert response.headers["cache-control"] == "no-store"
+    assert "frame-ancestors 'none'" in response.headers["content-security-policy"]
+
+
+def test_judge_workspace_is_isolated_and_hash_verified(client):
+    session = client.post("/api/demo/sessions").json()
+    assert session["chain"]["verified"] is True
+    assert session["events"][0]["payload"]["demo"] is True
+
+    created = client.post(f"/api/demo/sessions/{session['id']}/payouts", json={
+        "recipient": "Amina Bello", "corridor": "USD → NGN", "amount": 1250, "memo": "Judge demo",
+    }).json()
+    payout = created["payouts"][0]
+    assert payout["status"] == "pending"
+
+    settled = client.post(
+        f"/api/demo/sessions/{session['id']}/payouts/{payout['id']}/decision",
+        json={"action": "settle"},
+    ).json()
+    assert settled["payouts"][0]["status"] == "settled"
+    assert settled["chain"]["verified"] is True
+    assert settled["events"][-1]["type"] == "payout.settled"
+
+
 def test_list_runs_includes_results(client):
     runs = client.get("/api/runs").json()["runs"]
     assert len(runs) == 1
@@ -60,6 +94,38 @@ def test_explain_returns_ordered_chain_with_offsets(client):
     assert d["chain"][0]["t_offset"] == 1.0  # relative to batch start
 
 
+def test_load_events_keeps_jsonl_append_order_when_clock_regresses(tmp_path, monkeypatch):
+    """Timestamps are display metadata; hash links define archive order."""
+    run = tmp_path / "events-order-n2.jsonl"
+    first = {"id": "e1", "ts": 2.0, "type": "batch.received", "subject": "batch",
+             "actor": "orchestrator", "payload": {"count": 2}, "prev_hash": event_log.GENESIS}
+    first["event_hash"] = event_log._event_hash(first)
+    second = {"id": "e2", "ts": 1.0, "type": "payout.approved", "subject": "aaaa1111",
+              "actor": "orchestrator", "payload": {}, "prev_hash": first["event_hash"]}
+    second["event_hash"] = event_log._event_hash(second)
+    run.write_text("\n".join(json.dumps(e) for e in (first, second)) + "\n")
+    monkeypatch.setattr(replay, "RUNS_DIR", tmp_path)
+
+    loaded = replay._load_events(run.name)
+    assert [e["id"] for e in loaded] == ["e1", "e2"]
+    assert event_log.verify_chain(loaded)["verified"] is True
+
+
+def test_export_is_byte_exact_jsonl(client, tmp_path):
+    path = tmp_path / "events-test-n12.jsonl"
+    original = path.read_bytes()
+    response = client.get("/api/runs/events-test-n12.jsonl/export")
+    assert response.status_code == 200
+    assert response.content == original
+    assert response.headers["content-type"].startswith("application/x-ndjson")
+
+
+def test_anchors_reports_absent_external_proof(client):
+    response = client.get("/api/runs/events-test-n12.jsonl/anchors")
+    assert response.status_code == 200
+    assert response.json()["anchors"] == []
+
+
 def test_unknown_run_and_subject_404(client):
     assert client.get("/api/runs/events-nope-n5.jsonl").status_code == 404
     assert client.get("/api/runs/events-test-n12.jsonl/explain/zzzz").status_code == 404
@@ -75,7 +141,7 @@ def test_index_serves_ui(client):
     # replay is now a property of an operation, not the product name — the shell
     # is the Decisions/Execution/Evidence trust layer.
     assert r.status_code == 200
-    assert "ClearCrew" in r.text and "Trust Layer for Autonomous Payouts" in r.text
+    assert "ClearCrew" in r.text and "Verasettle" in r.text
 
 
 def test_live_disabled_without_judge_code(client, monkeypatch):

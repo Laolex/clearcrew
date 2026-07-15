@@ -10,27 +10,58 @@ is enabled only when CLEARCREW_JUDGE_CODE is set — never on the FC deployment.
 """
 import functools
 import json
+import math
 import os
 import re
 import subprocess
 import sys
+import threading
 import time
+import uuid
 from dataclasses import replace
 from pathlib import Path
+from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel, Field
 
-from . import data, events as event_log, policy
+from . import anchor, data, events as event_log, policy
 
 API_TOKEN = os.environ.get("CLEARCREW_API_TOKEN", "")
 
 RUNS_DIR = Path(os.environ.get("CLEARCREW_RUNS_DIR", Path(__file__).parent.parent / "runs"))
 STATIC_DIR = Path(__file__).parent / "static"
+DIST_DIR = STATIC_DIR / "dist"  # built by `npm --prefix web run build`
 
 app = FastAPI(title="ClearCrew Replay Time Machine")
 
 _RUN_RE = re.compile(r"^events-(?P<stamp>[\w-]+?)-n(?P<n>\d+)\.jsonl$")
+
+
+@app.middleware("http")
+async def operational_headers(request: Request, call_next):
+    """Apply a safe browser baseline to both the UI and evidence API.
+
+    The replay service is intentionally read-only, but it is often embedded in
+    demo infrastructure. These headers make that boundary explicit without
+    relying on a particular reverse proxy to add them.
+    """
+    response = await call_next(request)
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    response.headers.setdefault(
+        "Content-Security-Policy",
+        "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline' "
+        "https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; "
+        "script-src 'self'; connect-src 'self'; base-uri 'self'; frame-ancestors 'none'",
+    )
+    if request.url.path.startswith("/api/"):
+        response.headers.setdefault("Cache-Control", "no-store")
+    return response
 
 
 def require_auth(authorization: str | None = Header(None)) -> None:
@@ -62,9 +93,10 @@ def _load_events(run_name: str) -> list[dict]:
         raise HTTPException(404, "no such run")
     with open(path) as f:
         events = [json.loads(line) for line in f if line.strip()]
-    # file order is emission order (hash chain verifies against it);
-    # stable sort by ts preserves it for equal timestamps
-    return sorted(events, key=lambda e: e["ts"])
+    # JSONL order is append/emission order. It is the only order in which the
+    # predecessor links can be verified; timestamps are presentation metadata
+    # and may regress when a host clock changes.
+    return events
 
 
 _chain_cache: dict[str, dict] = {}
@@ -83,7 +115,7 @@ def _batch_lookup(n: int) -> dict[str, dict]:
     return {p["id"]: p for p in data.make_batch(n)}
 
 
-def _scan_all_runs() -> dict:
+def _scan_all_runs_uncached() -> dict:
     """Walk every archived run once; return the aggregates that power the
     Overview / Failures / Analytics views. All values are recorded facts —
     nothing is synthesized."""
@@ -147,9 +179,170 @@ def _scan_all_runs() -> dict:
     return out
 
 
+_scan_cache: dict[str, object] = {"expires_at": 0.0, "data": None}
+
+
+def _scan_all_runs() -> dict:
+    """Cache aggregate reads briefly without treating new evidence as stale.
+
+    Archive views ask for the same complete scan several times during a normal
+    browser session. A short TTL keeps the API responsive while making freshly
+    written live-run evidence visible almost immediately.
+    """
+    now = time.monotonic()
+    cached = _scan_cache.get("data")
+    if cached is not None and now < _scan_cache["expires_at"]:
+        return cached  # type: ignore[return-value]
+    scanned = _scan_all_runs_uncached()
+    _scan_cache.update(data=scanned, expires_at=now + 15.0)
+    return scanned
+
+
+# ── judge demo: isolated, ephemeral, and deliberately non-production ───────
+
+class DemoPayoutInput(BaseModel):
+    recipient: str = Field(min_length=2, max_length=80)
+    corridor: str = Field(min_length=3, max_length=32)
+    amount: float = Field(gt=0, le=100_000)
+    memo: str = Field(default="Judge workspace payout", max_length=160)
+
+
+class DemoDecisionInput(BaseModel):
+    action: Literal["settle", "hold"]
+
+
+_demo_lock = threading.RLock()
+_demo_sessions: dict[str, dict] = {}
+
+
+def _demo_event(session: dict, event_type: str, subject: str, actor: str, payload: dict) -> dict:
+    """Append to one judge's in-memory chain, never the evidence archive."""
+    events = session["events"]
+    event = {
+        "id": uuid.uuid4().hex[:12],
+        "ts": time.time(),
+        "type": event_type,
+        "subject": subject,
+        "actor": actor,
+        "payload": {**payload, "demo": True},
+        "prev_hash": events[-1]["event_hash"] if events else event_log.GENESIS,
+    }
+    event = event_log.schema.validate(event)
+    event["event_hash"] = event_log._event_hash(event)
+    events.append(event)
+    return event
+
+
+def _new_demo_session() -> dict:
+    session = {"id": uuid.uuid4().hex, "created_at": time.time(), "events": [], "payouts": {}}
+    _demo_event(session, "batch.received", "demo-batch", "orchestrator", {
+        "count": 0,
+        "source": "judge workspace — simulated, no funds move",
+    })
+    return session
+
+
+def _demo_session(session_id: str) -> dict:
+    session = _demo_sessions.get(session_id)
+    if not session:
+        raise HTTPException(404, "judge workspace expired or does not exist")
+    return session
+
+
+def _demo_snapshot(session: dict) -> dict:
+    events = session["events"]
+    return {
+        "id": session["id"],
+        "created_at": session["created_at"],
+        "payouts": list(session["payouts"].values()),
+        "events": events,
+        "chain": event_log.verify_chain(events),
+        "notice": "Judge workspace only — simulated evidence, no funds move and no archived run changes.",
+    }
+
+
+@app.post("/api/demo/sessions")
+def create_demo_session(auth=Depends(require_auth)):
+    with _demo_lock:
+        session = _new_demo_session()
+        _demo_sessions[session["id"]] = session
+        return _demo_snapshot(session)
+
+
+@app.get("/api/demo/sessions/{session_id}")
+def get_demo_session(session_id: str, auth=Depends(require_auth)):
+    with _demo_lock:
+        return _demo_snapshot(_demo_session(session_id))
+
+
+@app.post("/api/demo/sessions/{session_id}/payouts")
+def add_demo_payout(session_id: str, payout: DemoPayoutInput, auth=Depends(require_auth)):
+    with _demo_lock:
+        session = _demo_session(session_id)
+        payout_id = f"judge-{uuid.uuid4().hex[:6]}"
+        risk = "high" if payout.amount >= 10_000 else "medium" if payout.amount >= 3_000 else "low"
+        record = {"id": payout_id, **payout.model_dump(), "risk": risk, "status": "pending"}
+        session["payouts"][payout_id] = record
+        _demo_event(session, "intake.classified", payout_id, "intake", {
+            "risk_tier": risk, "reason": "submitted in judge workspace", "flags": [],
+        })
+        _demo_event(session, "payout.proposed", payout_id, "orchestrator", {
+            "verdict": "approve", "reason": "awaiting judge action",
+        })
+        return _demo_snapshot(session)
+
+
+@app.post("/api/demo/sessions/{session_id}/payouts/{payout_id}/decision")
+def decide_demo_payout(session_id: str, payout_id: str, decision: DemoDecisionInput,
+                       auth=Depends(require_auth)):
+    with _demo_lock:
+        session = _demo_session(session_id)
+        payout = session["payouts"].get(payout_id)
+        if not payout:
+            raise HTTPException(404, "no such demo payout")
+        if payout["status"] != "pending":
+            raise HTTPException(409, "this demo payout already has a recorded decision")
+        if decision.action == "hold":
+            _demo_event(session, "compliance.reviewed", payout_id, "compliance", {
+                "verdict": "veto", "reason": "held by judge for review", "policy_rule": "P2",
+            })
+            _demo_event(session, "treasury.decided", payout_id, "treasury", {
+                "payout_id": payout_id, "action": "reject", "reason": "judge chose hold",
+            })
+            _demo_event(session, "payout.rejected", payout_id, "orchestrator", {"reason": "held in judge workspace"})
+            payout["status"] = "held"
+        else:
+            _demo_event(session, "compliance.reviewed", payout_id, "compliance", {
+                "verdict": "clear", "reason": "cleared in judge workspace", "policy_rule": "none",
+            })
+            _demo_event(session, "treasury.decided", payout_id, "treasury", {
+                "payout_id": payout_id, "action": "pay_now", "reason": "judge chose settle",
+            })
+            _demo_event(session, "payout.approved", payout_id, "orchestrator", {"reason": "judge approved simulated payout"})
+            _demo_event(session, "settlement.requested", payout_id, "verasettle", {"rail": "simulated"})
+            _demo_event(session, "settlement.confirmed", payout_id, "verasettle", {
+                "rail": "simulated", "source_amount_usd": payout["amount"],
+                "settled_amount_usdc": payout["amount"], "chain": "demo-only", "tx_hash": None,
+            })
+            _demo_event(session, "payout.settled", payout_id, "orchestrator", {"reason": "simulated settlement complete"})
+            payout["status"] = "settled"
+        return _demo_snapshot(session)
+
+
 @app.get("/healthz")
 def healthz():
-    return {"ok": True, "runs": len(_list_runs())}
+    """Liveness only: the process can answer requests."""
+    return {"ok": True}
+
+
+@app.get("/readyz")
+def readyz():
+    """Readiness: archived evidence is reachable and enumerable."""
+    try:
+        runs = _list_runs()
+    except OSError as exc:
+        raise HTTPException(503, "archived evidence is unavailable") from exc
+    return {"ok": True, "runs": len(runs)}
 
 
 @app.get("/api/runs")
@@ -205,6 +398,64 @@ def run_detail(run_name: str, auth=Depends(require_auth)):
             "chain": _verify(run_name, events), "payouts": ordered}
 
 
+@app.get("/api/runs/{run_name}/events")
+def run_events(run_name: str, auth=Depends(require_auth)):
+    """The whole recorded trail, in emission order — the chain verifies against
+    this order, so it is served as-is rather than re-sorted for presentation.
+
+    `untrusted_from` is where the linear walk first fails: everything at or after
+    that index is downstream of a break and must not be presented as fact.
+    """
+    events = _load_events(run_name)
+    t0 = events[0]["ts"] if events else 0.0
+    chain = _verify(run_name, events)
+    return {
+        "run": run_name,
+        "t0": t0,
+        "chain": chain,
+        "untrusted_from": chain["broken_at"],
+        "events": [{**e, "t_offset": round(e["ts"] - t0, 2)} for e in events],
+    }
+
+
+@app.get("/api/runs/{run_name}/export")
+def export_run(run_name: str, auth=Depends(require_auth)):
+    """Download the archived evidence exactly as it was recorded.
+
+    Unlike the JSON API, this is JSONL with no presentation-only fields. It is
+    the artifact an independent verifier should archive and hash.
+    """
+    _load_events(run_name)  # validates the name and existence before serving
+    path = RUNS_DIR / run_name
+    return FileResponse(path, media_type="application/x-ndjson",
+                        filename=run_name,
+                        headers={"Cache-Control": "no-store"})
+
+
+@app.get("/api/runs/{run_name}/anchors")
+def run_anchors(run_name: str, auth=Depends(require_auth)):
+    """Anchor records and their local imprint checks for this archived run.
+
+    `valid` means the RFC-3161 token commits to the stated head hash. Signature
+    validation still belongs to an independent tool with the TSA trust chain.
+    """
+    records = []
+    for e in _load_events(run_name):
+        if e["type"] != "chain.anchored":
+            continue
+        p = e.get("payload", {})
+        token, head = p.get("token"), p.get("head_hash")
+        verification = (anchor.verify_token(token, head)
+                        if isinstance(token, str) and isinstance(head, str)
+                        else {"valid": False, "reason": "no external timestamp token recorded"})
+        records.append({
+            "event_id": e["id"], "head_hash": head, "provider": p.get("provider"),
+            "url": p.get("url"), "tsa_time": p.get("tsa_time"), "serial": p.get("serial"),
+            "verification": verification,
+        })
+    return {"run": run_name, "anchors": records}
+
+
 @app.get("/api/runs/{run_name}/explain/{subject}")
 def explain(run_name: str, subject: str, auth=Depends(require_auth)):
     events = _load_events(run_name)
@@ -234,8 +485,8 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     # button fires a manual fetch(), not a <form> submit, so HTML5 constraint
     # validation never runs. This is the actual, only enforcement.
     for name, val in (("reserve_floor", reserve_floor), ("p2_amount", p2_amount), ("p2_age_days", p2_age_days)):
-        if val is not None and val < 0:
-            raise HTTPException(422, f"{name} must be zero or positive")
+        if val is not None and (not math.isfinite(val) or val < 0):
+            raise HTTPException(422, f"{name} must be a finite, non-negative number")
     if p2_age_days is not None and p2_age_days > 365:
         raise HTTPException(422, "p2_age_days must be 365 or fewer")
     events = _load_events(run_name)
@@ -519,6 +770,21 @@ def live_status(auth=Depends(require_auth)):
 
 @app.get("/", response_class=HTMLResponse)
 def index():
+    """The React frontend, if it has been built; otherwise the original console.
+
+    Falling back rather than 500-ing keeps `uvicorn clearcrew.replay:app` working
+    in a fresh clone where `web/` was never built — the API and the legacy UI do
+    not depend on node.
+    """
+    built = DIST_DIR / "index.html"
+    if built.is_file():
+        return built.read_text()
+    return (STATIC_DIR / "index.html").read_text()
+
+
+@app.get("/legacy", response_class=HTMLResponse)
+def legacy_index():
+    """The pre-React console. Kept reachable until the port is at parity."""
     return (STATIC_DIR / "index.html").read_text()
 
 
@@ -530,3 +796,9 @@ def image(name: str):
         raise HTTPException(status_code=404, detail="not found")
     return FileResponse(path, media_type="image/png",
                         headers={"Cache-Control": "public, max-age=86400"})
+
+
+# Mounted last so it cannot shadow /api. `check_dir=False` lets a fresh clone
+# start in legacy mode, while still allowing assets to work if the frontend is
+# built after the process starts (without requiring a restart).
+app.mount("/assets", StaticFiles(directory=DIST_DIR / "assets", check_dir=False), name="assets")
