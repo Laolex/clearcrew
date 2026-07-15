@@ -6,11 +6,13 @@ import { Analytics } from './views/Analytics'
 import { Counterfactual } from './views/Counterfactual'
 import { Evidence } from './views/Evidence'
 import { Failures } from './views/Failures'
+import { JudgeWorkspace } from './views/JudgeWorkspace'
 import { Overview } from './views/Overview'
 import { Policy } from './views/Policy'
 import { RunTrail } from './views/RunTrail'
 
 const VIEWS = [
+  ['demo', 'Judge demo', 'Create a payout and inspect its isolated evidence'],
   ['overview', 'Overview', 'Recorded operations at a glance'],
   ['run', 'Run trail', 'Inspect one recorded batch'],
   ['failures', 'Exceptions', 'Vetoes, disputes, and misses'],
@@ -98,6 +100,7 @@ export default function App() {
         )}
 
         <div className="page-content">
+          {view === 'demo' && <JudgeWorkspace />}
           {view === 'overview' && <Overview onOpen={(run, id) => setSubject({ run, id })} />}
           {view === 'run' && active && <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />}
           {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}

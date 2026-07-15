@@ -23,6 +23,16 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function post<T>(path: string, body?: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`)
+  return res.json() as Promise<T>
+}
+
 export interface RunEvents {
   run: string
   t0: number
@@ -115,6 +125,23 @@ export interface AnchorEvidence {
   }[]
 }
 
+export interface JudgeDemo {
+  id: string
+  created_at: number
+  notice: string
+  chain: ChainVerification
+  events: ClearEvent[]
+  payouts: {
+    id: string
+    recipient: string
+    corridor: string
+    amount: number
+    memo: string
+    risk: 'low' | 'medium' | 'high'
+    status: 'pending' | 'held' | 'settled'
+  }[]
+}
+
 export const api = {
   runs: () => get<{ runs: RunSummary[] }>('/api/runs'),
   run: (name: string) => get<RunDetail>(`/api/runs/${name}`),
@@ -132,4 +159,11 @@ export const api = {
   failures: () => get<Failures>('/api/failures'),
   analytics: () => get<Analytics>('/api/analytics'),
   policies: () => get<Policies>('/api/policies'),
+  demo: {
+    create: () => post<JudgeDemo>('/api/demo/sessions'),
+    payout: (id: string, payout: { recipient: string; corridor: string; amount: number; memo: string }) =>
+      post<JudgeDemo>(`/api/demo/sessions/${id}/payouts`, payout),
+    decide: (id: string, payoutId: string, action: 'settle' | 'hold') =>
+      post<JudgeDemo>(`/api/demo/sessions/${id}/payouts/${payoutId}/decision`, { action }),
+  },
 }
