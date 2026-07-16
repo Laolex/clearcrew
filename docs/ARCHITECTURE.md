@@ -1,6 +1,6 @@
 # ClearCrew v1 Architecture
 
-![ClearCrew v1 architecture](diagrams/architecture.svg)
+![ClearCrew v1 architecture](diagrams/architecture.png)
 
 One page. The architecture *is* the thesis:
 **Proposals → Governance → History → Execution → Evidence**.

@@ -1,6 +1,6 @@
 # Trust Model
 
-![Trust model — eight properties and trust boundaries](diagrams/trust-model.svg)
+![Trust model — eight properties and trust boundaries](diagrams/trust-model.png)
 
 ## The chain of custody for a decision
 
@@ -75,7 +75,7 @@ accumulates.
 
 ## Decision state machine
 
-![Decision state machine](diagrams/state-machine.svg)
+![Decision state machine](diagrams/state-machine.png)
 
 Every payout reaches exactly one terminal decision; `SETTLED` is the only
 state after approval, and it must carry a receipt.

@@ -1,6 +1,6 @@
 # One Payout, End to End
 
-![One payout end to end — clean path and escalation path](diagrams/sequence.svg)
+![One payout end to end — clean path and escalation path](diagrams/sequence.png)
 
 Not a hypothetical — these are the recorded event orders of payouts `1818e811`
 (approve path) and `658cda14` (escalation path) from

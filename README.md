@@ -5,17 +5,17 @@ the moment they're made — no trail to replay, no reasoning to audit, no specif
 agent to fix.**
 
 **ClearCrew replaces the opaque single-agent decision with a society of five
-specialist Qwen agents whose disagreements, vetoes, and negotiated resolutions
+specialist Qwen agents whose disagreements, vetoes, and adjudicated rulings
 are recorded as replayable, hash-chained history. Starting with payout
 operations.**
 
 Built on Qwen Cloud for the Global AI Hackathon Series (Agent Society track).
 Five specialist agents — Intake, Compliance, Treasury, Resolution, Auditor —
-divide a batch of payout requests through task decomposition and negotiated
+divide a batch of payout requests through task decomposition and adjudicated
 conflict resolution. Every decision is an event in an append-only log: state is a
 fold over events, and any outcome can be replayed and explained.
 
-![ClearCrew v1 architecture — user → decision → history → execution → evidence: five specialist agents writing to a hash-chained append-only event log, a replay/explain/counterfactual engine folding over it, Verasettle executing only approved payouts on Base Sepolia, and an exportable evidence pack](docs/diagrams/architecture.svg)
+![ClearCrew v1 architecture — user → decision → history → execution → evidence: five specialist agents writing to a hash-chained append-only event log, a replay/explain/counterfactual engine folding over it, Verasettle executing only approved payouts on Base Sepolia, and an exportable evidence pack](docs/diagrams/architecture.png)
 
 The whole system is one loop — decide, record, replay, execute, prove:
 
@@ -70,7 +70,7 @@ verdict, and money movement in one tamper-evident history.**
 | | |
 |---|---|
 | **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
-| **Headline** | across **10 runs** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot* |
+| **Headline** | across a **controlled 10-run benchmark** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot*. Across all **15 archived runs** served live, the society averages **99.4%** to the monolith's **88.9%** |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 79 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
 | **Try it live** | on the demo, **replay any recorded run** event-by-event (real Qwen decisions, real on-chain tx), or open **"Try it"** to build a payout and watch its hash chain form and self-verify in your browser — no account, no setup |
@@ -91,8 +91,7 @@ verdict, and money movement in one tamper-evident history.**
 | `deploy/fc_handler.py` | Alibaba FC HTTP-event → ASGI adapter (FC's URL does **not** speak WSGI, whatever the docs say) |
 
 **System documentation** — written to the standard the record is held to.
-Each doc leads with a rendered diagram (`docs/diagrams/*.svg`, with 2x PNGs
-for Devpost/deck):
+Each doc leads with a rendered diagram (`docs/diagrams/*.png`):
 
 | doc | one-line pitch |
 |---|---|
@@ -103,13 +102,13 @@ for Devpost/deck):
 | [Guarantees](docs/GUARANTEES.md) | 11 invariants **checked against all 21 recorded runs** (script included), plus honest scope |
 | [Threat model](docs/THREAT_MODEL.md) | threat → mitigation → mechanism, including what v1 explicitly does *not* mitigate |
 | [Evidence pack example](docs/evidence-pack-example.json) | a real export: decision, 8-event chain, receipt, verification — untouched API output |
-| [Benchmark methodology](docs/BENCHMARK.md) | 10 runs, why accuracy is the wrong unit, what it costs (6.3× tokens) and what it doesn't prove |
+| [Benchmark methodology](docs/BENCHMARK.md) | controlled 10-run benchmark, why accuracy is the wrong unit, what it costs (6.3× tokens) and what it doesn't prove |
 | [Design principles](docs/DESIGN_PRINCIPLES.md) | the five rules that decided the architecture, each with its cost — and why this isn't an agent framework |
 
 ```
-batch → Intake (triage, qwen-turbo)
-      → Compliance (veto power, qwen-max)   ─┐ disputes → Resolution agent
-      → Treasury (funding/batching)          ─┘ (structured negotiation, recorded)
+batch → Intake (triage, qwen3.7-plus)
+      → Compliance (veto power, qwen3.7-max)  ─┐ disputes → Resolution agent
+      → Treasury (funding/batching)           ─┘ (structured adjudication, recorded)
       → Auditor (plain-English explanation of every payout's event chain)
 ```
 
@@ -123,14 +122,14 @@ def run_batch(payouts):
     events.emit("batch.received", "batch", "orchestrator", {"count": len(payouts)})
 
     # 1. Decompose — Intake triages every request in parallel (cheap model)
-    triage = pool.map(agents.intake, payouts)                 # qwen-turbo
+    triage = pool.map(agents.intake, payouts)                 # qwen3.7-plus
 
     # 2. Route by risk — low-risk is fast-tracked; the rest face Compliance,
     #    which alone holds the veto
     for payout, tri in zip(payouts, triage):
         if tri["risk_tier"] == "low":
             cleared.append(payout); continue
-        verdict = agents.compliance(payout, tri)              # qwen-max
+        verdict = agents.compliance(payout, tri)              # qwen3.7-max
         (cleared if verdict["verdict"] == "clear" else vetoed).append(payout)
 
     # 3. Treasury funds the cleared — then CODE reconciles each decision against
@@ -153,6 +152,28 @@ def run_batch(payouts):
     # Every branch yields a PROPOSAL — only policy.evaluate() can promote it,
     # and every step above is an event in the hash-chained log.
 ```
+
+## How the society decides
+
+One batch, five specialists, separated duties — and every step an event in the
+hash-chained log. The whole routing at a glance, shown on two real payouts: a
+new-account **$9,800** that gets vetoed under P2, and a clean **$850** that gets
+funded. Compliance holds the veto, Treasury holds the purse, Resolution
+arbitrates — no agent re-litigates another's domain:
+
+![How the ClearCrew society decides — five agents as columns (Intake, Compliance, Treasury, Resolution, Auditor) and two real payouts as rows: a $9,800 new-account transfer vetoed under P2, and an $850 payout fast-tracked and funded; separation of duties visible, ending in a chain-verified trail](docs/flow-hero.png)
+
+Now follow a single decision through the crew — the $9,800 veto — with each
+agent's **verbatim recorded reasoning** (payout `658cda14`, run
+`20260702-152154`, straight from the event log):
+
+![Step 1 — Intake tiers the batch: the $9,800 payout to a 2-day-old account is classified high risk, citing the P2 threshold, and writes intake.classified](docs/flow-01-intake.png)
+
+![Step 2 — Compliance holds the veto and may only block by citing a rule: it vetoes citing policy P2, and writes compliance.reviewed](docs/flow-02-compliance.png)
+
+![Step 3 — Resolution adjudicates the high-value veto with an independent ruling that must cite the rule it turns on: it upholds the P2 veto, and writes dispute.resolved](docs/flow-03-resolution.png)
+
+![Step 4 — Auditor explains the outcome in plain English, and the full five-event trail self-verifies: every event commits to the hash of the one before it](docs/flow-04-audit.png)
 
 ## Why the society wins
 

@@ -1,6 +1,6 @@
 # Data Model
 
-![Data model — seven entities and the event lifecycle](diagrams/data-model.svg)
+![Data model — seven entities and the event lifecycle](diagrams/data-model.png)
 
 Seven entities. Everything else is a fold.
 
