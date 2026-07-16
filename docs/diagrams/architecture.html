@@ -1,0 +1,276 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>ClearCrew v1 architecture</title>
+<!--
+  Source for docs/diagrams/architecture.png — the diagram at the top of docs/ARCHITECTURE.md.
+
+  Rebuild after editing:   python3 docs/diagrams/render.py
+  (1600x1360 CSS @2x -> 3200x2720 PNG, headless chromium)
+
+  This file exists because the PNG had no source and silently drifted out of sync with
+  ARCHITECTURE.md: it still claimed a JSONL store after the writer became SQLite. Keep the
+  two in step — if you change the store, the runtime, or the gate here, change them there.
+  Fonts are deliberately DejaVu/Liberation (installed on the box, no webfont fetch).
+-->
+<style>
+  :root {
+    --bg: #f3f4f1;
+    --card: #ffffff;
+    --ink: #211c20;
+    --body: #3f4448;
+    --muted: #9aa0a6;
+    --teal: #0d9488;
+    --teal-bright: #2dd4bf;
+    --mint: #daf0ea;
+    --orange: #c2410c;
+    --sans: "Liberation Sans", Arial, Helvetica, sans-serif;
+    --mono: "DejaVu Sans Mono", "Liberation Mono", monospace;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    width: 1600px; height: 1360px;
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans);
+    padding: 46px 58px 34px;
+    display: flex; flex-direction: column;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ---------- header ---------- */
+  header { display: flex; justify-content: space-between; align-items: flex-start; }
+  .brand { display: flex; align-items: center; gap: 13px; }
+  .brand svg { width: 34px; height: 34px; flex: none; }
+  .brand-name { font-size: 21px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+  .brand-sub {
+    font-family: var(--mono); font-size: 8.5px; color: var(--muted);
+    letter-spacing: 0.18em; margin-top: 3px;
+  }
+  .badges {
+    font-family: var(--mono); font-size: 9.5px; color: var(--teal);
+    letter-spacing: 0.16em; padding-top: 6px;
+  }
+
+  /* ---------- title ---------- */
+  h1 { font-size: 55px; font-weight: 700; letter-spacing: -0.025em; margin-top: 26px; }
+  .tagline { font-size: 15.5px; color: #6b7177; margin-top: 7px; letter-spacing: -0.005em; }
+  .tagline b { color: var(--teal); font-weight: 400; }
+
+  /* ---------- columns ---------- */
+  .cols {
+    display: grid; grid-template-columns: 756px 674px; gap: 54px;
+    margin-top: 30px; flex: 1; align-content: start;
+  }
+  .sect {
+    font-family: var(--mono); font-size: 9px; color: var(--muted);
+    letter-spacing: 0.2em; margin-bottom: 8px;
+  }
+  .sect:not(:first-child) { margin-top: 0; }
+
+  .card {
+    background: var(--card); border-radius: 13px; padding: 22px 22px 23px;
+    box-shadow: 0 1px 2px rgba(20,20,20,.05), 0 6px 18px rgba(20,20,20,.035);
+  }
+  .card h2 { font-size: 17.5px; font-weight: 700; letter-spacing: -0.015em; }
+  .card h2 span { font-family: var(--mono); font-size: 11px; font-weight: 400; color: var(--muted); letter-spacing: 0; }
+  .card p {
+    font-family: var(--mono); font-size: 12px; color: var(--body);
+    line-height: 1.66; margin-top: 8px; letter-spacing: -0.01em;
+  }
+  .card p.tight { margin-top: 3px; }
+  .t { color: var(--teal); }
+  .dim { color: var(--muted); }
+
+  /* pills */
+  .pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+  .pill {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.1em; color: #565c61;
+    background: #f1f2ef; border-radius: 5px; padding: 4px 8px;
+  }
+
+  /* connector between cards */
+  .conn {
+    font-family: var(--mono); font-size: 10.5px; color: #7b8186;
+    text-align: center; padding: 12px 0 0; letter-spacing: -0.01em;
+  }
+  .conn .t { color: var(--teal); }
+  .conn::after {
+    content: ""; display: block; width: 2px; height: 17px;
+    background: var(--teal-bright); margin: 5px auto 0; border-radius: 1px;
+  }
+  .conn.plain::after { background: #d3d5d1; }
+  .conn.nub { padding-top: 7px; }
+
+  /* policy gate — the one card that refuses */
+  .gate { border: 1.5px solid var(--orange); }
+  .gate h2 { display: flex; align-items: center; gap: 10px; }
+  .badge-veto {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.11em;
+    color: var(--orange); border: 1px solid #f0c4a8; border-radius: 5px;
+    padding: 3px 7px; font-weight: 400;
+  }
+
+  /* trust invariant */
+  .trust { background: var(--mint); box-shadow: none; }
+  .trust .lbl { font-family: var(--mono); font-size: 9px; color: var(--teal); letter-spacing: 0.2em; }
+  .trust h2 { font-size: 17px; margin-top: 3px; }
+  .checks {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; margin-top: 12px;
+    font-size: 13.5px; color: #1f4b45;
+  }
+  .checks span::before { content: "✓ "; color: var(--teal); font-weight: 700; }
+
+  /* runtime */
+  .rt-row { display: flex; gap: 10px; margin-top: 11px; }
+  .rt-row:first-of-type { margin-top: 9px; }
+  .rt-tag {
+    font-family: var(--mono); font-size: 8.5px; letter-spacing: 0.09em; color: var(--teal);
+    background: #eaf7f4; border-radius: 5px; padding: 4px 7px; height: fit-content;
+    white-space: nowrap; flex: none; width: 108px; text-align: center;
+  }
+  .rt-body { font-family: var(--mono); font-size: 11px; color: var(--body); line-height: 1.6; letter-spacing: -0.01em; }
+
+  /* footer */
+  footer {
+    display: flex; justify-content: space-between; align-items: baseline;
+    border-top: 1px solid #e2e4e0; margin-top: 26px; padding-top: 15px;
+  }
+  footer .claim { font-size: 13.5px; font-weight: 700; }
+  footer .meta { font-family: var(--mono); font-size: 10.5px; color: var(--muted); }
+</style>
+
+<header>
+  <div class="brand">
+    <svg viewBox="0 0 40 40" fill="none">
+      <path d="M8 15 L17 24 L33 8" stroke="#0d9488" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <path d="M20 32 a6 6 0 1 1 0.01 0" stroke="#2dd4bf" stroke-width="3.4" stroke-linecap="round"/>
+      <path d="M20 24 L20 27" stroke="#2dd4bf" stroke-width="3.4" stroke-linecap="round"/>
+    </svg>
+    <div>
+      <div class="brand-name">ClearCrew.</div>
+      <div class="brand-sub">SYSTEM DOCUMENTATION</div>
+    </div>
+  </div>
+  <div class="badges">RECORDED &nbsp;·&nbsp; REPLAYABLE &nbsp;·&nbsp; VERIFIED &nbsp;·&nbsp; ANCHORED</div>
+</header>
+
+<h1>v1 architecture</h1>
+<div class="tagline">Qwen Cloud runs the models, <b>never the decisions</b> — proposal → policy gate → history → execution → evidence</div>
+
+<div class="cols">
+  <!-- ================= LEFT ================= -->
+  <div>
+    <div class="sect">PRESENTATION · API</div>
+    <div class="card">
+      <h2>ClearCrew Web UI <span>→ FastAPI · replay.py</span></h2>
+      <p>Operations · Replay · Policies · Evidence · Failures · Analytics<br>
+         <span class="dim">/api/runs · /explain · /counterfactual · /failures · /analytics · /live/*</span></p>
+    </div>
+
+    <div class="conn plain">writes (during a run)</div>
+
+    <div class="sect">DECISION</div>
+    <div class="card">
+      <h2>Multi-Agent Society <span>agents.py · orchestrator.py</span></h2>
+      <div class="pills">
+        <span class="pill">INTAKE</span><span class="pill">COMPLIANCE</span><span class="pill">TREASURY</span>
+        <span class="pill">RESOLUTION</span><span class="pill">AUDITOR</span><span class="pill">ORCHESTRATOR</span>
+      </div>
+      <p><span class="t">qwen3.7-max</span> · <span class="t">qwen3.7-plus</span> via Qwen Cloud (llm.py)<br>
+         Policy v1, executable (policy.py)</p>
+    </div>
+
+    <div class="conn nub"><span class="dim">emit() → append-only event store · reads (always) ← replay</span></div>
+    <div class="conn nub">payout.proposed — what the society WANTS</div>
+
+    <div class="sect">GOVERNANCE</div>
+    <div class="card gate">
+      <h2>Policy Gate <span class="badge-veto">VETO-ONLY · REFUSES, NEVER APPROVES</span></h2>
+      <p>policy.py · orchestrator._promote()<br>
+         promote → <span class="t">payout.approved</span> &nbsp;&nbsp; refuse → policy.blocked + payout.rejected</p>
+    </div>
+
+    <div class="conn"><span class="t">payout.approved</span> — terminal, on the record</div>
+
+    <div class="sect">EXECUTION</div>
+    <div class="card">
+      <h2>Verasettle Engine <span>settlement.py</span></h2>
+      <p>non-custodial USDC payout orchestrator · per-item idempotency · receipts required</p>
+    </div>
+
+    <div class="conn plain">one single-item batch per approved payout</div>
+
+    <div class="sect">SETTLEMENT</div>
+    <div class="card">
+      <h2>Circle stack · Base Sepolia</h2>
+      <p>real testnet USDC — 1:10,000 scale, recorded in every event</p>
+    </div>
+
+    <div class="conn"><span class="t">settlement.confirmed → tx hash</span> · checkable on any RPC</div>
+
+    <div class="sect">EVIDENCE</div>
+    <div class="card">
+      <h2>Evidence Pack <span>per payout</span></h2>
+      <p>decision · full event chain · policy v1 · settlement receipt · hash verification<br>
+         Export JSON / PDF, or GET /api/runs/{run}/explain/{payout}</p>
+    </div>
+  </div>
+
+  <!-- ================= RIGHT ================= -->
+  <div>
+    <div class="sect">HISTORY</div>
+    <div class="card">
+      <h2>Append-only Event Store <span>events.py</span></h2>
+      <p><span class="t">SQLite is the writer</span> · prev_hash UNIQUE ⇒ two writers<br>
+         cannot chain onto one tip, so a fork cannot exist<br>
+         <span class="t">sha256 hash chain</span> · prev_hash → event_hash<br>
+         chain.anchored → RFC-3161 TSA <span class="dim">(anchor.py)</span></p>
+    </div>
+
+    <div class="conn">export_jsonl() — the database is the writer, the file is the archive</div>
+
+    <div class="sect">ARCHIVE</div>
+    <div class="card">
+      <h2>runs/events-*.jsonl <span>· runs/results-*.json</span></h2>
+      <p>byte-compatible with every run already recorded<br>
+         what ships to the deployed replay service — and what you hand an auditor</p>
+    </div>
+
+    <div class="conn plain">state = fold(events)</div>
+
+    <div class="card">
+      <h2>Replay · Explain · Counterfactual</h2>
+      <p>reconstructs the recorded trace —<br>
+         <span class="t">replay ≠ recompute</span>, nothing re-generated</p>
+    </div>
+
+    <div class="conn plain">every fold is export-ready</div>
+
+    <div class="card trust">
+      <div class="lbl">TRUST INVARIANT</div>
+      <h2>every payout can be:</h2>
+      <div class="checks"><span>replayed</span><span>verified</span><span>explained</span><span>exported</span></div>
+    </div>
+
+    <div class="sect" style="margin-top:22px">RUNTIME · QWEN CLOUD</div>
+    <div class="card">
+      <h2>Two surfaces, neither holds state</h2>
+      <div class="rt-row">
+        <div class="rt-tag">MODEL STUDIO</div>
+        <div class="rt-body">DashScope, OpenAI-compatible (llm.py)<br>
+          <span class="dim">dashscope-intl.aliyuncs.com/compatible-mode/v1</span><br>
+          called on the <b>write path only</b> — replay never calls a model</div>
+      </div>
+      <div class="rt-row">
+        <div class="rt-tag">FUNCTION&nbsp;COMPUTE</div>
+        <div class="rt-body">FC 3.0 · ap-southeast-1 · fc_handler.py → ASGI<br>
+          <span class="dim">same app as local, no cloud fork · proxy: clearcrew.verasettle.com</span><br>
+          read-only, <b>no database</b> — it serves the archive</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="claim">Every box is a file in this repo or a recorded event you can replay.</div>
+  <div class="meta">docs/ARCHITECTURE.md &nbsp;·&nbsp; clearcrew.verasettle.com</div>
+</footer>

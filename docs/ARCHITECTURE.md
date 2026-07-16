@@ -4,8 +4,10 @@
 
 One page. The architecture *is* the thesis:
 **Proposals → Governance → History → Execution → Evidence**.
-There is no "AI cloud" in the middle — every box below is a file in this repo or a
-recorded event you can replay.
+
+Qwen Cloud runs the models and hosts the service ([Runtime](#runtime)); it does not
+run the decisions. Nothing opaque sits between a proposal and a recorded decision —
+every box below is a file in this repo or an event you can replay.
 
 > **Trust invariant.** Agents never decide; they *propose*. The only path from a
 > proposal to a recorded decision runs through the deterministic policy gate,
@@ -37,11 +39,11 @@ recorded event you can replay.
    │   Multi-Agent Society      │          │  Append-only Event Store    │
    │   (agents.py,              │  emit()  │  (events.py)                │
    │    orchestrator.py)        │ ───────▶ │                             │
-   │                            │          │  runs/events-*.jsonl        │
-   │  intake      · compliance  │          │  runs/results-*.json        │
-   │  treasury    · resolution  │          │  sha256 hash chain          │
+   │                            │          │  SQLite writer (UNIQUE      │
+   │  intake      · compliance  │          │  prev_hash ⇒ forks can't    │
+   │  treasury    · resolution  │          │  exist) · sha256 chain      │
    │  auditor     + orchestrator│          │  (prev_hash → event_hash)   │
-   │       Qwen models (llm.py) │          │                             │
+   │   Qwen3.7 via Qwen Cloud   │          │  → export_jsonl() → runs/   │
    └────────────┬───────────────┘          │  chain.anchored ───────────────▶ RFC-3161 TSA
                 │                          │  the head hash, signed by   │    (anchor.py)
                 │ payout.proposed          │  an independent authority   │    freetsa · digicert
@@ -113,9 +115,25 @@ Produces decisions, disagreements, vetoes, and negotiated resolutions —
 all as events, never as ephemeral prompt output.
 
 ### History layer — the thesis
-`events.py`: every event is appended to `runs/events-*.jsonl` with
+`events.py`: every event commits to its predecessor with
 `prev_hash → event_hash` (sha256 over the canonical JSON of the event
 including its predecessor's hash, anchored at a genesis constant).
+
+**The database is the writer; the file is the archive.** A chain is sound only if
+exactly one writer at a time reads the tip and appends to it. A per-process lock
+cannot promise that — this system has always run more than one process against the
+log (an MCP server and a batch run are two), and two writers chaining onto the same
+tip produce a **fork**: every event present, both branches internally hash-valid, and
+a linear walk misreporting it as tampering. So the constraint lives in the store, as
+`prev_hash TEXT NOT NULL UNIQUE` in SQLite — the second writer's INSERT simply fails
+and retries against the new tip. A fork isn't detected after the fact; it cannot be
+represented. (Same move as `@civ/history`'s `UNIQUE(world_id, parent_hash)`.) The
+table also buys indexed `explain()` lookups and `emit()` idempotency, neither of
+which a flat file could give.
+
+`export_jsonl()` then writes `runs/events-*.jsonl` (plus `runs/results-*.json`),
+byte-compatible with every run already recorded. That archive — not the database —
+is what ships to the deployed replay service and what you hand an auditor.
 
 ```text
 decision events
@@ -155,6 +173,35 @@ Evidence Pack
   ✓ full event chain    ✓ hash verification
   ✓ policy v1           ✓ expected-vs-actual (ground truth)
 ```
+
+## Runtime
+
+Two Qwen Cloud surfaces, deliberately kept apart — one supplies reasoning, the
+other supplies hosting. Neither holds state.
+
+**Models — Qwen Cloud Model Studio (DashScope).** `llm.py` calls the
+OpenAI-compatible endpoint (`DASHSCOPE_BASE_URL`, default
+`https://dashscope-intl.aliyuncs.com/compatible-mode/v1`, authed with
+`DASHSCOPE_API_KEY`). `qwen3.7-max` takes the reasoning-heavy roles
+(compliance, treasury, negotiation); `qwen3.7-plus` takes the cheap per-payout
+calls (intake triage, audit explanations). Both are env-overridable — see
+`config.py`. Models are called only on the **write** path, while a run is
+producing proposals; replay never calls one.
+
+**Hosting — Alibaba Cloud Function Compute 3.0** (`ap-southeast-1`, function
+`clearcrew-replay`, `python3.10`). `deploy/fc_handler.py` adapts FC's HTTP-trigger
+event to ASGI and invokes the same `clearcrew.replay:app` that runs locally — the
+cloud gets no fork of the application. FC forces
+`Content-Disposition: attachment` on its default `fcapp.run` domain, which makes a
+browser download the UI instead of rendering it, so the frontend is served through a
+thin reverse proxy (TLS + header stripping, nothing else) at
+**clearcrew.verasettle.com**. Full deployment detail: [`deploy/README.md`](../deploy/README.md).
+
+**Frontend → backend → data.** The single-file UI calls the FastAPI app over REST
+(2.5s polling in judge mode); the app reads the exported JSONL archive bundled with
+the function. The deployed replay service is read-only and carries **no database** —
+SQLite is the writer's store during a run, and only its `export_jsonl()` output
+ships. That is why the public API needs no key and cannot mutate history.
 
 ## Why the diagram looks like this
 
