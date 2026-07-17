@@ -10,9 +10,11 @@ import { JudgeWorkspace } from './views/JudgeWorkspace'
 import { Overview } from './views/Overview'
 import { Policy } from './views/Policy'
 import { RunTrail } from './views/RunTrail'
+import { Society } from './views/Society'
 
 const VIEWS = [
   ['overview', 'Overview', 'Recorded operations at a glance'],
+  ['society', 'Qwen society', 'Inspect models, roles, and control boundaries'],
   ['run', 'Run trail', 'Inspect one recorded batch'],
   ['failures', 'Exceptions', 'Vetoes, disputes, and misses'],
   ['evidence', 'Evidence', 'Verify and export the record'],
@@ -102,6 +104,7 @@ export default function App() {
         <div className="page-content">
           {view === 'demo' && <JudgeWorkspace />}
           {view === 'overview' && <Overview onOpen={(run, id) => setSubject({ run, id })} />}
+          {view === 'society' && <Society />}
           {view === 'run' && active && <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />}
           {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}
           {view === 'evidence' && <Evidence run={active} />}

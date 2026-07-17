@@ -82,6 +82,17 @@ def test_analytics_averages_benchmarks_and_capabilities(client):
     assert a["coverage"]["replay_pct"] == 100.0
 
 
+def test_society_exposes_configured_qwen_roles_and_controls(client):
+    s = client.get("/api/society").json()
+    assert s["provider"] == "Qwen Cloud (DashScope)"
+    assert len(s["models"]) == 2
+    assert all(model["name"] and model["purpose"] for model in s["models"])
+    assert [r["name"] for r in s["roles"]] == [
+        "Intake", "Compliance", "Treasury", "Resolution", "Auditor",
+    ]
+    assert len(s["controls"]) == 3
+
+
 def test_overview_totals_and_recent(client):
     o = client.get("/api/overview").json()
     assert o["totals"]["runs"] == 1

@@ -72,6 +72,14 @@ export interface Analytics {
   coverage: { payouts: number; replay_pct: number; hash_verified_pct: number }
 }
 
+export interface Society {
+  provider: string
+  endpoint: string
+  models: { name: string; purpose: string }[]
+  roles: { name: string; authority: string }[]
+  controls: string[]
+}
+
 export interface Policies {
   current: string
   versions: {
@@ -132,5 +140,6 @@ export const api = {
   overview: () => get<Overview>('/api/overview'),
   failures: () => get<Failures>('/api/failures'),
   analytics: () => get<Analytics>('/api/analytics'),
+  society: () => get<Society>('/api/society'),
   policies: () => get<Policies>('/api/policies'),
 }
