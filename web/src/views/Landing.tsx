@@ -1,10 +1,18 @@
 import { Link } from 'react-router-dom'
 
 export function Landing() {
+  const faqs = [
+    ['What does ClearCrew record?', 'Every intake, compliance check, treasury decision, orchestration step, and settlement result is written as an append-only event.'],
+    ['Can I verify a past payout?', 'Yes. The console replays recorded events into state and checks the hash chain, so a payout can be inspected without asking an agent to explain itself again.'],
+    ['Does replay change the original run?', 'Never. Replays are read-only. Counterfactuals evaluate a different deterministic policy without modifying the recorded history.'],
+    ['Where does Verasettle fit in?', 'ClearCrew produces the evidence trail and approval state; Verasettle executes only the settlement that the recorded process approved.'],
+  ]
+
   return (
     <main className="landing">
+      <div className="landing-atmosphere" aria-hidden="true"><i /><i /><i /></div>
       <header className="landing-topbar">
-        <span className="landing-mark">Verasettle<span>.</span> <small>ClearCrew</small></span>
+        <span className="landing-mark">ClearCrew <small>by Verasettle</small></span>
         <Link className="landing-nav-cta" to="/console">Enter the console →</Link>
       </header>
 
@@ -43,6 +51,35 @@ export function Landing() {
           <Link className="cta-primary" to="/console">Open the evidence console</Link>
         </div>
       </section>
+
+      <section className="landing-faq" aria-labelledby="faq-title">
+        <div className="landing-faq-intro">
+          <div className="section-kicker">Common questions</div>
+          <h2 id="faq-title">A trail you can inspect without taking anyone’s word for it.</h2>
+          <p>ClearCrew makes the record the source of truth—not a post-hoc summary.</p>
+        </div>
+        <div className="faq-list">
+          {faqs.map(([question, answer], index) => (
+            <details className="faq-item" key={question} open={index === 0}>
+              <summary>{question}<span aria-hidden="true" /></summary>
+              <p>{answer}</p>
+            </details>
+          ))}
+        </div>
+      </section>
+
+      <section className="landing-final-cta">
+        <div className="section-kicker">Start with the record</div>
+        <h2>Make every autonomous payout explainable.</h2>
+        <p>Open a recorded run, replay the state, and see precisely what cleared the settlement.</p>
+        <Link className="cta-primary cta-primary-light" to="/console">Explore ClearCrew</Link>
+      </section>
+
+      <footer className="landing-footer">
+        <div className="landing-footer-brand"><span>ClearCrew</span><small>by Verasettle</small></div>
+        <p>Built for autonomous systems that need a durable record.</p>
+        <Link to="/console">Evidence console <span aria-hidden="true">→</span></Link>
+      </footer>
     </main>
   )
 }
