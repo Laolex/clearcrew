@@ -256,8 +256,8 @@ function Verdict({ v, tamperedAt }: { v: LocalVerification; tamperedAt: number |
   return (
     <div
       style={{
-        background: broken ? '#280A0A' : '#142819',
-        border: `1px solid ${broken ? '#4A1414' : '#1E4028'}`,
+        background: broken ? '#FBEDEC' : '#ECF7F0',
+        border: `1px solid ${broken ? '#EEC7C4' : '#CBE7D6'}`,
         borderRadius: '4px',
         padding: '16px 18px',
         maxWidth: '820px',

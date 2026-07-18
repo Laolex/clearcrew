@@ -51,7 +51,7 @@ export function Counterfactual({ run }: { run: string | null }) {
 
       <div
         style={{
-          background: '#1A1424',
+          background: '#EEF3F7',
           border: `1px dashed ${C.state.hypothetical}`,
           borderRadius: '4px',
           padding: '12px 14px',

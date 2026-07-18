@@ -10,9 +10,9 @@ export function ChainIntegrity({ v, compact = false }: { v?: ChainVerification; 
   const cause = v && state === 'broken' ? breakCause(v) : null
 
   const skin = {
-    verified: { fg: C.state.approved, bg: '#142819', bd: '#1E4028' },
+    verified: { fg: C.state.approved, bg: '#ECF7F0', bd: '#CBE7D6' },
     unverified: { fg: C.text.muted, bg: C.bg.surface, bd: C.border.hairline },
-    broken: { fg: C.state.rejected, bg: '#280A0A', bd: '#4A1414' },
+    broken: { fg: C.state.rejected, bg: '#FBEDEC', bd: '#EEC7C4' },
   }[state]
 
   const headline =

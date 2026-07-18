@@ -74,13 +74,13 @@ export function EventRow({
       style={{
         borderBottom: `1px solid ${C.border.hairline}`,
         background: untrusted
-          ? '#1E0808'
+          ? '#FBEDEC'
           : selected
             ? C.bg.elevated
             : // A disagreement is lifted off the surface of the log so the eye
               // lands on it without scanning every row for it.
               conflict
-              ? '#1A1714'
+              ? '#FAF3E6'
               : 'transparent',
         borderLeft: untrusted
           ? `2px solid ${C.state.broken}`
