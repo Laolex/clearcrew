@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { Fragment, useCallback, useEffect, useState } from 'react'
 import { ChainIntegrity } from '../components/ChainIntegrity'
 import { EventRow } from '../components/EventRow'
 import { ActorChip, Loading, Panel, SectionLabel, Stat } from '../components/Primitives'
@@ -6,6 +6,35 @@ import { api, type RunEvents } from '../lib/api'
 import type { RunDetail } from '../lib/domain'
 import { isConflict } from '../lib/payload'
 import { C, MONO, SANS } from '../lib/tokens'
+
+// The log is written in phases — every intake before any compliance review,
+// every verdict after the last dispute. Naming each streak turns 200+
+// interleaved-looking rows into the batch's actual pipeline, without
+// reordering a single event or touching the chain.
+const PHASE: Record<string, string> = {
+  'policy.enacted': 'setup', 'batch.received': 'setup',
+  'intake.classified': 'intake',
+  'compliance.reviewed': 'compliance', 'compliance.fast_tracked': 'compliance',
+  'treasury.decided': 'treasury',
+  'reconciliation.flagged': 'disputes', 'dispute.resolved': 'disputes',
+  'payout.proposed': 'verdicts', 'policy.blocked': 'verdicts',
+  'payout.approved': 'verdicts', 'payout.rejected': 'verdicts',
+  'settlement.requested': 'settlement', 'settlement.confirmed': 'settlement',
+  'payout.settled': 'settlement',
+  'audit.explained': 'audit',
+  'chain.anchored': 'close', 'batch.completed': 'close',
+}
+const PHASE_LABEL: Record<string, string> = {
+  setup: 'batch opened',
+  intake: 'intake · risk triage',
+  compliance: 'compliance review',
+  treasury: 'treasury decisions',
+  disputes: 'reconciliation & disputes',
+  verdicts: 'verdicts · the gate promotes proposals',
+  settlement: 'settlement',
+  audit: 'audit narration',
+  close: 'batch closed',
+}
 
 export function RunTrail({
   run,
@@ -180,20 +209,45 @@ export function RunTrail({
           // The event's real position in the chain, not its position in the
           // filtered view — a filtered row must still say where it truly sits.
           const trueIndex = all.indexOf(e)
+          const phase = PHASE[e.type]
+          const prevPhase = i > 0 ? PHASE[shown[i - 1].type] : null
+          const streak = phase && phase !== prevPhase
+            ? shown.slice(i).findIndex((n) => PHASE[n.type] !== phase)
+            : 0
           return (
-            <EventRow
-              key={e.id}
-              event={e}
-              index={trueIndex}
-              expanded={expanded === i}
-              selected={cursor === i}
-              untrusted={untrustedFrom !== null && trueIndex >= untrustedFrom}
-              onToggle={() => {
-                setCursor(i)
-                setExpanded((x) => (x === i ? null : i))
-              }}
-              onOpenSubject={onOpenSubject}
-            />
+            <Fragment key={e.id}>
+              {phase && phase !== prevPhase && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'baseline',
+                    gap: '10px',
+                    padding: '14px 14px 6px',
+                    borderBottom: `1px solid ${C.border.hairline}`,
+                    background: C.bg.elevated,
+                  }}
+                >
+                  <span style={{ fontFamily: MONO, fontSize: '10px', color: C.text.secondary, letterSpacing: '0.14em', textTransform: 'uppercase' }}>
+                    {PHASE_LABEL[phase]}
+                  </span>
+                  <span style={{ fontFamily: MONO, fontSize: '10px', color: C.text.ghost }}>
+                    {streak === -1 ? shown.length - i : streak} events
+                  </span>
+                </div>
+              )}
+              <EventRow
+                event={e}
+                index={trueIndex}
+                expanded={expanded === i}
+                selected={cursor === i}
+                untrusted={untrustedFrom !== null && trueIndex >= untrustedFrom}
+                onToggle={() => {
+                  setCursor(i)
+                  setExpanded((x) => (x === i ? null : i))
+                }}
+                onOpenSubject={onOpenSubject}
+              />
+            </Fragment>
           )
         })}
       </Panel>
