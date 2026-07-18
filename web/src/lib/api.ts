@@ -23,6 +23,16 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`)
+  return res.json() as Promise<T>
+}
+
 
 export interface RunEvents {
   run: string
@@ -111,6 +121,15 @@ export interface Counterfactual {
   }[]
 }
 
+export interface PolicyCompilation {
+  status: 'proposal' | 'refusal'
+  diff: Record<string, unknown>
+  reason: string
+  before: { params: Record<string, unknown>; rendered: string }
+  after: { params: Record<string, unknown>; rendered: string } | null
+  event_id: string
+}
+
 export interface AnchorEvidence {
   run: string
   anchors: {
@@ -142,4 +161,5 @@ export const api = {
   analytics: () => get<Analytics>('/api/analytics'),
   society: () => get<Society>('/api/society'),
   policies: () => get<Policies>('/api/policies'),
+  compilePolicy: (instruction: string) => post<PolicyCompilation>('/api/policies/compile', { instruction }),
 }

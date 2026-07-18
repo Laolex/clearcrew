@@ -16,6 +16,7 @@ export type Actor =
 export type EventType =
   | 'batch.received'
   | 'policy.enacted'
+  | 'policy.proposed'
   | 'policy.blocked'
   | 'payout.proposed'
   | 'intake.classified'

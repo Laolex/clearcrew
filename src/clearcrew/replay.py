@@ -604,6 +604,28 @@ def policies(auth=Depends(require_auth)):
     }
 
 
+@app.post("/api/policies/compile")
+async def compile_policy(request: Request, auth=Depends(require_auth)):
+    """Record a compiled policy proposal; enactment is deliberately absent."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError as exc:
+        raise HTTPException(422, "request body must be JSON") from exc
+    instruction = body.get("instruction") if isinstance(body, dict) else None
+    if not isinstance(instruction, str) or not instruction.strip():
+        raise HTTPException(422, "instruction must be a non-empty string")
+
+    compiled = policy.compile_instruction(instruction)
+    event = event_log.emit("policy.proposed", "policy", "policy", {
+        "status": compiled["status"],
+        "diff": compiled["diff"],
+        "reason": compiled["reason"],
+        "before": compiled["before"]["params"],
+        "after": compiled["after"]["params"] if compiled["after"] else None,
+    })
+    return {**compiled, "event_id": event["id"]}
+
+
 # ── judge mode: run the society live, watch it deliberate, then replay it ────
 
 SRC_DIR = Path(__file__).parent.parent

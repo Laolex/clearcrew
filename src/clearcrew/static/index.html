@@ -1048,6 +1048,11 @@ function renderEvent(e, i) {
   }
   if (e.type === "payout.settled") { cls += " verdict-approved"; body = "Final: settled on-chain." + (P.tx_hash ? ` tx <span class="mono">${esc(P.tx_hash.slice(0, 22))}…</span>` : ""); }
   if (e.type === "compliance.fast_tracked") body = "Low-risk — fast-tracked past full compliance review (per intake risk tier).";
+  if (e.type === "policy.proposed") {
+    body = P.status === "proposal"
+      ? `Policy parameter proposal recorded — <b>NOT ENACTED</b>. ${esc(P.reason || "")}`
+      : `Policy edit refused. ${esc(P.reason || "")}`;
+  }
   const hashes = `<div class="hashes"><div><span class="hk">event_hash</span> <span class="hv mono">${esc(e.event_hash || "—")}</span></div>
     <div><span class="hk">prev_hash</span> <span class="hv mono">${esc(e.prev_hash || "—")}</span></div>
     <div><span class="hk">policy</span> <span class="hv">${esc(P.policy_rule || "v1")}</span></div></div>`;
