@@ -57,6 +57,13 @@ async def operational_headers(request: Request, call_next):
     )
     if request.url.path.startswith("/api/"):
         response.headers.setdefault("Cache-Control", "no-store")
+    elif request.url.path.startswith("/assets/"):
+        # Hashed filenames — a new build is a new URL, so cache forever.
+        response.headers.setdefault("Cache-Control", "public, max-age=31536000, immutable")
+    else:
+        # The SPA shell must revalidate, or a redeploy strands browsers on a
+        # cached shell pointing at asset hashes that no longer exist.
+        response.headers.setdefault("Cache-Control", "no-cache")
     return response
 
 
