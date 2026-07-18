@@ -23,7 +23,7 @@ from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import anchor, data, events as event_log, policy
+from . import anchor, config, data, events as event_log, policy
 
 API_TOKEN = os.environ.get("CLEARCREW_API_TOKEN", "")
 
@@ -549,6 +549,37 @@ def analytics(auth=Depends(require_auth)):
                 "hash_verified_pct": round(100 * len(verified) / len(hashed), 1) if hashed else 0.0}
     return {"society": society, "monolith": monolith, "capabilities": capabilities,
             "settlement": settlement, "coverage": coverage}
+
+
+@app.get("/api/society")
+def society(auth=Depends(require_auth)):
+    """The configured Qwen society and its enforced division of labour.
+
+    This endpoint deliberately reports configuration and code-level boundaries,
+    not a claim inferred from a replay.  It gives a reviewer one small,
+    inspectable surface connecting the visible console to the agents that write
+    the events in it.
+    """
+    return {
+        "provider": "Qwen Cloud (DashScope)",
+        "endpoint": config.BASE_URL,
+        "models": [
+            {"name": config.MODEL_FAST, "purpose": "parallel intake triage and audit explanations"},
+            {"name": config.MODEL_STRONG, "purpose": "compliance, treasury, and resolution judgments"},
+        ],
+        "roles": [
+            {"name": "Intake", "authority": "classifies payout risk; cannot approve or reject"},
+            {"name": "Compliance", "authority": "can veto only by citing Policy P1 or P2"},
+            {"name": "Treasury", "authority": "sets funding order from the deterministic P3 ledger"},
+            {"name": "Resolution", "authority": "rules on recorded veto and ledger disputes"},
+            {"name": "Auditor", "authority": "explains the recorded chain; cannot alter it"},
+        ],
+        "controls": [
+            "Agents propose; executable policy alone promotes a payout.",
+            "Arithmetic is computed in code and supplied to Treasury as the authoritative ledger.",
+            "Every role emits an append-only, hash-linked event; replay never calls a model again.",
+        ],
+    }
 
 
 @app.get("/api/policies")
