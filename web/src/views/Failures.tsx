@@ -142,6 +142,19 @@ export function Failures({ onOpen }: { onOpen: (run: string, subject: string) =>
             >
               {it.reason ?? '— no reason recorded —'}
             </span>
+            {/* Payout ids repeat across runs (same batch, replayed) — without
+                the run, two rows for the same id are indistinguishable. */}
+            <span
+              style={{
+                fontFamily: MONO,
+                fontSize: '10px',
+                color: C.text.ghost,
+                flexShrink: 0,
+                alignSelf: 'center',
+              }}
+            >
+              {it.run.replace('events-', '').replace('.jsonl', '')}
+            </span>
           </div>
         ))}
       </Panel>

@@ -39,6 +39,7 @@ export function DecisionDetail({
   const chain = data?.chain ?? []
   const veto = chain.find((e) => e.type === 'compliance.reviewed' && e.payload?.verdict === 'veto')
   const treasury = chain.find((e) => e.type === 'treasury.decided')
+  const recon = chain.find((e) => e.type === 'reconciliation.flagged')
   const ruling = chain.find((e) => e.type === 'dispute.resolved')
   const terminal = chain.find((e) =>
     ['payout.approved', 'payout.rejected', 'payout.settled'].includes(e.type),
@@ -50,6 +51,9 @@ export function DecisionDetail({
   // against a veto would invent a disagreement the log does not contain.
   const twoSided = Boolean(veto && treasury && ruling)
   const oneSided = Boolean(veto && ruling && !treasury)
+  // The third dispute shape: no veto at all — Treasury's recorded action
+  // contradicts its own stated reason, and reconciliation caught it.
+  const selfContradiction = Boolean(!veto && treasury && recon && ruling)
 
   const payout = (data?.payout ?? {}) as Record<string, unknown>
 
@@ -185,7 +189,45 @@ export function DecisionDetail({
               </>
             )}
 
-            {!twoSided && !oneSided && (
+            {selfContradiction && (
+              <>
+                <Heading>The self-contradiction</Heading>
+                <p
+                  style={{
+                    fontFamily: SANS,
+                    fontSize: '12px',
+                    color: C.text.muted,
+                    lineHeight: 1.6,
+                    margin: '-4px 0 12px',
+                    maxWidth: '620px',
+                  }}
+                >
+                  No agent vetoed this payout. Treasury's recorded action disagrees with its own
+                  stated reason — the orchestrator's reconciliation caught the mismatch and sent it
+                  to Resolution.
+                </p>
+                <div style={{ display: 'flex', gap: '14px', alignItems: 'stretch' }}>
+                  <Position e={treasury} side="cleared" />
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      fontFamily: MONO,
+                      fontSize: '11px',
+                      color: C.state.vetoed,
+                      letterSpacing: '0.1em',
+                    }}
+                  >
+                    VS
+                  </div>
+                  <Ledger e={recon!} />
+                </div>
+                <Heading>The ruling</Heading>
+                <Ruling e={ruling!} />
+              </>
+            )}
+
+            {!twoSided && !oneSided && !selfContradiction && (
               <>
                 <Heading>Uncontested</Heading>
                 <p
@@ -258,27 +300,45 @@ export function DecisionDetail({
 
             <Heading>Full recorded chain · {chain.length} events</Heading>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-              {chain.map((e) => (
-                <div
-                  key={e.id}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '10px',
-                    padding: '7px 0',
-                    borderBottom: `1px solid ${C.border.hairline}`,
-                  }}
-                >
-                  <span style={{ fontFamily: MONO, fontSize: '11px', color: C.text.muted, width: '54px' }}>
-                    +{e.t_offset}s
-                  </span>
-                  <span style={{ fontFamily: MONO, fontSize: '11px', color: C.text.secondary, flex: 1 }}>
-                    {e.type}
-                  </span>
-                  <ActorChip actor={e.actor} />
-                  <HashPill hash={e.event_hash} />
-                </div>
-              ))}
+              {chain.map((e) => {
+                const said = prose(e)
+                const j = judgment(e)
+                return (
+                  <div key={e.id} style={{ borderBottom: `1px solid ${C.border.hairline}`, padding: '7px 0' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <span style={{ fontFamily: MONO, fontSize: '11px', color: C.text.muted, width: '54px' }}>
+                        +{e.t_offset}s
+                      </span>
+                      <span style={{ fontFamily: MONO, fontSize: '11px', color: C.text.secondary, flex: 1 }}>
+                        {e.type}
+                      </span>
+                      {j && (
+                        <span style={{ fontFamily: MONO, fontSize: '10px', color: C.text.muted, letterSpacing: '0.06em' }}>
+                          {j.label}
+                        </span>
+                      )}
+                      <ActorChip actor={e.actor} />
+                      <HashPill hash={e.event_hash} />
+                    </div>
+                    {/* The agent's own words, on the row — the chain should be
+                        walkable without opening a different view per event. */}
+                    {said && (
+                      <div
+                        style={{
+                          fontFamily: SANS,
+                          fontSize: '12px',
+                          color: C.text.primary,
+                          lineHeight: 1.55,
+                          margin: '5px 0 2px 64px',
+                          maxWidth: '580px',
+                        }}
+                      >
+                        {said}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           </>
         )}
@@ -351,13 +411,58 @@ function Position({ e, side }: { e?: ClearEvent; side: 'cleared' | 'vetoed' }) {
   )
 }
 
+/** The ledger's side of a self-contradiction — arithmetic, not an opinion. */
+function Ledger({ e }: { e: ClearEvent }) {
+  const p = e.payload ?? {}
+  const row = (p.ledger_row ?? {}) as Record<string, unknown>
+  const fmt = (v: unknown) =>
+    typeof v === 'number' ? `$${v.toLocaleString()}` : v == null ? '—' : String(v)
+  const facts: [string, string][] = [
+    ['treasury said', String(p.treasury_action ?? '—')],
+    ['ledger expected', String(p.ledger_expected ?? '—')],
+    ['cumulative total', fmt(row.cumulative_total)],
+    ['headroom', fmt(p.headroom)],
+  ]
+  return (
+    <div
+      style={{
+        flex: 1,
+        background: C.bg.surface,
+        border: `1px solid ${C.state.vetoed}55`,
+        borderTop: `2px solid ${C.state.vetoed}`,
+        borderRadius: '4px',
+        padding: '14px 16px',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px' }}>
+        <ActorChip actor={e.actor} />
+        <span style={{ fontFamily: MONO, fontSize: '10px', color: C.state.vetoed, letterSpacing: '0.08em' }}>
+          reconciliation.flagged
+        </span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 16px' }}>
+        {facts.map(([k, v]) => (
+          <div key={k}>
+            <div style={{ fontFamily: MONO, fontSize: '9px', color: C.text.ghost, letterSpacing: '0.12em' }}>
+              {k.toUpperCase()}
+            </div>
+            <div style={{ fontFamily: MONO, fontSize: '13px', color: C.text.primary, marginTop: '3px' }}>
+              {v}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Ruling({ e }: { e: ClearEvent }) {
   const j = judgment(e)
   const conditions = e.payload?.conditions
   return (
     <div
       style={{
-        background: '#1A1424',
+        background: '#EEF3F7',
         border: `1px solid ${C.state.hypothetical}55`,
         borderRadius: '4px',
         padding: '16px',
