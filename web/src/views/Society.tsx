@@ -4,7 +4,10 @@ import { C, MONO, SANS } from '../lib/tokens'
 import { useAsync } from '../lib/useAsync'
 
 /** A reviewer-facing map from Qwen configuration to the controls that constrain it. */
-export function Society() {
+const RECONCILIATION_RUN = 'events-20260711-173828-n36.jsonl'
+const RECONCILIATION_PAYOUT = '62c33a4f'
+
+export function Society({ onOpenReplay }: { onOpenReplay: (run: string, subject: string) => void }) {
   const { data, error } = useAsync(() => api.society(), [])
   if (!data) return <Loading error={error} />
 
@@ -56,6 +59,13 @@ export function Society() {
         run in <b>Run trail</b> to see the resulting events; inspect <b>Benchmark</b> for the controlled
         comparison with one Qwen agent.
       </p>
+      <button onClick={() => onOpenReplay(RECONCILIATION_RUN, RECONCILIATION_PAYOUT)} style={replayButton}>
+        Open the recorded reconciliation dispute <span>62c33a4f →</span>
+      </button>
+      <p style={replayNote}>
+        A Treasury action contradicted its own P3 reason. The orchestrator flagged it and Resolution
+        enforced the ledger — the clearest recorded example of the society checking itself.
+      </p>
     </>
   )
 }
@@ -80,3 +90,5 @@ const roleAuthority = { color: C.text.secondary, fontFamily: SANS, fontSize: '13
 const controlRow = { display: 'flex', gap: '10px', alignItems: 'flex-start', padding: '13px 18px', color: C.text.secondary, fontFamily: SANS, fontSize: '13px', lineHeight: 1.5 }
 const controlMark = { color: C.state.approved, fontFamily: MONO, fontSize: '12px', paddingTop: '1px' }
 const note = { maxWidth: '760px', margin: '16px 0 0', color: C.text.muted, fontFamily: SANS, fontSize: '12px', lineHeight: 1.6 }
+const replayButton = { marginTop: '22px', fontFamily: MONO, fontSize: '11px', background: C.bg.elevated, color: C.text.primary, border: `1px solid ${C.border.strong}`, borderRadius: '3px', padding: '9px 13px', cursor: 'pointer' }
+const replayNote = { maxWidth: '680px', margin: '9px 0 0', color: C.text.muted, fontFamily: SANS, fontSize: '12px', lineHeight: 1.55 }

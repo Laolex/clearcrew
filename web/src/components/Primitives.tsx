@@ -10,8 +10,29 @@ export function midTruncate(hash: string, head = 4, tail = 4): string {
 }
 
 /** A hash is the load-bearing artifact here, so it is copyable, never decorative. */
-export function HashPill({ hash, dim = false }: { hash: string; dim?: boolean }) {
+export function HashPill({ hash, dim = false }: { hash?: string; dim?: boolean }) {
   const [copied, setCopied] = useState(false)
+  // Early archived runs are valid historical evidence, but they predate the
+  // hash-chain format. A missing hash must be legible, never a React crash.
+  if (!hash) {
+    return (
+      <span
+        title="This recorded run predates hash chaining"
+        style={{
+          fontFamily: MONO,
+          fontSize: '10px',
+          color: C.text.ghost,
+          border: `1px dashed ${C.border.hairline}`,
+          borderRadius: '3px',
+          padding: '2px 8px',
+          letterSpacing: '0.04em',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        unhashed
+      </span>
+    )
+  }
   const genesis = hash === GENESIS_HASH
 
   return (

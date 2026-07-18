@@ -12,8 +12,8 @@ archived runs. If a beat is not here, it is not recordable — see
 
 ## The pitch in one line
 
-> **A single AI agent overdrew the treasury in ten runs out of ten and couldn't
-> say why. Five agents caught each other — on a record you can replay.**
+> **A single AI agent overdrew the treasury in ten runs out of ten and left no
+> role-attributed trail. Five agents caught each other — on a record you can replay.**
 
 ## Structure — this is an argument, not a tour
 
@@ -63,7 +63,8 @@ clicking, and rehearse the path so it's smooth on camera:
 
 | beat | click path |
 |---|---|
-| 3 | **Exceptions** → *disputes resolved* → payout **`62c33a4f`** (run `20260711-173828`) |
+| 3 | **Qwen society** → *Open the recorded reconciliation dispute `62c33a4f`* |
+| 4 | **Benchmark** → *Open the gated-monolith record `62c33a4f`* |
 | 5 | **Run trail** → run `20260703-165045-settled-n6` → payout **`1818e811`** → the teal **VERASETTLE** event |
 
 If you want the raw record on screen instead of the UI, the API is one GET and
@@ -81,7 +82,7 @@ curl -s clearcrew.verasettle.com/api/runs/events-20260711-173828-n36.jsonl/expla
 |---|---|
 | Black. Text: *"We gave one AI agent a batch of payouts. Ten times."* | "If you let an AI agent move money, the question isn't whether it's smart. It's whether you can prove what it did." |
 | Text: *"It overdrew the treasury 10 times out of 10."* | "We ran a single agent — a good one — on the same batch, ten times. It overdrew the treasury every single time." |
-| Number slams on: **−$113,660** | "Its worst run ended a hundred and thirteen thousand dollars in the hole. More than the entire opening balance. And it couldn't tell us why — no trail, no reasoning, no agent to fix." |
+| Number slams on: **−$113,660** | "Its worst run ended a hundred and thirteen thousand dollars in the hole. More than the entire opening balance. And it left no replayable record of who made the mistake or how to fix it." |
 | Logo: **ClearCrew** | "ClearCrew." |
 
 *No product, no architecture, no agents yet. Just the problem, in dollars.*
@@ -95,7 +96,7 @@ let it print, then walk the cursor down it.
 
 | Visual | Audio |
 |---|---|
-| Top table: society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**, over **10 runs** | "Here's the benchmark. Five specialist Qwen agents against one big one. Same batch, same policy, same models — printing live from the archived logs, not from a slide." |
+| Top table: society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**, over **10 runs** | "Here's the benchmark. Five specialist Qwen agents against one Qwen agent. Same batch, same written policy, same Qwen model family — printing live from the archived logs, not from a slide." |
 | Per-run table, land on `20260711-182815` — the monolith's **best** run: **91.7%** | "This is the single agent's *best* run. Ninety-two percent. You'd ship that." |
 | Treasury table, same run id: **−$9,460** | "It also lost more money than *eight* of its worse-scoring runs. They each landed at minus four thousand. This one — the good one — lost nine." |
 | Hold. Text card: **accuracy went up. the outcome got worse.** | "The metric went up. The outcome got worse. Because *which* payouts you get wrong matters more than *how many*." |
@@ -117,19 +118,20 @@ let it print, then walk the cursor down it.
 **This is the beat the track is scoring, and the only one where the society is
 the point. If you run long, cut from beat 4, not here.**
 
-**Exceptions** → *disputes resolved* → payout **`62c33a4f`**. Walk down the
+**Qwen society** → *Open the recorded reconciliation dispute `62c33a4f`*. Walk down the
 recorded chain: a **$15,000 aid disbursement, Germany → Kenya, on a 400-day-old
 account**. Every line below is verbatim from the log.
 
 | Visual | Audio |
 |---|---|
-| `[intake]` — *"Destination country KE is not sanctioned (P1). Recipient account age (400 days) exceeds the 7-day threshold, so P2 does not apply."* → **fast-tracked** | "Watch a real payout move through the society. Intake checks it: not sanctioned, account's over a year old. Clean. Compliance agrees — fast-tracked. No veto. On any single-agent system, this payment is already out the door." |
+| **Qwen society** — configured runtime and the five role boundaries | "ClearCrew runs five specialist Qwen roles. Intake classifies, Compliance can veto, Treasury funds, Resolution rules, and Auditor explains. No role can quietly do another role's job." |
+| `[intake]` — *"Destination country KE is not sanctioned (P1). Recipient account age (400 days) exceeds the 7-day threshold, so P2 does not apply."* → **fast-tracked** | "Watch a real payout move through the society. Intake checks it: not sanctioned, account's over a year old. Clean. The system fast-tracks it to Treasury; no deep compliance review is needed." |
 | `[treasury]` — **action: `pay_now`** · reason: *"Cumulative total 99460.0 > headroom 90000.0"* | "Then Treasury. And read this carefully, because it's the whole project in two lines. Its *reason* says the cumulative total is over the headroom — which is the exact condition that requires a rejection. And its *action* says: pay now." |
 | Hold on the contradiction. Text card: **it said "reject." it did "approve."** | "It got the reasoning right and the answer wrong. It contradicted itself, in writing." |
 | `[orchestrator]` — **`reconciliation.flagged`** | "Nobody prompted it to notice. The orchestrator reconciles what agents *say* against what they *do* — and these didn't match." |
 | `[resolution]` — **`enforce_ledger`** — *"Treasury's action of 'pay_now' contradicts its own stated reason… The ledger check is correct; treasury's action is wrong."* | "So it goes to an independent agent. Resolution rules against Treasury — by name, citing the rule, on the record." |
 | `[orchestrator]` — **`payout.rejected`** · `[auditor]` — *"…a dispute resolution process corrected this error by enforcing the ledger's rejection rule."* | "Rejected. And the Auditor writes down what happened in plain English, so a human doesn't have to read any of this." |
-| Text card: **a monolith has no second reader** | "This is what a society buys you that a bigger model cannot. The single agent made this same mistake — but it was the only one in the room. There was nobody to catch it, and nothing to read afterward." |
+| Text card: **a monolith has no second reader** | "This is what the society adds here: a second reader, a deterministic check, and a recorded appeal. The single agent made this class of mistake alone; ClearCrew gives the error somewhere to go." |
 
 > **Say the honest version — do not skip it:** across every archived run,
 > Resolution ruled **149 times to uphold a compliance veto** and **twice to
@@ -144,17 +146,17 @@ account**. Every line below is verbatim from the log.
 
 | Visual | Audio |
 |---|---|
-| **Exceptions** tab → *benchmark misses* — *"the society reached a verdict the written policy disagrees with"* | "Catching it after the fact still isn't good enough. When our agents are wrong, we don't hide it — we give it its own tab." |
-| **Run trail** → a rejected payout: *proposed* → *policy gate* → *rejected* | "So agents don't decide anymore. They propose. A deterministic gate promotes the proposal — or refuses it, and the refusal goes on the record." |
+| **Benchmark** → *Inspect the guardrail* → note that society needed **0** policy blocks in ten runs | "Catching a mistake after the fact still isn't good enough. And we don't credit the society for safety the gate provides: in these ten society runs, the agents proposed correctly, so the gate did not have to intervene." |
+| **Benchmark** → *Open the gated-monolith record `62c33a4f`* → *proposed* → *policy gate* → *rejected* | "To test the guardrail fairly, we gave the single agent the same gate. Its invalid approval is recorded, blocked under P3, and cannot execute." |
 | Text card: **veto-only — it can refuse an approval, never create one** | "The gate can only ever refuse. If it could approve, it would be doing the deciding — and the five agents would be decorative." |
 | Terminal: `pytest -k reserve_floor` → **3 passed** | "Here's a society that proposes to approve *everything*. The floor holds anyway. The reserve floor stopped being something we measure and became something the system cannot do." |
 
-**Say this out loud — do not skip it:** *"In all ten benchmark runs, the gate
-blocked nothing. The agents proposed correctly every time."* It's printed right
-there in the `bench_stats.py` output — *policy gate refused an approval in 0
-runs*. A seatbelt that never deploys is still doing its job, and a judge who
-runs the benchmark will find `blocked_by_policy: 0` in every result file. If the
-video implied otherwise, every other claim we made becomes suspect.
+**Say this out loud — do not skip it:** *"In all ten society benchmark runs,
+the gate blocked nothing: the agents proposed correctly every time. This separate
+gated-monolith run proves the guardrail itself."* The benchmark output says
+*policy gate refused an approval in 0 runs*. A judge who runs it will find
+`blocked_by_policy: 0` in every society result file; do not imply the gate
+rescued a society benchmark run.
 
 ---
 
@@ -165,7 +167,7 @@ video implied otherwise, every other claim we made becomes suspect.
 | **Evidence** tab → click **tamper** → verification fails from that event onward | "Every decision is hash-chained, and every hash is recomputed in *your* browser, not on our server. Rewrite one reason and the chain breaks exactly there. You don't have to trust us for the part that matters." |
 | **Run trail** → `20260703-165045-settled-n6` → payout `1818e811` → the teal **VERASETTLE** event → click the tx hash → Basescan | "And verdicts move real money. This nine-thousand-eight-hundred-dollar approval executed as testnet USDC on Base Sepolia — at a recorded ten-thousand-to-one scale, which is in the event too. The receipt lives in the *same* tamper-evident chain as the reasoning that caused it." |
 | **Overview**: *22 runs · 629 payouts · 100% hash-verified · 100% replayable* | "Twenty-two recorded runs. Six hundred and twenty-nine payouts. Every one replayable, every hash verified — counted off the logs on disk." |
-| Black. Text: **clearcrew.verasettle.com** | "One agent overdrew the treasury ten times out of ten and couldn't tell you why." |
+| Black. Text: **clearcrew.verasettle.com** | "One agent overdrew the treasury ten times out of ten and left no role-attributed trail." |
 | Text: *"Decisions over money — replayable by construction."* | "Five agents caught each other. And wrote it down." |
 
 ---

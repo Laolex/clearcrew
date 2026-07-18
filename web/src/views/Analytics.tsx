@@ -10,7 +10,10 @@ function num(v: number | null) {
   return v === null ? '—' : v.toLocaleString(undefined, { maximumFractionDigits: 1 })
 }
 
-export function Analytics() {
+const GATED_MONOLITH_RUN = 'events-20260711-195934-gated-mono-n36.jsonl'
+const GATE_DEMO_PAYOUT = '62c33a4f'
+
+export function Analytics({ onOpenGateDemo }: { onOpenGateDemo: (run: string, subject: string) => void }) {
   const { data, error } = useAsync(() => api.analytics(), [])
   if (!data) return <Loading error={error} />
 
@@ -73,6 +76,22 @@ export function Analytics() {
         society is not cheaper and it is not faster — five specialists cost more than one model,
         and saying otherwise would be easy to disprove. What it buys is the column below.
       </p>
+
+      <SectionLabel>Inspect the guardrail</SectionLabel>
+      <Panel>
+        <div style={{ padding: '16px 18px' }}>
+          <p style={{ margin: 0, maxWidth: '720px', color: C.text.secondary, fontFamily: SANS, fontSize: '13px', lineHeight: 1.6 }}>
+            The ten society benchmark runs needed zero policy blocks. To test the control fairly, this
+            separate recorded run gives the monolith the same veto-only gate: its invalid approval is
+            preserved, blocked under P3, and cannot execute.
+          </p>
+          <button onClick={() => onOpenGateDemo(GATED_MONOLITH_RUN, GATE_DEMO_PAYOUT)} style={{ marginTop: '14px', fontFamily: MONO, fontSize: '11px', background: C.bg.elevated, color: C.text.primary, border: `1px solid ${C.border.strong}`, borderRadius: '3px', padding: '9px 13px', cursor: 'pointer' }}>
+            Open the gated-monolith record <span>62c33a4f →</span>
+          </button>
+        </div>
+      </Panel>
+
+      <div style={{ height: '34px' }} />
 
       <SectionLabel>What the single agent cannot do at any price</SectionLabel>
       <Panel>

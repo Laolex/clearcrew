@@ -61,6 +61,11 @@ export default function App() {
 
   const meta = VIEWS.find((item) => item[0] === view)!
   const runScoped = view === 'run' || view === 'evidence' || view === 'counterfactual'
+  const openReplay = (run: string, id: string) => {
+    setActive(run)
+    setView('run')
+    setSubject({ run, id })
+  }
 
   return (
     <div className="app-shell">
@@ -104,12 +109,12 @@ export default function App() {
         <div className="page-content">
           {view === 'demo' && <JudgeWorkspace />}
           {view === 'overview' && <Overview onOpen={(run, id) => setSubject({ run, id })} />}
-          {view === 'society' && <Society />}
+          {view === 'society' && <Society onOpenReplay={openReplay} />}
           {view === 'run' && active && <RunTrail run={active} onOpenSubject={(id) => setSubject({ run: active, id })} />}
           {view === 'failures' && <Failures onOpen={(run, id) => setSubject({ run, id })} />}
           {view === 'evidence' && <Evidence run={active} />}
           {view === 'counterfactual' && <Counterfactual run={active} />}
-          {view === 'analytics' && <Analytics />}
+          {view === 'analytics' && <Analytics onOpenGateDemo={openReplay} />}
           {view === 'policy' && <Policy />}
         </div>
       </main>
