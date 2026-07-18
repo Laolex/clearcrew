@@ -23,8 +23,10 @@ honest one: it proposes better.
 from . import baseline, events, llm, orchestrator, policy
 
 
-def run_batch(payouts: list[dict], balance: float = policy.BALANCE,
-              reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
+def run_batch(payouts: list[dict], balance: float | None = None,
+              reserve_floor: float | None = None) -> dict:
+    balance = policy.CURRENT.balance if balance is None else balance
+    reserve_floor = policy.CURRENT.reserve_floor if reserve_floor is None else reserve_floor
     events.emit("policy.enacted", "batch", "orchestrator",
                 {"version": policy.CURRENT.version, "reason": policy.CURRENT.reason,
                  "params": {**policy.CURRENT.params(), "balance": balance,

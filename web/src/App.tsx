@@ -110,7 +110,7 @@ export default function App() {
           {view === 'evidence' && <Evidence run={active} />}
           {view === 'counterfactual' && <Counterfactual run={active} />}
           {view === 'analytics' && <Analytics />}
-          {view === 'policy' && <Policy />}
+          {view === 'policy' && <Policy run={active} />}
         </div>
       </main>
       {subject && <DecisionDetail run={subject.run} subject={subject.id} onClose={() => setSubject(null)} />}

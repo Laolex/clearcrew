@@ -9,6 +9,7 @@ engine for deterministic counterfactual replay: fold the same recorded batch
 through a different PolicyVersion, zero model calls, no simulated judgment.
 """
 import re
+from datetime import date
 from dataclasses import asdict, dataclass, replace
 from typing import Any
 
@@ -106,7 +107,8 @@ def _one_line_reason(value: Any) -> str:
     return value.strip()
 
 
-def _validated_diff(raw: Any) -> dict:
+def _validated_diff(raw: Any, base: PolicyVersion | None = None) -> dict:
+    base = base or CURRENT
     if not isinstance(raw, dict) or not raw:
         raise ValueError("a proposal needs a non-empty parameter diff")
     unknown = set(raw) - EDITABLE_PARAMETERS
@@ -141,11 +143,49 @@ def _validated_diff(raw: Any) -> dict:
             raise ValueError("p2_age_days must be an integer between 0 and 365")
         diff["p2_age_days"] = value
 
-    balance = diff.get("balance", CURRENT.balance)
-    reserve_floor = diff.get("reserve_floor", CURRENT.reserve_floor)
+    balance = diff.get("balance", base.balance)
+    reserve_floor = diff.get("reserve_floor", base.reserve_floor)
     if reserve_floor > balance:
         raise ValueError("reserve_floor cannot exceed balance")
     return diff
+
+
+def editable_params(pv: PolicyVersion | None = None) -> dict:
+    """The only values a compiled policy proposal may change."""
+    pv = pv or CURRENT
+    return {name: getattr(pv, name) for name in EDITABLE_PARAMETERS}
+
+
+def proposed_version(diff: dict, reason: str, base: PolicyVersion | None = None) -> PolicyVersion:
+    """Build, but never register, a validated proposed policy version."""
+    base = base or CURRENT
+    clean_diff = _validated_diff(diff, base)
+    reason = _one_line_reason(reason)
+    return replace(
+        base,
+        version=f"{base.version}-proposed",
+        enacted="not enacted",
+        reason=reason,
+        **({"sanctioned": tuple(clean_diff["sanctioned"])} if "sanctioned" in clean_diff else {}),
+        **{key: value for key, value in clean_diff.items() if key != "sanctioned"},
+    )
+
+
+def enact_proposal(diff: dict, reason: str, enacted: str | None = None) -> PolicyVersion:
+    """Register a human-confirmed parameter proposal as the next policy version."""
+    global CURRENT, BALANCE, RESERVE_FLOOR, PAYOUT_POLICY
+    proposal = proposed_version(diff, reason)
+    enacted_version = replace(
+        proposal,
+        version=f"v{len(VERSIONS) + 1}",
+        enacted=enacted or date.today().isoformat(),
+    )
+    VERSIONS.append(enacted_version)
+    CURRENT = enacted_version
+    BALANCE = CURRENT.balance
+    RESERVE_FLOOR = CURRENT.reserve_floor
+    PAYOUT_POLICY = CURRENT.render()
+    return enacted_version
 
 
 def compile_instruction(instruction: str) -> dict:
@@ -188,14 +228,7 @@ def compile_instruction(instruction: str) -> dict:
     except ValueError as exc:
         return _refusal(f"The requested change is not expressible in this policy engine: {exc}.")
 
-    proposal = replace(
-        CURRENT,
-        version=f"{CURRENT.version}-proposed",
-        enacted="not enacted",
-        reason=reason,
-        **({"sanctioned": tuple(diff["sanctioned"])} if "sanctioned" in diff else {}),
-        **{key: value for key, value in diff.items() if key != "sanctioned"},
-    )
+    proposal = proposed_version(diff, reason)
     return {
         "status": "proposal",
         "diff": diff,

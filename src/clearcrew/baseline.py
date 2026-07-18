@@ -16,7 +16,10 @@ reserve-floor rule.
 Return JSON: {{"decisions": [{{"payout_id": str, "action": "approve"|"reject", "reason": str}}]}}"""
 
 
-def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
+def run_batch(payouts: list[dict], balance: float | None = None,
+              reserve_floor: float | None = None) -> dict:
+    balance = policy.CURRENT.balance if balance is None else balance
+    reserve_floor = policy.CURRENT.reserve_floor if reserve_floor is None else reserve_floor
     # The benchmark runs each system in its own subprocess, so the parent's
     # llm.usage_totals never sees these calls — the counter has to travel back
     # in the result. (It didn't, for a while, and the token numbers silently
@@ -28,7 +31,7 @@ def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floo
 
 def _decide(payouts: list[dict], balance: float, reserve_floor: float) -> dict:
     return llm.complete(
-        MONOLITH_SYS,
+        MONOLITH_SYS.replace(PAYOUT_POLICY, policy.CURRENT.render()),
         str({
             "payouts": payouts,
             "amount_ledger": build_ledger(payouts),

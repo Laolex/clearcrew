@@ -11,7 +11,7 @@ from fastapi import HTTPException
 from mcp.server.fastmcp import FastMCP
 
 from . import replay
-from .policy import PAYOUT_POLICY
+from . import policy
 
 mcp = FastMCP(
     "clearcrew",
@@ -65,7 +65,7 @@ def verify_run(run_name: str) -> dict:
 def get_policy() -> str:
     """The written org policy given verbatim to every agent AND to the
     monolith baseline — the ground truth that vetoes must cite."""
-    return PAYOUT_POLICY
+    return policy.CURRENT.render()
 
 
 def counterfactual_policy(run_name: str, reserve_floor: float | None = None,

@@ -1,5 +1,5 @@
 """The society's specialist roles. Each agent sees only its slice of the task."""
-from . import config, events, llm
+from . import config, events, llm, policy
 from .policy import PAYOUT_POLICY
 
 INTAKE_SYS = f"""You are the Intake agent in a payout-operations team.
@@ -53,16 +53,21 @@ write a 2-sentence plain-English explanation of what happened and why. Return JS
 {"explanation": str}"""
 
 
+def _active_policy_prompt(system: str) -> str:
+    """Keep archived v1 prompt text stable while new runs receive CURRENT."""
+    return system.replace(PAYOUT_POLICY, policy.CURRENT.render())
+
+
 def intake(payout: dict) -> dict:
     result = llm.complete(
-        INTAKE_SYS, str(payout), model=config.resolve_runtime().model_fast, think=False
+        _active_policy_prompt(INTAKE_SYS), str(payout), model=config.resolve_runtime().model_fast, think=False
     )
     events.emit("intake.classified", payout["id"], "intake", result)
     return result
 
 
 def compliance(payout: dict, intake_result: dict) -> dict:
-    result = llm.complete(COMPLIANCE_SYS, str({"payout": payout, "intake": intake_result}))
+    result = llm.complete(_active_policy_prompt(COMPLIANCE_SYS), str({"payout": payout, "intake": intake_result}))
     events.emit("compliance.reviewed", payout["id"], "compliance", result)
     return result
 
@@ -80,7 +85,7 @@ def build_ledger(payouts: list[dict]) -> list[dict]:
 
 def treasury(cleared: list[dict], balance: float, reserve_floor: float) -> dict:
     result = llm.complete(
-        TREASURY_SYS,
+        _active_policy_prompt(TREASURY_SYS),
         str({
             "ledger": build_ledger(cleared),
             "balance": balance,
@@ -95,7 +100,7 @@ def treasury(cleared: list[dict], balance: float, reserve_floor: float) -> dict:
 
 def reconcile(payout_id: str, ledger_row: dict, headroom: float, treasury_decision: dict) -> dict:
     result = llm.complete(
-        RECONCILE_SYS,
+        _active_policy_prompt(RECONCILE_SYS),
         str({"ledger_row": ledger_row, "headroom": headroom, "treasury": treasury_decision}),
     )
     events.emit("dispute.resolved", payout_id, "resolution", result)
@@ -104,7 +109,7 @@ def reconcile(payout_id: str, ledger_row: dict, headroom: float, treasury_decisi
 
 def negotiate(payout: dict, veto: dict, treasury_position: dict) -> dict:
     result = llm.complete(
-        NEGOTIATOR_SYS,
+        _active_policy_prompt(NEGOTIATOR_SYS),
         str({"payout": payout, "compliance_veto": veto, "treasury": treasury_position}),
     )
     events.emit("dispute.resolved", payout["id"], "resolution", result)

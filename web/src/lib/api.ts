@@ -130,6 +130,24 @@ export interface PolicyCompilation {
   event_id: string
 }
 
+export interface PolicyImpact {
+  proposal_id: string
+  reason: string
+  impact: {
+    run: string
+    summary: { in_force: { approve: number; reject: number }; proposed: { approve: number; reject: number }; changed: number }
+    dollars: { additional_held: number; released: number; in_force_paid: number; in_force_held: number; proposed_paid: number; proposed_held: number; net_paid_change: number }
+    changes: { payout_id: string; amount: number; direction: 'additional_held' | 'released'; cause: string; in_force: { verdict: string }; proposed: { verdict: string } }[]
+  }
+}
+
+export interface EnactedPolicy {
+  version: string
+  enacted: string
+  reason: string
+  event_id: string
+}
+
 export interface AnchorEvidence {
   run: string
   anchors: {
@@ -162,4 +180,6 @@ export const api = {
   society: () => get<Society>('/api/society'),
   policies: () => get<Policies>('/api/policies'),
   compilePolicy: (instruction: string) => post<PolicyCompilation>('/api/policies/compile', { instruction }),
+  policyImpact: (proposalId: string, run: string) => post<PolicyImpact>(`/api/policies/proposals/${proposalId}/impact`, { run }),
+  enactPolicy: (proposalId: string) => post<EnactedPolicy>(`/api/policies/proposals/${proposalId}/enact`, {}),
 }
