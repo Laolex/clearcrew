@@ -54,7 +54,9 @@ write a 2-sentence plain-English explanation of what happened and why. Return JS
 
 
 def intake(payout: dict) -> dict:
-    result = llm.complete(INTAKE_SYS, str(payout), model=config.MODEL_FAST, think=False)
+    result = llm.complete(
+        INTAKE_SYS, str(payout), model=config.resolve_runtime().model_fast, think=False
+    )
     events.emit("intake.classified", payout["id"], "intake", result)
     return result
 
@@ -111,6 +113,8 @@ def negotiate(payout: dict, veto: dict, treasury_position: dict) -> dict:
 
 def audit(payout_id: str) -> dict:
     chain = events.explain(payout_id)
-    result = llm.complete(AUDITOR_SYS, str(chain), model=config.MODEL_FAST, think=False)
+    result = llm.complete(
+        AUDITOR_SYS, str(chain), model=config.resolve_runtime().model_fast, think=False
+    )
     events.emit("audit.explained", payout_id, "auditor", result)
     return result

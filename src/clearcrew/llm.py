@@ -1,4 +1,4 @@
-"""Thin Qwen Cloud client with token accounting for the benchmark.
+"""Thin provider-pluggable client with token accounting for the benchmark.
 
 Transport faults (connection drops, rate limits, 5xx) are retried by the SDK
 with backoff; malformed JSON from the model gets one re-ask before failing
@@ -12,24 +12,23 @@ from openai import OpenAI
 from . import config
 
 _client: OpenAI | None = None
+_client_runtime: tuple[str, str, str] | None = None
 _client_lock = threading.Lock()
 
 
 def _get_client() -> OpenAI:
-    global _client
+    global _client, _client_runtime
+    runtime = config.resolve_runtime()
+    identity = (runtime.provider, runtime.api_key, runtime.base_url)
     with _client_lock:
-        if _client is None:
-            if not config.API_KEY:
-                raise RuntimeError(
-                    "DASHSCOPE_API_KEY is not set — required for agent/benchmark "
-                    "runs (the replay UI works without it)"
-                )
+        if _client is None or _client_runtime != identity:
             _client = OpenAI(
-                api_key=config.API_KEY,
-                base_url=config.BASE_URL,
+                api_key=runtime.api_key,
+                base_url=runtime.base_url,
                 timeout=config.REQUEST_TIMEOUT,
                 max_retries=config.MAX_RETRIES,
             )
+            _client_runtime = identity
         return _client
 
 usage_totals = {"prompt_tokens": 0, "completion_tokens": 0, "calls": 0}
@@ -41,16 +40,20 @@ class ModelResponseError(RuntimeError):
 
 
 def _call(system: str, user: str, model: str | None, json_mode: bool, think: bool) -> str:
+    runtime = config.resolve_runtime()
     resp = _get_client().chat.completions.create(
-        model=model or config.MODEL_STRONG,
+        model=model or runtime.model_strong,
         messages=[
             {"role": "system", "content": system},
             {"role": "user", "content": user},
         ],
         response_format={"type": "json_object"} if json_mode else None,
         temperature=0.2,
-        # triage/audit calls don't need chain-of-thought token spend
-        extra_body=None if think else {"enable_thinking": False},
+        # DashScope-specific switch; OpenAI must never receive this extension.
+        extra_body=(
+            {"enable_thinking": False}
+            if runtime.provider == "dashscope" and not think else None
+        ),
     )
     with _usage_lock:
         usage_totals["calls"] += 1

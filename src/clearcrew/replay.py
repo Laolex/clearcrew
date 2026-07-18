@@ -560,19 +560,20 @@ def analytics(auth=Depends(require_auth)):
 
 @app.get("/api/society")
 def society(auth=Depends(require_auth)):
-    """The configured Qwen society and its enforced division of labour.
+    """The configured model society and its enforced division of labour.
 
     This endpoint deliberately reports configuration and code-level boundaries,
     not a claim inferred from a replay.  It gives a reviewer one small,
     inspectable surface connecting the visible console to the agents that write
     the events in it.
     """
+    runtime = config.resolve_runtime()
     return {
-        "provider": "Qwen Cloud (DashScope)",
-        "endpoint": config.BASE_URL,
+        "provider": runtime.provider_label,
+        "endpoint": runtime.base_url,
         "models": [
-            {"name": config.MODEL_FAST, "purpose": "parallel intake triage and audit explanations"},
-            {"name": config.MODEL_STRONG, "purpose": "compliance, treasury, and resolution judgments"},
+            {"name": runtime.model_fast, "purpose": "parallel intake triage and audit explanations"},
+            {"name": runtime.model_strong, "purpose": "compliance, treasury, and resolution judgments"},
         ],
         "roles": [
             {"name": "Intake", "authority": "classifies payout risk; cannot approve or reject"},

@@ -3,7 +3,7 @@ import { api } from '../lib/api'
 import { C, MONO, SANS } from '../lib/tokens'
 import { useAsync } from '../lib/useAsync'
 
-/** A reviewer-facing map from Qwen configuration to the controls that constrain it. */
+/** A reviewer-facing map from active model configuration to its controls. */
 export function Society() {
   const { data, error } = useAsync(() => api.society(), [])
   if (!data) return <Loading error={error} />
@@ -54,7 +54,7 @@ export function Society() {
       <p style={note}>
         This page reads the live service configuration and code-level role contracts. Inspect a recorded
         run in <b>Run trail</b> to see the resulting events; inspect <b>Benchmark</b> for the controlled
-        comparison with one Qwen agent.
+        comparison with one agent.
       </p>
     </>
   )

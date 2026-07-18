@@ -549,15 +549,32 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
    ```
 5. **Query history as an agent** — the [MCP server](docs/MCP.md), read-only,
    keyless.
-6. **Re-run the benchmark or the settlement demo** — needs your own
-   `DASHSCOPE_API_KEY` (and a Verasettle sandbox for settlement); see below.
+6. **Re-run the benchmark or the settlement demo** — needs a configured model
+   provider (and a Verasettle sandbox for settlement); see below.
    Recorded runs in `runs/` are the originals — reruns produce new history,
    they never overwrite it.
+
+## Runtimes
+
+One engine, two providers. The original Qwen Cloud runtime remains available for
+the Global AI Hackathon Series entry; the OpenAI GPT-5.6 runtime was added during
+OpenAI Build Week. Set `CLEARCREW_PROVIDER=dashscope` or `openai`; if it is
+omitted, ClearCrew infers the provider from the one API key present and refuses
+to guess when both or neither key is set.
+
+- **Qwen Cloud / DashScope:** `DASHSCOPE_API_KEY`, with `qwen3.7-max` for
+  strong roles and `qwen3.7-plus` for fast roles.
+- **OpenAI:** `OPENAI_API_KEY`, with `gpt-5.6-terra` for strong roles and
+  `gpt-5.6-luna` for fast roles.
+
+Override either provider's role model with `CLEARCREW_MODEL_STRONG` and
+`CLEARCREW_MODEL_FAST` (for example, set both to `gpt-5.6-sol` for a hero run).
 
 ## Run the benchmark
 
 ```bash
 pip install -r requirements.txt
+export CLEARCREW_PROVIDER=dashscope
 export DASHSCOPE_API_KEY=sk-...   # Qwen Cloud / Model Studio key
 cd src && python -m clearcrew.bench   # BATCH_N=36 for the large batch
 ```

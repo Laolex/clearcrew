@@ -82,9 +82,16 @@ def test_analytics_averages_benchmarks_and_capabilities(client):
     assert a["coverage"]["replay_pct"] == 100.0
 
 
-def test_society_exposes_configured_qwen_roles_and_controls(client):
+def test_society_exposes_configured_provider_roles_and_controls(client, monkeypatch):
+    monkeypatch.setenv("CLEARCREW_PROVIDER", "dashscope")
+    monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
     s = client.get("/api/society").json()
-    assert s["provider"] == "Qwen Cloud (DashScope)"
+    runtime = replay.config.resolve_runtime()
+    assert s["provider"] == runtime.provider_label
+    assert s["endpoint"] == runtime.base_url
+    assert [model["name"] for model in s["models"]] == [
+        runtime.model_fast, runtime.model_strong,
+    ]
     assert len(s["models"]) == 2
     assert all(model["name"] and model["purpose"] for model in s["models"])
     assert [r["name"] for r in s["roles"]] == [
