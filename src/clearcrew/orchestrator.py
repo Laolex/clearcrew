@@ -10,7 +10,10 @@ from dataclasses import replace
 from . import agents, anchor, events, llm, policy
 
 
-def run_batch(payouts: list[dict], balance: float = policy.BALANCE, reserve_floor: float = policy.RESERVE_FLOOR) -> dict:
+def run_batch(payouts: list[dict], balance: float | None = None,
+              reserve_floor: float | None = None) -> dict:
+    balance = policy.CURRENT.balance if balance is None else balance
+    reserve_floor = policy.CURRENT.reserve_floor if reserve_floor is None else reserve_floor
     # policy is history too: record which version governs this batch, so any
     # replay knows exactly what the rules were at decision time
     events.emit("policy.enacted", "batch", "orchestrator",

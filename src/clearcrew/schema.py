@@ -65,6 +65,16 @@ class PolicyBlocked:
     reason: str
 
 
+@dataclass
+class PolicyProposed:
+    """A compiled parameter-only policy change awaiting human enactment."""
+    status: Literal["proposal", "refusal"]
+    diff: dict
+    reason: str
+    before: dict
+    after: dict | None
+
+
 EVENT_SCHEMA: dict[str, type[dataclass]] = {
     "intake.classified": IntakeClassified,
     "compliance.reviewed": ComplianceReviewed,
@@ -73,6 +83,7 @@ EVENT_SCHEMA: dict[str, type[dataclass]] = {
     "settlement.confirmed": SettlementConfirmed,
     "payout.proposed": PayoutProposed,
     "policy.blocked": PolicyBlocked,
+    "policy.proposed": PolicyProposed,
 }
 
 

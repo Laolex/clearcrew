@@ -23,6 +23,16 @@ async function get<T>(path: string): Promise<T> {
   return res.json() as Promise<T>
 }
 
+async function post<T>(path: string, body: unknown): Promise<T> {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+  if (!res.ok) throw new Error(`${res.status} ${res.statusText} — ${path}`)
+  return res.json() as Promise<T>
+}
+
 
 export interface RunEvents {
   run: string
@@ -111,6 +121,33 @@ export interface Counterfactual {
   }[]
 }
 
+export interface PolicyCompilation {
+  status: 'proposal' | 'refusal'
+  diff: Record<string, unknown>
+  reason: string
+  before: { params: Record<string, unknown>; rendered: string }
+  after: { params: Record<string, unknown>; rendered: string } | null
+  event_id: string
+}
+
+export interface PolicyImpact {
+  proposal_id: string
+  reason: string
+  impact: {
+    run: string
+    summary: { in_force: { approve: number; reject: number }; proposed: { approve: number; reject: number }; changed: number }
+    dollars: { additional_held: number; released: number; in_force_paid: number; in_force_held: number; proposed_paid: number; proposed_held: number; net_paid_change: number }
+    changes: { payout_id: string; amount: number; direction: 'additional_held' | 'released'; cause: string; in_force: { verdict: string }; proposed: { verdict: string } }[]
+  }
+}
+
+export interface EnactedPolicy {
+  version: string
+  enacted: string
+  reason: string
+  event_id: string
+}
+
 export interface AnchorEvidence {
   run: string
   anchors: {
@@ -142,4 +179,7 @@ export const api = {
   analytics: () => get<Analytics>('/api/analytics'),
   society: () => get<Society>('/api/society'),
   policies: () => get<Policies>('/api/policies'),
+  compilePolicy: (instruction: string) => post<PolicyCompilation>('/api/policies/compile', { instruction }),
+  policyImpact: (proposalId: string, run: string) => post<PolicyImpact>(`/api/policies/proposals/${proposalId}/impact`, { run }),
+  enactPolicy: (proposalId: string) => post<EnactedPolicy>(`/api/policies/proposals/${proposalId}/enact`, {}),
 }

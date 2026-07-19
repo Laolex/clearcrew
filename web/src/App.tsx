@@ -14,7 +14,7 @@ import { Society } from './views/Society'
 
 const VIEWS = [
   ['overview', 'Overview', 'Recorded operations at a glance'],
-  ['society', 'Qwen society', 'Inspect models, roles, and control boundaries'],
+  ['society', 'Society', 'Inspect models, roles, and control boundaries'],
   ['run', 'Run trail', 'Inspect one recorded batch'],
   ['failures', 'Exceptions', 'Vetoes, disputes, and misses'],
   ['evidence', 'Evidence', 'Verify and export the record'],
@@ -115,7 +115,7 @@ export default function App() {
           {view === 'evidence' && <Evidence run={active} />}
           {view === 'counterfactual' && <Counterfactual run={active} />}
           {view === 'analytics' && <Analytics onOpenGateDemo={openReplay} />}
-          {view === 'policy' && <Policy />}
+          {view === 'policy' && <Policy run={active} />}
         </div>
       </main>
       {subject && <DecisionDetail run={subject.run} subject={subject.id} onClose={() => setSubject(null)} />}

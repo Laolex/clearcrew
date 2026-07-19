@@ -57,7 +57,7 @@ export function Society({ onOpenReplay }: { onOpenReplay: (run: string, subject:
       <p style={note}>
         This page reads the live service configuration and code-level role contracts. Inspect a recorded
         run in <b>Run trail</b> to see the resulting events; inspect <b>Benchmark</b> for the controlled
-        comparison with one Qwen agent.
+        comparison with one agent.
       </p>
       <button onClick={() => onOpenReplay(RECONCILIATION_RUN, RECONCILIATION_PAYOUT)} style={replayButton}>
         Open the recorded reconciliation dispute <span>62c33a4f →</span>

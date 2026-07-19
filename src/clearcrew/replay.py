@@ -404,6 +404,64 @@ def counterfactual(run_name: str, reserve_floor: float | None = None,
     }
 
 
+def proposed_policy_impact(run_name: str, proposed: policy.PolicyVersion) -> dict:
+    """Fold one archived batch through current and proposed policies, no model calls."""
+    events = _load_events(run_name)
+    m = _RUN_RE.match(run_name)
+    batch = data.make_batch(int(m["n"]))
+    in_force = policy.CURRENT
+    base = policy.evaluate(batch, in_force)
+    proposed_verdicts = policy.evaluate(batch, proposed)
+    recorded = {e["subject"]: e["type"].split(".", 1)[1] for e in events
+                if e["type"] in ("payout.approved", "payout.rejected")}
+
+    changes = []
+    for payout in batch:
+        pid = payout["id"]
+        before, after = base[pid], proposed_verdicts[pid]
+        if before["verdict"] == after["verdict"]:
+            continue
+        direction = "additional_held" if before["verdict"] == "approve" else "released"
+        changes.append({
+            "payout_id": pid,
+            "amount": payout["amount"],
+            "recorded_outcome": recorded.get(pid),
+            "in_force": before,
+            "proposed": after,
+            "direction": direction,
+            "cause": f"rule {after['rule'] or before['rule']} under the proposed parameters",
+        })
+
+    def tally(verdicts: dict[str, dict]) -> dict:
+        approved = [p for p in batch if verdicts[p["id"]]["verdict"] == "approve"]
+        paid = round(sum(p["amount"] for p in approved), 2)
+        total = round(sum(p["amount"] for p in batch), 2)
+        return {"approve": len(approved), "reject": len(batch) - len(approved),
+                "paid": paid, "held": round(total - paid, 2)}
+
+    current_totals, proposed_totals = tally(base), tally(proposed_verdicts)
+    additional_held = round(sum(c["amount"] for c in changes if c["direction"] == "additional_held"), 2)
+    released = round(sum(c["amount"] for c in changes if c["direction"] == "released"), 2)
+    return {
+        "run": run_name,
+        "note": "deterministic policy layer only — no model calls and no recorded decision is rewritten",
+        "policy_in_force": {"params": in_force.params(), "rendered": in_force.render()},
+        "policy_proposed": {"params": proposed.params(), "rendered": proposed.render()},
+        "summary": {
+            "in_force": {"approve": current_totals["approve"], "reject": current_totals["reject"]},
+            "proposed": {"approve": proposed_totals["approve"], "reject": proposed_totals["reject"]},
+            "changed": len(changes),
+        },
+        "dollars": {
+            "in_force_paid": current_totals["paid"], "in_force_held": current_totals["held"],
+            "proposed_paid": proposed_totals["paid"], "proposed_held": proposed_totals["held"],
+            "additional_held": additional_held, "released": released,
+            "net_paid_change": round(proposed_totals["paid"] - current_totals["paid"], 2),
+        },
+        "changes": sorted(changes, key=lambda c: (-c["amount"], c["payout_id"])),
+    }
+
+
 @app.get("/api/runs/{run_name}/treasury")
 def treasury(run_name: str, auth=Depends(require_auth)):
     """The treasury position as the batch folds — balance descending toward the
@@ -560,19 +618,20 @@ def analytics(auth=Depends(require_auth)):
 
 @app.get("/api/society")
 def society(auth=Depends(require_auth)):
-    """The configured Qwen society and its enforced division of labour.
+    """The configured model society and its enforced division of labour.
 
     This endpoint deliberately reports configuration and code-level boundaries,
     not a claim inferred from a replay.  It gives a reviewer one small,
     inspectable surface connecting the visible console to the agents that write
     the events in it.
     """
+    runtime = config.resolve_runtime()
     return {
-        "provider": "Qwen Cloud (DashScope)",
-        "endpoint": config.BASE_URL,
+        "provider": runtime.provider_label,
+        "endpoint": runtime.base_url,
         "models": [
-            {"name": config.MODEL_FAST, "purpose": "parallel intake triage and audit explanations"},
-            {"name": config.MODEL_STRONG, "purpose": "compliance, treasury, and resolution judgments"},
+            {"name": runtime.model_fast, "purpose": "parallel intake triage and audit explanations"},
+            {"name": runtime.model_strong, "purpose": "compliance, treasury, and resolution judgments"},
         ],
         "roles": [
             {"name": "Intake", "authority": "classifies payout risk; cannot approve or reject"},
@@ -601,6 +660,83 @@ def policies(auth=Depends(require_auth)):
                  "so they are not presented as policy versions. Use counterfactual "
                  "replay below to see what a different rule would have decided."),
     }
+
+
+@app.post("/api/policies/compile")
+async def compile_policy(request: Request, auth=Depends(require_auth)):
+    """Record a compiled policy proposal; enactment is deliberately absent."""
+    try:
+        body = await request.json()
+    except json.JSONDecodeError as exc:
+        raise HTTPException(422, "request body must be JSON") from exc
+    instruction = body.get("instruction") if isinstance(body, dict) else None
+    if not isinstance(instruction, str) or not instruction.strip():
+        raise HTTPException(422, "instruction must be a non-empty string")
+
+    compiled = policy.compile_instruction(instruction)
+    event = event_log.emit("policy.proposed", "policy", "policy", {
+        "status": compiled["status"],
+        "diff": compiled["diff"],
+        "reason": compiled["reason"],
+        "before": compiled["before"]["params"],
+        "after": compiled["after"]["params"] if compiled["after"] else None,
+    })
+    return {**compiled, "event_id": event["id"]}
+
+
+def _proposal_from_event(proposal_id: str) -> tuple[dict, policy.PolicyVersion]:
+    event = next((e for e in event_log.read_all() if e["id"] == proposal_id), None)
+    if not event or event["type"] != "policy.proposed":
+        raise HTTPException(404, "no such policy proposal")
+    payload = event.get("payload", {})
+    if payload.get("status") != "proposal":
+        raise HTTPException(422, "only a proposed policy can be replayed or enacted")
+    before = payload.get("before")
+    current_params = policy.editable_params()
+    same_basis = isinstance(before, dict) and all(
+        (tuple(before.get(name, ())) == tuple(value)) if name == "sanctioned"
+        else before.get(name) == value
+        for name, value in current_params.items()
+    )
+    if not same_basis:
+        raise HTTPException(409, "proposal is stale; compile it again against the current policy")
+    try:
+        proposed = policy.proposed_version(payload.get("diff"), payload.get("reason"))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(422, f"invalid policy proposal: {exc}") from exc
+    return event, proposed
+
+
+@app.post("/api/policies/proposals/{proposal_id}/impact")
+async def proposed_policy_impact_endpoint(proposal_id: str, request: Request,
+                                          auth=Depends(require_auth)):
+    try:
+        body = await request.json()
+    except json.JSONDecodeError as exc:
+        raise HTTPException(422, "request body must be JSON") from exc
+    run_name = body.get("run") if isinstance(body, dict) else None
+    if not isinstance(run_name, str):
+        raise HTTPException(422, "run must be a recorded run name")
+    event, proposed = _proposal_from_event(proposal_id)
+    return {"proposal_id": event["id"], "reason": proposed.reason,
+            "impact": proposed_policy_impact(run_name, proposed)}
+
+
+@app.post("/api/policies/proposals/{proposal_id}/enact")
+def enact_policy(proposal_id: str, auth=Depends(require_auth)):
+    """The explicit human-confirmation gate for a compiled policy proposal."""
+    event, proposed = _proposal_from_event(proposal_id)
+    enacted = policy.enact_proposal(event["payload"]["diff"], proposed.reason)
+    enactment = event_log.emit("policy.enacted", "policy", "policy", {
+        "version": enacted.version,
+        "enacted": enacted.enacted,
+        "reason": enacted.reason,
+        "params": enacted.params(),
+        "proposal_id": event["id"],
+    })
+    return {"version": enacted.version, "enacted": enacted.enacted,
+            "reason": enacted.reason, "params": enacted.params(),
+            "event_id": enactment["id"]}
 
 
 # ── judge mode: run the society live, watch it deliberate, then replay it ────

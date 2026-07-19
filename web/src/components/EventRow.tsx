@@ -9,6 +9,7 @@ const TYPE_COLOR: Record<string, string> = {
   'settlement.confirmed': C.state.approved,
   'payout.rejected': C.state.rejected,
   'policy.blocked': C.state.rejected,
+  'policy.proposed': C.state.hypothetical,
   'compliance.reviewed': C.state.vetoed,
   'reconciliation.flagged': C.state.vetoed,
   'dispute.resolved': C.state.hypothetical,

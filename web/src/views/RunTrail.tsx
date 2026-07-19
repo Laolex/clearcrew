@@ -12,7 +12,7 @@ import { C, MONO, SANS } from '../lib/tokens'
 // interleaved-looking rows into the batch's actual pipeline, without
 // reordering a single event or touching the chain.
 const PHASE: Record<string, string> = {
-  'policy.enacted': 'setup', 'batch.received': 'setup',
+  'policy.enacted': 'setup', 'policy.proposed': 'setup', 'batch.received': 'setup',
   'intake.classified': 'intake',
   'compliance.reviewed': 'compliance', 'compliance.fast_tracked': 'compliance',
   'treasury.decided': 'treasury',
