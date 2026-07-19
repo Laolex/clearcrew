@@ -61,13 +61,15 @@ def run() -> None:
     # --- Society (subprocess) ---
     t0 = time.time()
     society_log = "events-society.jsonl"
-    if os.path.exists(society_log):
-        os.remove(society_log)
+    _db = events._db_path(society_log)
+    for stale in (society_log, _db, _db + "-wal", _db + "-shm"):
+        if os.path.exists(stale):
+            os.remove(stale)
     society_events: list[dict] = []
     try:
         society_result = _run_in_subprocess("orchestrator", clean_json, society_log)
-        with open(society_log) as f:
-            society_events = [json.loads(line) for line in f if line.strip()]
+        # the store is SQLite; the .jsonl name only seeds the derived .db path
+        society_events = events.read_all(society_log)
         society_chain = _verify(society_events)
     except Exception as exc:
         print(f"Society subprocess failed: {exc}")
