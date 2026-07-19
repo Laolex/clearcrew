@@ -12,10 +12,10 @@ So here is the claim as the evidence actually supports it:
 
 Measured, on the same batch, same policy, same models:
 
-- **The gate** takes a single agent from breaching the reserve floor **10/10 runs
-  to 0/10**. Safety is architecture-independent.
+- **The gate** takes a single agent from breaching the reserve floor **11/11 runs
+  to 0/11**. Safety is architecture-independent.
 - **The society** proposes correctly **100.0%** of the time against the
-  monolith's **87.5%** — worth **$8,500 per run** in legitimate payouts that a
+  monolith's **87.6%** — worth **$8,636 per run** in legitimate payouts that a
   gated monolith strands and no gate can rescue.
 
 This page exists so both numbers can be attacked. Everything needed to reproduce
@@ -31,7 +31,7 @@ ablation is one of those parts.
 | **Ground truth** | the **executable policy itself** (`policy.evaluate`) — see below |
 | **Society** | 5 specialist Qwen agents + deterministic orchestrator (`agents.py`, `orchestrator.py`) |
 | **Monolith** | one agent, one prompt, whole batch (`baseline.py`) |
-| **Models** | identical for both: `qwen3.7-max` (strong), `qwen3.7-plus` (fast) |
+| **Models** | identical for both: `qwen3.7-max` (strong), `qwen3.7-plus` (fast). Run 11 (`20260719-192857`) used `qwen-plus` as the fast model — DashScope's free tier for `qwen3.7-plus` was exhausted; the strong model, which does all monolith and all heavy society reasoning, was unchanged |
 | **Policy** | identical for both — the *same rendered text* is injected into both prompts |
 | **Isolation** | each system runs in its own subprocess with its own event log, so token counters, timing, and memory never cross-contaminate (`bench.py`) |
 | **Reproduce** | `DASHSCOPE_API_KEY=… python -m clearcrew.bench` |
@@ -107,7 +107,7 @@ Two things worth reading off this table honestly:
   read and nobody to fix.
 
 **That limitation is now closed.** The section below repeats the *current*
-architecture ten times and reports the spread.
+architecture eleven times and reports the spread.
 
 ## Accuracy is the wrong unit
 
@@ -117,7 +117,7 @@ A payout system's job is not to be right on average. It is to not lose the
 money. Those come apart, and this benchmark shows exactly where:
 
 - The monolith's **best** accuracy run (92%) left the treasury at **−$9,460** —
-  *worse* than four of its 89% runs. The metric went up while the outcome got
+  *worse* than nine of its 89% runs. The metric went up while the outcome got
   worse, because **which** payouts you get wrong matters more than how many.
 - Its worst run scored 72%, which reads like a passing grade, and ended the
   treasury at **−$113,660** — more than the entire opening balance.
@@ -125,9 +125,9 @@ money. Those come apart, and this benchmark shows exactly where:
 So we report the closing treasury balance alongside the percentage. Percent
 hides an insolvency; dollars do not.
 
-## Results — ten runs of the current architecture
+## Results — eleven runs of the current architecture
 
-`scripts/bench_repeat.sh 10` — same batch, same policy, same models, ten times.
+`scripts/bench_repeat.sh` — same batch, same policy, same models, eleven times.
 Every run is archived, including any we lose.
 
 ### Accuracy
@@ -135,10 +135,10 @@ Every run is archived, including any we lose.
 | | mean | sd | min | max |
 |---|---|---|---|---|
 | **society** (proposals) | **100.0%** | 0.0% | 100.0% | 100.0% |
-| **monolith** | 87.5% | 5.4% | **72.2%** | 91.7% |
+| **monolith** | 87.6% | 5.2% | **72.2%** | 91.7% |
 
-The society wins **10/10**. Its spread is zero: the agents proposed the correct
-verdict for all 36 payouts, ten times running. The monolith sits around 89% and
+The society wins **11/11**. Its spread is zero: the agents proposed the correct
+verdict for all 36 payouts, eleven times running. The monolith sits around 89% and
 occasionally falls apart.
 
 ### Treasury outcome — the number that matters
@@ -149,14 +149,14 @@ Start $100,000. Reserve floor $10,000.
 |---|---|---|
 | closing balance | **+$15,540**, every run | **negative, every run** |
 | worst run | +$15,540 | **−$113,660** |
-| reserve floor breached | **0 / 10** | **10 / 10** |
+| reserve floor breached | **0 / 11** | **11 / 11** |
 
 The single agent **overdraws the treasury in every run it has ever been given.**
-Not occasionally — ten out of ten. Eight times it lands at −$4,460, once at
+Not occasionally — eleven out of eleven. Nine times it lands at −$4,460, once at
 −$9,460, and once at −$113,660, which is more than the entire opening balance.
 
 Note the run that scored its *best* accuracy (91.7%) closed at **−$9,460** —
-worse than four of its 88.9% runs. The metric improved while the outcome got
+worse than nine of its 88.9% runs. The metric improved while the outcome got
 worse, because **which** payouts you get wrong matters more than how many. That
 is the whole argument for reporting dollars.
 
@@ -264,20 +264,55 @@ bite us:
    here and is worthless there, and **this benchmark cannot see the difference.**
 3. **It is not free even here.** A system that approves everything produces a
    record in which every `payout.proposed` is identical and no reasoning is
-   attributable. You cannot ask it why. The 9 other runs show the monolith's
-   *actual* behaviour, which strands $8,500 — the rubber stamp is a strategy it
-   fell into once, catastrophically, not one it reliably executes.
+   attributable. You cannot ask it why. The 10 other runs show the monolith's
+   *actual* behaviour, which strands $9,500 on average — the rubber stamp is a
+   strategy it fell into once, catastrophically, not one it reliably executes.
 
 The honest reading: **our benchmark rewards a degenerate strategy, and we can see
 it doing so.** Closing that hole means ground truth that is *not* identical to
 the gate — a policy with a judgment-shaped hole in it that no code can check.
 That is the next experiment, and it is not done. Until it is, the judgment claim
-rests on the nine runs where the monolith behaved like a monolith rather than a
+rests on the ten runs where the monolith behaved like a monolith rather than a
 coin flip.
 
-### The gate did not fire once in the society's ten runs — and that is not a problem
+### The tier ablation: drop the model, keep the architecture
 
-`blocked_by_policy` is **0** across all ten. The society proposed correctly every
+A fair reviewer asked the inverse question: the gate ablation shows the *gate*
+is separable — is the *model*? If the judgment layer is really load-bearing,
+weakening it should show up in the numbers.
+
+So we ran the same benchmark with **both systems on `qwen-turbo`** — the cheap
+tier — three times (`CLEARCREW_MODEL_STRONG=qwen-turbo CLEARCREW_MODEL_FAST=qwen-turbo`,
+archived in `runs-ablation/`, deliberately kept out of `runs/` so the headline
+distribution stays single-config):
+
+| proposal accuracy | on `qwen3.7-max` | on `qwen-turbo` (3 runs) |
+|---|---|---|
+| **monolith** | 87.6% ± 5.2% | **64.8% ± 1.6%** |
+| **society** | **100.0% ± 0.0%** | **100.0% ± 0.0%** |
+
+Two findings, and they point in the same direction:
+
+1. **Judgment is model-bound.** Drop the tier and the single agent loses
+   **23 points** — the same batch it scored 87.6% on collapses to 64.8%. Whatever
+   the monolith's competence is, it lives in the model, and there is no
+   architecture underneath to catch it falling.
+2. **The society's structure recovers the cheap model.** Decomposition into
+   narrow specialist calls, the deterministic cumulative ledger, reconciliation,
+   and adjudicated disputes turn the *same* qwen-turbo into a system that
+   proposed all 36 verdicts correctly, three runs out of three — at ~73k tokens
+   and **49 seconds** a run, seven times faster than the strong-tier society.
+
+The honest boundary: this is one seeded batch and the ground truth is the
+mechanizable policy (see Known limits) — "turbo society scores 100%" is bounded
+by the same limit as every other accuracy claim here. What the ablation does
+establish is the causal direction: **the model tier moves the monolith by 23
+points and the society by zero.** The society is what makes model judgment
+survivable; the model is what makes the monolith's number.
+
+### The gate did not fire once in the society's eleven runs — and that is not a problem
+
+`blocked_by_policy` is **0** across all eleven. The society proposed correctly every
 time, so the gate had nothing to refuse. A fair reader will ask what it is for.
 
 Four answers, all checkable:
@@ -289,7 +324,7 @@ Four answers, all checkable:
 2. **The failure it prevents is real and archived.** Two pre-gate runs
    (`20260702-204555`, `20260702-205623`) recorded approvals that overdrew the
    treasury, one by $24,460. We publish them. They are not expressible now.
-3. **The monolith commits exactly this failure in all 10 runs.** The gate is the
+3. **The monolith commits exactly this failure in all 11 runs.** The gate is the
    difference between a system that can overdraw and one that cannot.
 4. **You can watch it fire on a real recorded run.** In the gated-monolith
    ablation (`events-20260711-195934-gated-mono-n36.jsonl`) the gate refuses two
@@ -343,22 +378,23 @@ The society is not free.
 
 | | society | monolith | ratio |
 |---|---|---|---|
-| wall-clock (mean of 10) | 350 s | 141 s | **2.5× slower** |
-| tokens | 84,676 | 13,403 | **6.3× more** |
+| wall-clock (mean of 11) | 350 s | 143 s | **2.5× slower** |
+| tokens (mean of the 2 measured runs) | 86,292 | 12,846 | **6.7× more** |
 
 **A caveat we owe you on the token row.** Token accounting was broken from
 commit `3cb7e76` until `c1c4e14`: when the benchmark moved each system into its
 own subprocess, `llm.usage_totals` stayed in the parent, so the counter read
 zero and the token columns were deleted rather than plumbed across the boundary.
 Every token figure quoted in between came from a run predating that change. The
-counter is fixed, and the figures above are from the one run of these ten that
-was recorded after the fix. They land at the same 6.3× as the old measurement,
-which is corroboration rather than proof. Wall-clock is a mean over all ten.
+counter is fixed, and the figures above are the mean of the two runs of these
+eleven recorded after the fix (they measure 6.3× and 7.2× individually). They
+bracket the old measurement, which is corroboration rather than proof.
+Wall-clock is a mean over all eleven.
 
 Six times the tokens is a bad trade *if accuracy is all you're buying*. It isn't.
 The extra tokens purchase the **record** — attributable reasoning, a recorded
 veto, a ruling, a replayable chain — and, with the gate, an invariant: the
-monolith overdrew the treasury in 10 of 10 runs and the society structurally
+monolith overdrew the treasury in 11 of 11 runs and the society structurally
 cannot. On a payout desk that is the entire product. On a task where nobody will
 ever ask "why did this happen?" and nothing is at stake if it goes wrong, the
 monolith is the correct choice and we would say so.
@@ -367,11 +403,11 @@ monolith is the correct choice and we would say so.
 
 - **Synthetic batch.** Seeded generator, not production payout traffic. It
   exercises the policy's rule surface, not the messiness of real data.
-- **Small batch, ten runs.** Every accuracy figure here is the mean of **10 runs
-  × 36 payouts** (~360 decisions) at the current config — not a handful of calls.
-  But it is still one seeded 36-payout batch: enough for the spread we report
-  (society sd 0.0%, monolith sd 5.4%), not enough for a confidence interval
-  anyone should bet real money on.
+- **Small batch, eleven runs.** Every accuracy figure here is the mean of **11
+  runs × 36 payouts** (~400 decisions) at the current config — not a handful of
+  calls. But it is still one seeded 36-payout batch: enough for the spread we
+  report (society sd 0.0%, monolith sd 5.2%), not enough for a confidence
+  interval anyone should bet real money on.
 - **Policy adherence, not judgment — and this is the load-bearing limit.**
   Ground truth is the mechanical policy, and the gate enforces that same
   function. A payout that's *technically* approvable and *obviously* fraudulent
@@ -381,7 +417,10 @@ monolith is the correct choice and we would say so.
   ground truth is mechanizable.** Fixing it requires a policy with a
   judgment-shaped hole no code can check. Not done.
 - **Same models both sides** is a strength for fairness and a limit for
-  generality: this is evidence about *architecture*, not about Qwen.
+  generality: within one tier, this is evidence about *architecture*. The tier
+  ablation above adds the model-axis evidence — drop the tier and the monolith
+  moves 23 points while the society moves zero — but it is Qwen-tier-vs-Qwen-tier,
+  not Qwen-vs-another-provider.
 - **We report every run we have.** No run was discarded; the four above are
   all four `results-*.json` files in `runs/`.
 

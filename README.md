@@ -9,6 +9,17 @@ specialist Qwen agents whose disagreements, vetoes, and adjudicated rulings
 are recorded as replayable, hash-chained history. Starting with payout
 operations.**
 
+**The policy gate makes payouts safe; Qwen judgment makes them correct.** Give
+the single-agent baseline the *same* deterministic gate and it protects the
+reserve — by wrongly holding **$8,636 of legitimate payouts per run**. The Qwen
+specialist society strands **$0**, at **100.0%** proposal accuracy to the
+monolith's **87.6%**, across 11 controlled runs. Remove or weaken the judgment
+layer and safety remains — but legitimate people don't get paid. And judgment is
+measurably where the model is: drop the tier to `qwen-turbo` and the monolith
+collapses **23 points to 64.8%** while the society still proposes every verdict
+correctly — the society is what makes model judgment survivable.
+([benchmark](#why-the-society-wins) · `scripts/ablation.py` · [tier ablation](docs/BENCHMARK.md))
+
 Built on Qwen Cloud for the Global AI Hackathon Series (Agent Society track).
 Five specialist agents — Intake, Compliance, Treasury, Resolution, Auditor —
 divide a batch of payout requests through task decomposition and adjudicated
@@ -70,7 +81,7 @@ verdict, and money movement in one tamper-evident history.**
 | | |
 |---|---|
 | **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
-| **Headline** | across a **controlled 10-run benchmark** (n=36, same policy, same models): society **100.0% ± 0.0%**, monolith **87.5% ± 5.4%**. The monolith **overdrew the treasury in 10/10 runs** — worst run **−$113,660**. The society: **0/10**, and after the policy gate it *cannot*. Across all **15 archived runs** served live, the society averages **99.4%** to the monolith's **88.9%** |
+| **Headline** | **the policy gate makes payouts safe; Qwen judgment makes them correct.** Give the single-agent baseline the *same* gate and it holds the reserve — by wrongly stranding **$8,636 of legitimate payouts per run**. The Qwen society strands **$0**, at **100.0% ± 0.0%** proposal accuracy to the monolith's **87.6% ± 5.2%** across a controlled **11-run benchmark** (n=36, same policy, same gate). Ungated, the monolith **overdrew the treasury in 11/11 runs** — worst run **−$113,660**. Across all **16 archived runs** served live, the society averages **99.5%** to the monolith's **88.9%** |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
 | **Tests / CI** | 79 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
 | **Try it live** | on the demo, **replay any recorded run** event-by-event (real Qwen decisions, real on-chain tx), or open **"Try it"** to build a payout and watch its hash chain form and self-verify in your browser — no account, no setup |
@@ -99,10 +110,10 @@ Each doc leads with a rendered diagram (`docs/diagrams/*.png`):
 | [Sequence](docs/SEQUENCE.md) | one payout end-to-end with real recorded timestamps — clean path and argued-veto path |
 | [Trust model](docs/TRUST_MODEL.md) | proposed → governed → recorded → replayable → verifiable → anchored → executable → exportable, trust boundaries, decision state machine |
 | [Data model](docs/DATA_MODEL.md) | 7 entities, the event-type inventory as recorded, and why "the event is the only write" matters |
-| [Guarantees](docs/GUARANTEES.md) | 11 invariants **checked against all 21 recorded runs** (script included), plus honest scope |
+| [Guarantees](docs/GUARANTEES.md) | 11 invariants **checked against all 23 recorded runs** (script included), plus honest scope |
 | [Threat model](docs/THREAT_MODEL.md) | threat → mitigation → mechanism, including what v1 explicitly does *not* mitigate |
 | [Evidence pack example](docs/evidence-pack-example.json) | a real export: decision, 8-event chain, receipt, verification — untouched API output |
-| [Benchmark methodology](docs/BENCHMARK.md) | controlled 10-run benchmark, why accuracy is the wrong unit, what it costs (6.3× tokens) and what it doesn't prove |
+| [Benchmark methodology](docs/BENCHMARK.md) | controlled 11-run benchmark, why accuracy is the wrong unit, what it costs (6.7× tokens) and what it doesn't prove |
 | [Design principles](docs/DESIGN_PRINCIPLES.md) | the five rules that decided the architecture, each with its cost — and why this isn't an agent framework |
 
 ```
@@ -195,13 +206,13 @@ through a single monolithic agent. Both receive the identical org policy AND the
 same deterministic arithmetic aids; the labels model the full policy, including
 the reserve-floor funding waterfall.
 
-**Ten runs of the current architecture** (n=36, `scripts/bench_repeat.sh 10`).
-One run is an anecdote, so we ran it ten times and publish every one:
+**Eleven runs of the current architecture** (n=36, `scripts/bench_repeat.sh`).
+One run is an anecdote, so we ran it eleven times and publish every one:
 
 | | mean | sd | min | max |
 |---|---|---|---|---|
 | society (proposals) | **100.0%** | 0.0% | 100.0% | 100.0% |
-| monolith | 87.5% | 5.4% | **72.2%** | 91.7% |
+| monolith | 87.6% | 5.2% | **72.2%** | 91.7% |
 
 **But accuracy is the wrong unit.** A payout desk's job is not to be right on
 average — it is to not lose the money. Fold each system's own decisions into the
@@ -211,10 +222,10 @@ treasury (start $100,000, floor $10,000):
 |---|---|---|
 | closing balance | **+$15,540**, every run | **negative, every run** |
 | worst run | +$15,540 | **−$113,660** |
-| reserve floor breached | **0 / 10** | **10 / 10** |
+| reserve floor breached | **0 / 11** | **11 / 11** |
 
 The single agent **overdraws the treasury in every run it has ever been given.**
-Its *best* accuracy run (91.7%) closed at **−$9,460** — worse than four of its
+Its *best* accuracy run (91.7%) closed at **−$9,460** — worse than nine of its
 88.9% runs, because which payouts you get wrong matters more than how many.
 
 ### …but that table is not a fair fight, so we ran the ablation
@@ -227,9 +238,9 @@ it. So we bolted it onto the monolith and re-ran the numbers
 
 | | monolith | monolith **+ gate** | society |
 |---|---|---|---|
-| reserve floor breached | **10 / 10** | **0 / 10** | **0 / 10** |
-| legitimate payouts **stranded** (mean) | — | **$8,500** | **$0** |
-| judgment (proposal accuracy) | 87.5% | 87.5% | **100.0%** |
+| reserve floor breached | **11 / 11** | **0 / 11** | **0 / 11** |
+| legitimate payouts **stranded** (mean) | — | **$8,636** | **$0** |
+| judgment (proposal accuracy) | 87.6% | 87.6% | **100.0%** |
 
 **The treasury protection is the gate's, not the society's.** Say it plainly:
 give a single agent the same gate and it is just as safe. Anyone claiming a
@@ -241,19 +252,25 @@ something.
 higher balance means money that should have gone out didn't. The gate is
 veto-only by design: it can refuse a payout that breaks the rules, but it can
 never *rescue* one that was wrongly refused. **The gated monolith holds the floor
-by not paying people it owes — $8,500 of legitimate payouts stranded, every
+by not paying people it owes — $8,636 of legitimate payouts stranded, every
 run.** The society strands $0.
 
 So the two claims separate cleanly, and both are real:
 
 - **Governance stops you paying the wrong people.** Any architecture can have it.
 - **Only judgment makes you pay the right ones.** No gate can fix a stranded
-  payout — that is what the society is for, and it is worth **$8,500 a run**,
+  payout — that is what the society is for, and it is worth **$8,636 a run**,
   plus a record that explains every call.
 
 You can replay the ablation yourself: run
 `events-20260711-195934-gated-mono-n36.jsonl` in the console and watch the gate
 refuse the monolith's two $15,000 reserve-floor approvals in real recorded events.
+
+There is a second ablation on the model axis: run both systems on `qwen-turbo`
+and the monolith loses **23 points** (87.6% → **64.8% ± 1.6%**, 3 runs) while
+the society holds **100.0%** — the model tier moves the single agent and does
+not move the society. Full numbers and the honest limits in
+[docs/BENCHMARK.md](docs/BENCHMARK.md); the runs are archived in `runs-ablation/`.
 
 Its failure is structural, not noisy. It misses the **same four payouts** every
 stable run: it approves *both* $15,000 P3 payouts (the reserve floor is the one
@@ -529,8 +546,8 @@ cd src && python -m clearcrew.mcp_server        # stdio transport
    **Console → Run trail**, pick the `settled` run, click any payout, and step
    its hash chain (arrow keys). Every event you see was emitted by a real,
    Qwen-driven run of the society — nothing is staged. The **Benchmark** view
-   folds 10 of these runs and shows the society settling 100% within the
-   reserve floor where the single agent overdrew the treasury in 10/10.
+   folds 11 of these runs and shows the society settling 100% within the
+   reserve floor where the single agent overdrew the treasury in 11/11.
 2. **Build one yourself in the browser** — open **"Try it"**: submit a payout,
    settle or hold it, and watch the append-only hash chain form and self-verify
    client-side (real SHA-256, no network). It runs the same event model the

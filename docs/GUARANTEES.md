@@ -1,7 +1,7 @@
 # System Guarantees
 
 Invariants, not features. Each one names its mechanism, and each one was
-checked against **all 21 recorded runs** in `runs/` (script at the bottom) —
+checked against **all 23 recorded runs** in `runs/` (script at the bottom) —
 these are properties the data actually has, not properties we intend it to have.
 
 ## Invariants
@@ -9,7 +9,7 @@ these are properties the data actually has, not properties we intend it to have.
 1. **Every payout has exactly one terminal decision.**
    The orchestrator emits exactly one `payout.approved` or `payout.rejected`
    per payout, after the specialist agents (and, when vetoed, the resolution
-   ruling) have spoken. *Checked: 21/21 runs, every payout.*
+   ruling) have spoken. *Checked: 23/23 runs, every payout.*
 
 2. **Every decision is recorded before anything acts on it.**
    `events.emit()` appends, hashes, and flushes the event before returning.
@@ -20,7 +20,7 @@ these are properties the data actually has, not properties we intend it to have.
    `prev_hash` is the previous event's `event_hash` (genesis-anchored);
    `event_hash` is sha256 over the canonical JSON *including* `prev_hash`.
    Reorder, delete, or edit any event and `verify_chain()` reports the exact
-   break index. *Checked: 19/19 hash-chained runs verify end-to-end; the 2
+   break index. *Checked: 21/21 hash-chained runs verify end-to-end; the 2
    earliest runs predate hash chaining and are honestly reported (and
    displayed in the UI) as "replayable, not tamper-evident".*
 
