@@ -26,6 +26,15 @@ const VIEWS = [
 
 type ViewKey = (typeof VIEWS)[number][0]
 
+// The sidebar reads as the judge's workflow: understand what this is,
+// inspect the record, test it, then try it yourself.
+const NAV_GROUPS: ReadonlyArray<readonly [string, ReadonlyArray<ViewKey>]> = [
+  ['Understand', ['overview', 'society']],
+  ['Inspect', ['run', 'failures', 'evidence']],
+  ['Test', ['counterfactual', 'analytics', 'policy']],
+  ['Demo', ['demo']],
+]
+
 function SettledMark() {
   return (
     <svg className="brand-mark" viewBox="0 0 64 64" fill="none" aria-hidden="true">
@@ -74,12 +83,16 @@ export default function App() {
           <SettledMark />
           <div><strong>Verasettle<span>.</span></strong><small>ClearCrew audit</small></div>
         </div>
-        <div className="sidebar-label">Audit workspace</div>
         <nav className="side-nav" aria-label="ClearCrew sections">
-          {VIEWS.map(([key, label]) => (
-            <button key={key} className={key === view ? 'active' : ''} onClick={() => setView(key)}>
-              {label}
-            </button>
+          {NAV_GROUPS.map(([group, keys]) => (
+            <div className="nav-group" key={group}>
+              <div className="nav-group-label">{group}</div>
+              {keys.map((key) => (
+                <button key={key} className={key === view ? 'active' : ''} onClick={() => setView(key)}>
+                  {VIEWS.find((item) => item[0] === key)![1]}
+                </button>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="sidebar-proof"><span /> Recorded evidence<br />read-only replay</div>

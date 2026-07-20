@@ -15,13 +15,15 @@ button:focus-visible, input:focus-visible { outline: 2px solid #2dd4bf; outline-
 .brand-lockup strong { display: block; font-size: 17px; letter-spacing: -0.045em; line-height: 1; }
 .brand-lockup strong span { color: #0d9488; }
 .brand-lockup small { display: block; margin-top: 5px; color: #8a94a2; font: 500 10px/1.2 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .08em; text-transform: uppercase; }
-.sidebar-label, .eyebrow { color: #8a94a2; font: 600 10px/1.2 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
-.sidebar-label { padding: 0 10px 8px; }
-.side-nav { display: grid; gap: 3px; }
-.side-nav button { border: 0; border-radius: 10px; background: transparent; color: #5b6776; cursor: pointer; padding: 9px 10px; text-align: left; font-size: 13px; font-weight: 550; transition: background .2s cubic-bezier(.2,.8,.2,1), color .2s cubic-bezier(.2,.8,.2,1), transform .2s cubic-bezier(.2,.8,.2,1); }
+.eyebrow { color: #8a94a2; font: 600 10px/1.2 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .12em; text-transform: uppercase; }
+.side-nav { display: grid; gap: 18px; }
+.nav-group { display: grid; gap: 3px; }
+.nav-group-label { padding: 0 10px 5px; color: #8a94a2; font: 600 9.5px/1.2 'JetBrains Mono', ui-monospace, monospace; letter-spacing: .14em; text-transform: uppercase; }
+.side-nav button { position: relative; border: 0; border-radius: 10px; background: transparent; color: #5b6776; cursor: pointer; padding: 9px 10px; text-align: left; font-size: 13px; font-weight: 550; transition: background .2s cubic-bezier(.2,.8,.2,1), color .2s cubic-bezier(.2,.8,.2,1), transform .2s cubic-bezier(.2,.8,.2,1); }
 .side-nav button:hover { background: #f4f6f3; color: #0e1620; }
 .side-nav button:active { transform: translateY(1px); }
 .side-nav button.active { background: rgba(45, 212, 191, .16); color: #0d7068; }
+.side-nav button.active::before { content: ''; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 2px; background: #0d9488; }
 .sidebar-proof { margin-top: auto; padding: 16px 10px 2px; border-top: 1px solid #eef0ec; color: #5b6776; font: 500 10px/1.65 'JetBrains Mono', ui-monospace, monospace; }
 .sidebar-proof span { display: inline-block; width: 7px; height: 7px; margin-right: 6px; border-radius: 99px; background: #059669; }
 
@@ -155,5 +157,5 @@ button:focus-visible, input:focus-visible { outline: 2px solid #2dd4bf; outline-
 
 ::-webkit-scrollbar { width: 7px; height: 7px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #dbe0da; border-radius: 99px; }
 @keyframes settle-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
-@media (max-width: 760px) { .app-shell { display: block; }.sidebar { position: sticky; top: 0; z-index: 2; height: auto; overflow-y: visible; padding: 12px 14px; border-right: 0; border-bottom: 1px solid #e6e8e4; }.brand-lockup { padding: 0 2px 12px; }.sidebar-label, .sidebar-proof { display: none; }.side-nav { display: flex; overflow-x: auto; gap: 4px; }.side-nav button { flex: none; min-height: 40px; padding: 8px 11px; }.app-main { padding: 24px 16px 48px; }.topbar { margin-bottom: 20px; }.topbar-proof { display: none; }.run-switcher { display: grid; padding: 14px; }.run-options { max-width: 100%; }.page-content { overflow: hidden; } }
+@media (max-width: 760px) { .app-shell { display: block; }.sidebar { position: sticky; top: 0; z-index: 2; height: auto; overflow-y: visible; padding: 12px 14px; border-right: 0; border-bottom: 1px solid #e6e8e4; }.brand-lockup { padding: 0 2px 12px; }.sidebar-proof { display: none; }.side-nav { display: flex; overflow-x: auto; gap: 4px; }.nav-group { display: contents; }.nav-group-label { display: none; }.side-nav button { flex: none; min-height: 40px; padding: 8px 11px; }.app-main { padding: 24px 16px 48px; }.topbar { margin-bottom: 20px; }.topbar-proof { display: none; }.run-switcher { display: grid; padding: 14px; }.run-options { max-width: 100%; }.page-content { overflow: hidden; } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
