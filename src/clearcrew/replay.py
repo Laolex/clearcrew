@@ -625,13 +625,29 @@ def society(auth=Depends(require_auth)):
     inspectable surface connecting the visible console to the agents that write
     the events in it.
     """
-    runtime = config.resolve_runtime()
+    try:
+        runtime = config.resolve_runtime()
+        provider_label = runtime.provider_label
+        base_url = runtime.base_url
+        model_fast = runtime.model_fast
+        model_strong = runtime.model_strong
+    except RuntimeError:
+        # The replay console holds no provider credentials — replay never
+        # calls a model — so report the runtime the recorded runs were made
+        # with instead of failing a read-only page.
+        provider_label = "Qwen Cloud (DashScope)"
+        base_url = os.environ.get(
+            "DASHSCOPE_BASE_URL",
+            "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+        )
+        model_fast = os.environ.get("CLEARCREW_MODEL_FAST", "qwen3.7-plus")
+        model_strong = os.environ.get("CLEARCREW_MODEL_STRONG", "qwen3.7-max")
     return {
-        "provider": runtime.provider_label,
-        "endpoint": runtime.base_url,
+        "provider": provider_label,
+        "endpoint": base_url,
         "models": [
-            {"name": runtime.model_fast, "purpose": "parallel intake triage and audit explanations"},
-            {"name": runtime.model_strong, "purpose": "compliance, treasury, and resolution judgments"},
+            {"name": model_fast, "purpose": "parallel intake triage and audit explanations"},
+            {"name": model_strong, "purpose": "compliance, treasury, and resolution judgments"},
         ],
         "roles": [
             {"name": "Intake", "authority": "classifies payout risk; cannot approve or reject"},

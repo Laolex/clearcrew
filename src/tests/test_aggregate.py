@@ -82,6 +82,18 @@ def test_analytics_averages_benchmarks_and_capabilities(client):
     assert a["coverage"]["replay_pct"] == 100.0
 
 
+def test_society_reports_recorded_runtime_without_credentials(client, monkeypatch):
+    # The deployed replay console carries no provider keys; the page must
+    # report the runtime the recorded runs used rather than 500.
+    for var in ("CLEARCREW_PROVIDER", "DASHSCOPE_API_KEY", "OPENAI_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    r = client.get("/api/society")
+    assert r.status_code == 200
+    s = r.json()
+    assert s["provider"] == "Qwen Cloud (DashScope)"
+    assert [model["name"] for model in s["models"]] == ["qwen3.7-plus", "qwen3.7-max"]
+
+
 def test_society_exposes_configured_provider_roles_and_controls(client, monkeypatch):
     monkeypatch.setenv("CLEARCREW_PROVIDER", "dashscope")
     monkeypatch.setenv("DASHSCOPE_API_KEY", "test-key")
