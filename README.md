@@ -83,7 +83,7 @@ verdict, and money movement in one tamper-evident history.**
 | **Live demo** | https://clearcrew.verasettle.com (Alibaba Function Compute) |
 | **Headline** | **the policy gate makes payouts safe; Qwen judgment makes them correct.** Give the single-agent baseline the *same* gate and it holds the reserve — by wrongly stranding **$8,636 of legitimate payouts per run**. The Qwen society strands **$0**, at **100.0% ± 0.0%** proposal accuracy to the monolith's **87.6% ± 5.2%** across a controlled **11-run benchmark** (n=36, same policy, same gate). Ungated, the monolith **overdrew the treasury in 11/11 runs** — worst run **−$113,660**. Across all **16 archived runs** served live, the society averages **99.5%** to the monolith's **88.9%** |
 | **Real money** | 3 approved verdicts settled as real testnet USDC on Base Sepolia (tx table below) |
-| **Tests / CI** | 79 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
+| **Tests / CI** | 117 pytest (+2 opt-in live-TSA), green on 3.10 + 3.12 every push |
 | **Try it live** | on the demo, **replay any recorded run** event-by-event (real Qwen decisions, real on-chain tx), or open **"Try it"** to build a payout and watch its hash chain form and self-verify in your browser — no account, no setup |
 | **Eval bar** | the reserve floor as a chess-style position bar — folds the recorded decisions and shows the 2 archived runs that **broke** the floor |
 | **Policy gate** | agents *propose*, policy *promotes*: an approval P1/P2/P3 forbids **cannot be recorded**. The reserve floor is an invariant, not a grade. Veto-only — it can refuse, never approve |
