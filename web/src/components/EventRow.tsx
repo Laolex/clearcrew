@@ -256,7 +256,13 @@ export function EventRow({
                       wordBreak: 'break-all',
                     }}
                   >
-                    {v}
+                    {/^https?:\/\//.test(v) ? (
+                      <a href={v} target="_blank" rel="noreferrer" style={{ color: C.state.held }}>
+                        {v}
+                      </a>
+                    ) : (
+                      v
+                    )}
                   </div>
                 </div>
               ))}

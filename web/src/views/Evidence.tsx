@@ -232,10 +232,19 @@ export function Evidence({ run }: { run: string | null }) {
             <>No external timestamp proof was recorded for this run. Its hash chain is tamper-evident, but the writer-controlled archive has no independent timestamp anchor.</>
           ) : anchors.anchors.map((anchor) => (
             <div key={anchor.event_id} style={{ marginBottom: '10px' }}>
-              <span style={{ fontFamily: MONO, color: anchor.verification.valid ? C.state.approved : C.state.rejected }}>
-                {anchor.verification.valid ? 'IMPRINT MATCHES' : 'ANCHOR INVALID'}
-              </span>{' '}
-              {anchor.provider ?? 'unknown provider'} · {anchor.tsa_time ?? 'time unavailable'}
+              {anchor.provider === 'noop' ? (
+                <>
+                  <span style={{ fontFamily: MONO, color: C.text.muted }}>NO EXTERNAL ANCHOR</span>{' '}
+                  a placeholder anchor was recorded for this run — no independent timestamp was requested
+                </>
+              ) : (
+                <>
+                  <span style={{ fontFamily: MONO, color: anchor.verification.valid ? C.state.approved : C.state.rejected }}>
+                    {anchor.verification.valid ? 'IMPRINT MATCHES' : 'ANCHOR INVALID'}
+                  </span>{' '}
+                  {anchor.provider ?? 'unknown provider'} · {anchor.tsa_time ?? 'time unavailable'}
+                </>
+              )}
               <div style={{ fontFamily: MONO, fontSize: '10px', color: C.text.ghost, marginTop: '4px', wordBreak: 'break-all' }}>
                 {anchor.head_hash ?? anchor.verification.reason}
               </div>
