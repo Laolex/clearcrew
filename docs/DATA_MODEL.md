@@ -90,8 +90,8 @@ Two properties do the heavy lifting:
 | `chain.anchored` | anchor | the head hash, signed by an independent RFC-3161 authority |
 | `chain.anchor_failed` | anchor | an anchor that did **not** succeed — recorded as a failure, never as a success |
 
-Counts across the 21 archived runs: 372 `payout.proposed`, 354 `payout.approved`,
-228 `payout.rejected`, 11 `chain.anchored`, 0 `chain.anchor_failed`.
+Counts across the 23 archived runs: 444 `payout.proposed`, 397 `payout.approved`,
+257 `payout.rejected`, 12 `chain.anchored`, 0 `chain.anchor_failed`.
 
 **Why `payout.proposed` and `payout.approved` are different events.** Collapsing
 them would destroy two things at once: the ability to grade the *agents* (after a

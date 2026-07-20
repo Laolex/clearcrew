@@ -85,7 +85,7 @@ these are properties the data actually has, not properties we intend it to have.
 | | |
 |---|---|
 | **Implemented** | replay · explain · counterfactual replay · hash-chain verification · **external RFC-3161 anchoring** · **veto-only policy gate** · **durable event store: forks impossible, indexed reads, idempotent appends** · evidence export (JSON/PDF) · real testnet USDC settlement · society-vs-monolith benchmark · live judge mode · read-only MCP server |
-| **Recorded but early** | 2 of 22 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
+| **Recorded but early** | 2 of 23 archived runs predate hash chaining (replayable, not tamper-evident — labeled as such in the UI). Runs archived before the gate could, and twice did, breach the reserve floor; they are published as they were recorded |
 | **Roadmap, not claimed** | multi-policy version history · **multi-host** writers (the store is single-node SQLite; the schema and the anti-fork constraint port to Postgres unchanged) · per-agent cryptographic signing (attribution today is a label the orchestrator writes, not a signature) · production custody & key management · mainnet settlement |
 
 ### The writer forked the chain. We reproduced it, then fixed it.
